@@ -1,0 +1,139 @@
+"""
+v4_config.py — Central configuration for the 8-Stage Pricing Optimization System.
+
+Designed for 23 SKUs × 11 cities = 218 cells across 3 categories
+(Jaggery, Moong Dal, Sunflower Oil) on Blinkit.
+"""
+import os
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  STAGE 1: DATA INGESTION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SALES_DATA_DIR = r"D:\1. Project\Advance Discount Planning\Top 3 Products Data"
+MASTER_DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "master")
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "v4_outputs")
+
+# Column name mapping (raw Excel → internal)
+COL = {
+    "product_id":   "PRODUCT_ID",
+    "platform":     "GC_PLATFORM",
+    "date":         "DATE",
+    "title":        "TITLE",
+    "grammage":     "GRAMMAGE",
+    "city":         "GC_CITY",
+    "brand":        "BRAND",
+    "offtake_mrp":  "OFFTAKE_MRP",
+    "offtake_qty":  "OFFTAKE_QTY",
+    "price":        "PRICE",
+    "mrp":          "MRP",
+    "availability": "WT_AVAILABILITY_PCT",
+    "discount_pct": "WT_DISCOUNT_PCT",
+    "cat_share":    "MONTHLY_CAT_SHARE_MRP",
+    "overall_sov":  "MONTHLY_OVERALL_SOV",
+    "organic_sov":  "MONTHLY_ORGANIC_SOV",
+    "ad_sov":       "MONTHLY_AD_SOV",
+    "wt_avg_ppu":   "WT_AVG_PPU_X100",
+    "competitor_price": "Competitor Price",
+    "rpi":          "Relative Price Index",
+}
+
+# Category detection from product title keywords
+CATEGORY_KEYWORDS = {
+    "Jaggery":       ["jaggery"],
+    "Moong Dal":     ["moong", "dal"],
+    "Sunflower Oil": ["sunflower", "oil"],
+}
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  STAGE 2: DATA PREPARATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OSA_OOS_THRESHOLD = 50  # Below this % availability = out-of-stock day
+
+# Event / festival calendar (Indian market)
+FESTIVAL_DATES = {
+    # Format: "YYYY-MM-DD": "event_name"
+    "2025-01-14": "Makar Sankranti",
+    "2025-03-14": "Holi",
+    "2025-03-31": "Eid ul-Fitr",
+    "2025-04-14": "Baisakhi",
+    "2025-08-15": "Independence Day",
+    "2025-08-27": "Janmashtami",
+    "2025-10-02": "Gandhi Jayanti",
+    "2025-10-12": "Dussehra",
+    "2025-10-20": "Diwali",
+    "2025-11-01": "Diwali (extended)",
+    "2025-11-15": "Guru Nanak Jayanti",
+    "2025-12-25": "Christmas",
+    "2026-01-14": "Makar Sankranti",
+    "2026-01-26": "Republic Day",
+    "2026-03-03": "Holi",
+}
+
+# Blinkit platform event days (BBD = Big Billion Days etc.)
+PLATFORM_EVENT_WINDOWS = {
+    # (start, end): event_name  — approximate windows
+    ("2025-09-27", "2025-10-06"): "BBD",
+    ("2025-11-20", "2025-11-30"): "Black Friday Sale",
+    ("2026-01-15", "2026-01-20"): "Republic Day Sale",
+}
+
+FESTIVAL_WINDOW_DAYS = 2  # days before/after a festival to flag
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  STAGE 3: FEATURE ENGINEERING
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REFERENCE_PRICE_WINDOW = 30   # Rolling window for customer reference price
+OSA_ROLLING_WINDOW = 7
+AD_ROLLING_WINDOW = 7
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  STAGE 4: HIERARCHICAL ELASTICITY MODEL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MODEL_TYPE = "mixed_lm"  # "mixed_lm" (statsmodels) or "bayesian" (PyMC)
+TEST_SPLIT_PCT = 0.20
+RANDOM_STATE = 42
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  STAGE 5: SATURATION CURVES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DISCOUNT_MIN_PCT = 0
+DISCOUNT_MAX_PCT = 30
+DISCOUNT_STEP_PCT = 1
+EXTRAPOLATION_FLAG_PCT = 50   # Flag if >50% of curve is outside training range
+STABILITY_VARIATION_THRESHOLD = 0.20  # 20% param variation = unstable
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  STAGE 6: ECONOMICS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DEFAULT_COGS_PCT = 0.50       # 50% of MRP
+DEFAULT_COMMISSION_PCT = 0.15  # 15% Blinkit commission
+DEFAULT_FULFILLMENT_FEE = 10   # ₹10/unit
+MARGINAL_ROI_THRESHOLD = 1.0   # Elbow: where marginal ROI crosses this
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  STAGE 7: GUARDRAILS + TIERING
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MIN_MARGIN_PCT = 0.05          # 5% min margin above variable cost
+MAX_COMPETITOR_PREMIUM_PCT = 0.10  # Max 10% above competitor
+MAX_DISCOUNT_CHANGE_PPT = 3    # Max 3 percentage-point change per cycle
+STRATEGIC_SKUS = []             # SKU IDs with override rules
+
+# Tiering thresholds
+TIER_STRONG_CUT_MIN_SAVINGS = 10000    # ₹10K/month minimum for Strong Cut
+TIER_STRONG_CUT_MAX_VOL_DROP = 0.05    # Max 5% volume drop
+TIER_TRADEOFF_MAX_VOL_DROP = 0.10      # Max 10% volume drop for Trade-off
+TIER_INCREASE_MIN_MARGINAL_ROI = 2.0   # If marginal ROI > 2, under-discounted
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  STAGE 8: MONITORING
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VOLUME_DROP_TOLERANCE_PCT = 5.0   # Alert if actual > predicted + this
+DRIFT_ALERT_THRESHOLD = 0.15      # 15% prediction error = drift
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  DASHBOARD
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TARGET_DISCOUNT_PCT = 10.0
+TARGET_QUARTER = "Q4 2026"
+BRAND_NAME = "24 Mantra Organic"
+PLATFORM_NAME = "Blinkit"

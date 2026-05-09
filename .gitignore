@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+*$py.class
+v4_outputs/
+data/
+archive/
+.ipynb_checkpoints/
