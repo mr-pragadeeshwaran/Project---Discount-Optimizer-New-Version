@@ -59,6 +59,8 @@ def generate_waste_reinvest_report(rec_df, feat_df, model_output, run_dir):
     summary = _build_summary(waste_all, reinvest_all, waste_main, df_all=df)
     # Canonical business metrics: total_spend / total_sales_at_MRP and per-product breakdown
     summary["business"] = _compute_business_metrics(df, waste_main, reinvest_main)
+    # Model accuracy from Stage 4 diagnostics — pulled into the brand-team report
+    summary["model_accuracy"] = _compute_model_accuracy(model_output)
 
     # Print summary — business-style
     biz = summary["business"]
@@ -954,6 +956,30 @@ def _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir):
                      f"The plan re-optimises each week against fresh data.*")
         lines.append("")
 
+    # ── Model accuracy ──────────────────────────────────────────────
+    acc = summary.get("model_accuracy", {})
+    if acc.get("available"):
+        lines.append("## Model Accuracy")
+        lines.append("")
+        lines.append(f"**Overall: {acc['tier']}** — trained on {acc['n_train']:,} regular-day rows, "
+                     f"validated on {acc['n_test']:,} held-out future rows.")
+        lines.append("")
+        lines.append("| Metric | Value | What it means |")
+        lines.append("|---|---:|---|")
+        lines.append(f"| Out-of-sample R² (test set) | {acc['test_r2_log']:.2f} | "
+                     f"Fraction of week-to-week variation in unit sales the model explains on data it "
+                     f"hasn't seen during training. 1.0 = perfect, 0 = useless. |")
+        lines.append(f"| Average error at discount-bin grain | {acc['test_mape_agg']:.1f}% | "
+                     f"Average % error when comparing predicted vs actual mean units in each 3-ppt "
+                     f"discount band. This is the metric the saturation curve uses. |")
+        lines.append(f"| Training-data fit (in-distribution R²) | {acc['train_r2_log']:.2f} | "
+                     f"How well the model fits the data it was trained on. High value = price/quantity "
+                     f"relationship is well captured. |")
+        lines.append("")
+        lines.append("*Daily-level predictions are inherently noisy for CPG SKU × city data; "
+                     "recommendations are most reliable on the High-confidence cells.*")
+        lines.append("")
+
     # ── Per-product breakdown ──────────────────────────────────────────
     per_prod = biz.get("per_product", {})
     if per_prod:
@@ -1210,6 +1236,50 @@ def _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir):
             f"~<b>{cycles} weekly cycles</b>. The plan re-optimises each week against fresh data.",
             note_style))
 
+    # ── Model accuracy block ───────────────────────────────────────────
+    acc = summary.get("model_accuracy", {})
+    if acc.get("available"):
+        story.append(Paragraph("Model accuracy", h2_style))
+        tier = acc["tier"]
+        tier_color = {"Strong": POS, "Moderate": ACCENT, "Weak": NEG, "Unreliable": NEG}.get(tier, MUTED)
+        # Long explanation text needs Paragraph wrapping so it wraps properly
+        exp_style = ParagraphStyle("exp", fontName="Helvetica", fontSize=8,
+                                    leading=10, textColor=MUTED, alignment=TA_LEFT)
+        acc_data = [
+            ["", "Value", "What it means"],
+            ["Out-of-sample R² (test set)",
+                f"{acc['test_r2_log']:.2f}",
+                Paragraph("Fraction of week-to-week variation in unit sales the model explains "
+                          "on data it has not seen during training. 1.0 = perfect, 0 = useless.",
+                          exp_style)],
+            ["Avg error at discount-bin grain",
+                f"{acc['test_mape_agg']:.1f}%",
+                Paragraph("Average % error when comparing predicted vs actual mean units in each "
+                          "3-ppt discount band. This is the grain the saturation curve uses.",
+                          exp_style)],
+            ["Training-data fit (in-distribution R²)",
+                f"{acc['train_r2_log']:.2f}",
+                Paragraph("How well the model fits the data it was trained on. High value means "
+                          "the price/quantity relationship is well captured.",
+                          exp_style)],
+        ]
+        acc_tbl = Table(acc_data, colWidths=[58*mm, 22*mm, 90*mm])
+        acc_tbl.setStyle(_minimal_table_style(INK, HAIRLINE, RULE))
+        acc_tbl.setStyle(TableStyle([
+            ("ALIGN", (2, 0), (2, -1), "LEFT"),  # explanation col left-aligned
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING", (0, 1), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
+        ]))
+        story.append(acc_tbl)
+        story.append(Spacer(1, 2*mm))
+        story.append(Paragraph(
+            f"<b>Overall: <font color='{tier_color.hexval()}'>{tier}</font></b> — "
+            f"trained on {acc['n_train']:,} regular-day rows, validated on {acc['n_test']:,} "
+            f"held-out future rows. Daily-level predictions are inherently noisy for CPG SKU × "
+            f"city data; recommendations are most reliable on the High-confidence cells.",
+            note_style))
+
     # ╔══════════════════════════════════════════════════════════════════╗
     # PAGE 2 — PER-PRODUCT BREAKDOWN
     # ╚══════════════════════════════════════════════════════════════════╝
@@ -1415,6 +1485,51 @@ def _confidence_legend(body_style, note_style):
         "Cells where the model flagged a data-quality concern (boundary-hit elasticity or "
         "rapid demand growth) are automatically downgraded one tier.</i>",
         note_style)
+
+
+def _compute_model_accuracy(model_output: dict) -> dict:
+    """
+    Extract Stage 4 model diagnostics into a brand-team-friendly accuracy
+    summary. Returns a dict with the raw metrics + a plain-English tier
+    (Strong / Moderate / Weak / Unreliable).
+
+    Tier thresholds (gut-calibrated for SKU x city x day CPG data):
+      Strong:     test R^2 >= 0.50 AND aggregated MAPE <= 30%
+      Moderate:   test R^2 >= 0.20 AND aggregated MAPE <= 60%
+      Weak:       test R^2 >= 0.00 AND aggregated MAPE <= 100%
+      Unreliable: anything below
+    """
+    if not model_output or "diagnostics" not in model_output:
+        return {"available": False}
+    d = model_output["diagnostics"]
+    train_r2 = float(d.get("test_r2_train", 0))
+    test_r2  = float(d.get("test_r2_log",   0))
+    daily_mape = float(d.get("test_mape",   99.9))
+    agg_mape   = float(d.get("test_mape_agg", d.get("test_mape", 99.9)))
+    agg_r2     = float(d.get("test_r2_units_agg", d.get("test_r2", 0)))
+    n_train    = int(d.get("n_train", 0))
+    n_test     = int(d.get("n_test",  0))
+
+    if test_r2 >= 0.50 and agg_mape <= 30:
+        tier = "Strong"
+    elif test_r2 >= 0.20 and agg_mape <= 60:
+        tier = "Moderate"
+    elif test_r2 >= 0.00 and agg_mape <= 100:
+        tier = "Weak"
+    else:
+        tier = "Unreliable"
+
+    return {
+        "available": True,
+        "tier":             tier,
+        "train_r2_log":     round(train_r2, 3),
+        "test_r2_log":      round(test_r2, 3),
+        "test_mape_daily":  round(daily_mape, 1),
+        "test_mape_agg":    round(agg_mape, 1),
+        "test_r2_agg":      round(agg_r2, 3),
+        "n_train":          n_train,
+        "n_test":           n_test,
+    }
 
 
 def _money_signed(v, pos_color, neg_color):
