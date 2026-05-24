@@ -71,8 +71,23 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
 
     # ── Filter to regular days only ─────────────────────────────────
     regular = df[df["is_regular_day"] == 1].copy()
-    print(f"  [Stage 4] Training data: {len(regular):,} regular-day rows "
-          f"(excluded {len(df) - len(regular):,} event/OOS)")
+    n_after_flags = len(regular)
+
+    # ── Restrict to recent lookback window (see TRAIN_LOOKBACK_DAYS) ─
+    # This is the single biggest accuracy lever — restricting to recent
+    # steady-state data avoids launch ramps and outdated price regimes
+    # that were poisoning the model. See experiments_mape.py for evidence.
+    lookback = getattr(cfg, "TRAIN_LOOKBACK_DAYS", None)
+    if lookback and not df.empty:
+        max_date = pd.to_datetime(regular[COL["date"]]).max()
+        cutoff = max_date - pd.Timedelta(days=int(lookback))
+        regular = regular[pd.to_datetime(regular[COL["date"]]) >= cutoff].copy()
+        print(f"  [Stage 4] Training data: {len(regular):,} rows from last {lookback} days "
+              f"(filtered from {n_after_flags:,} regular-day rows, "
+              f"{len(df) - n_after_flags:,} event/OOS dropped)")
+    else:
+        print(f"  [Stage 4] Training data: {len(regular):,} regular-day rows "
+              f"(excluded {len(df) - n_after_flags:,} event/OOS, no lookback filter)")
 
     # ── Build cell identifier ────────────────────────────────────────
     has_grammage = COL["grammage"] in regular.columns

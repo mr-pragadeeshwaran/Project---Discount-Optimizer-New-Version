@@ -54,8 +54,22 @@ OSA_OOS_THRESHOLD = 50  # Below this % availability = out-of-stock day
 # Rows with |log_units z-score| > this threshold (computed per cell on
 # regular days) are flagged and excluded from training. Saved to
 # outliers_removed.csv in the run directory for audit.
-OUTLIER_Z_THRESHOLD       = 3.0
+#
+# Empirically tuned (see scripts/experiments/experiments_mape.py):
+# z=2.0 with TRAIN_LOOKBACK_DAYS=180 produced the strong-tier model.
+# Loosen to 3.0 if you want to keep more days (will reduce R² ~3 ppt).
+OUTLIER_Z_THRESHOLD       = 2.0
 OUTLIER_MIN_OBS_PER_CELL  = 30   # Need at least this many obs to compute z
+
+# ── Training lookback window ──
+# Stage 4 trains only on regular days within the last N days. Restricting
+# to recent steady-state data avoids contamination from:
+#  - launch-ramp periods (e.g. Moong Dal grew 16× in the first 9 months)
+#  - older price regimes that don't match the current market
+# This was the single biggest accuracy lever — increased aggregated R²
+# from 0.40 → 0.94 and dropped MAPE from 53% → 23%.
+# Set to None to train on full history (the old behavior).
+TRAIN_LOOKBACK_DAYS = 180
 
 # Event / festival calendar (Indian market)
 FESTIVAL_DATES = {
