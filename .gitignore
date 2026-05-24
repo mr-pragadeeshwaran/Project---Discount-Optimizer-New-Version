@@ -5,3 +5,12 @@ v4_outputs/
 data/
 archive/
 .ipynb_checkpoints/
+
+# Proprietary input data — never commit
+input_data/
+
+# Local Claude Code config
+.claude/
+
+# Per-run experiment scratch outputs
+experiment_results*.csv

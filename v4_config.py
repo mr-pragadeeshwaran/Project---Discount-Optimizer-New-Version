@@ -1,15 +1,16 @@
 """
 v4_config.py — Central configuration for the 8-Stage Pricing Optimization System.
 
-Designed for 23 SKUs × 11 cities = 218 cells across 3 categories
-(Jaggery, Moong Dal, Sunflower Oil) on Blinkit.
+Designed for 24 Mantra Organic SKUs across 11 cities on Blinkit.
+Competitor brands are excluded from modeling; their pricing is captured
+via the Competitor Price column for competitive positioning features.
 """
 import os
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  STAGE 1: DATA INGESTION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SALES_DATA_DIR = r"D:\1. Project\Advance Discount Planning\Top 3 Products Data"
+SALES_DATA_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 MASTER_DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "master")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "v4_outputs")
 
@@ -48,6 +49,13 @@ CATEGORY_KEYWORDS = {
 #  STAGE 2: DATA PREPARATION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OSA_OOS_THRESHOLD = 50  # Below this % availability = out-of-stock day
+
+# ── Per-cell outlier detection (within product × grammage × city) ──
+# Rows with |log_units z-score| > this threshold (computed per cell on
+# regular days) are flagged and excluded from training. Saved to
+# outliers_removed.csv in the run directory for audit.
+OUTLIER_Z_THRESHOLD       = 3.0
+OUTLIER_MIN_OBS_PER_CELL  = 30   # Need at least this many obs to compute z
 
 # Event / festival calendar (Indian market)
 FESTIVAL_DATES = {
@@ -135,5 +143,21 @@ DRIFT_ALERT_THRESHOLD = 0.15      # 15% prediction error = drift
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TARGET_DISCOUNT_PCT = 10.0
 TARGET_QUARTER = "Q4 2026"
+
+# ── Portfolio flywheel: target weighted discount across all cells ──
+# Stage 8 rebalances cuts ↔ reinvestments to move the revenue-weighted
+# portfolio discount toward this target. Change to retune the flywheel.
+TARGET_WEIGHTED_DISCOUNT_PCT = 9.0
+
+# Strategic reinvestment criteria (Stage 8):
+# A cell qualifies as a growth-reinvest candidate if a +3 ppt discount move
+# would lift volume by ≥ MIN_VOL_LIFT_PCT and sacrifice margin by no more
+# than MAX_MARGIN_SAC_PCT of current contribution.
+REINVEST_MIN_VOL_LIFT_PCT  = 5.0
+REINVEST_MAX_MARGIN_SAC_PCT = 10.0
+REINVEST_MIN_ELASTICITY    = 2.0  # |elast| must be at least this
 BRAND_NAME = "24 Mantra Organic"
+# Brand name patterns to filter own-brand SKUs (case-insensitive match)
+# All other brands are treated as competitors
+OWN_BRAND_PATTERNS = ["24 Mantra Organic", "24 Mantra"]
 PLATFORM_NAME = "Blinkit"

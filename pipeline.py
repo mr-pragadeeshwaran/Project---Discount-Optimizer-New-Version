@@ -19,7 +19,7 @@ import v4_config as cfg
 
 def run_pipeline(stages=None):
     """Run the full 8-stage pipeline (or specific stages)."""
-    all_stages = [1, 2, 3, 4, 5, 6, 7]
+    all_stages = [1, 2, 3, 4, 5, 6, 7, 8]
     if stages is None:
         stages = all_stages
 
@@ -54,7 +54,7 @@ def run_pipeline(stages=None):
         print("  STAGE 2 — DATA PREPARATION")
         print("─" * 70)
         from stage2_preparation.prepare import prepare_fact_table
-        fact_df = prepare_fact_table(context["raw_df"], context["calendar_df"])
+        fact_df = prepare_fact_table(context["raw_df"], context["calendar_df"], run_dir=run_dir)
         fact_df.to_csv(os.path.join(run_dir, "fact_table.csv"), index=False)
         context["fact_df"] = fact_df
 
@@ -113,8 +113,23 @@ def run_pipeline(stages=None):
         from stage7_guardrails.guardrails import apply_guardrails_and_tier
         recommendations_df = apply_guardrails_and_tier(context["economics_df"])
 
-        # Save recommendations (exclude nested columns for CSV)
-        save_cols = [c for c in recommendations_df.columns if c not in ("ladder", "curve_points", "curve_params")]
+        # Save recommendations (exclude nested columns for CSV).
+        # Lead with price-first columns — that's what the brand team thinks in.
+        nested = {"ladder", "curve_points", "curve_params"}
+        price_first = [
+            "product_id", "city", "category", "title", "mrp", "cell_id",
+            "tier", "confidence", "quality_note",
+            "current_price", "rec_price", "price_change_inr", "price_change_pct",
+            "current_discount_pct", "rec_discount_pct",
+            "current_units_day", "rec_units_day", "rec_vol_change_pct",
+            "current_revenue_day", "rec_revenue_day", "rec_rev_change_pct",
+            "rec_monthly_savings",
+            "elasticity", "badge_sensitivity",
+        ]
+        ordered = [c for c in price_first if c in recommendations_df.columns]
+        rest    = [c for c in recommendations_df.columns
+                   if c not in ordered and c not in nested]
+        save_cols = ordered + rest
         recommendations_df[save_cols].to_csv(
             os.path.join(run_dir, "recommendations.csv"), index=False
         )
@@ -128,6 +143,20 @@ def run_pipeline(stages=None):
         dashboard_path = generate_dashboard(recommendations_df, run_dir, context)
         context["dashboard_path"] = dashboard_path
 
+    # ── STAGE 8: WASTE & REINVESTMENT REPORT ─────────────────────────
+    if 8 in stages:
+        print("\n" + "─" * 70)
+        print("  STAGE 8 — WASTE & REINVESTMENT REPORT")
+        print("─" * 70)
+        from stage8_output.waste_reinvest import generate_waste_reinvest_report
+        report_paths = generate_waste_reinvest_report(
+            context["recommendations_df"],
+            context["feat_df"],
+            context.get("model_output"),
+            run_dir,
+        )
+        context["report_paths"] = report_paths
+
     # ── FINAL SUMMARY ───────────────────────────────────────────────
     print("\n" + "=" * 70)
     print("  PIPELINE COMPLETE")
@@ -135,6 +164,8 @@ def run_pipeline(stages=None):
     print(f"  Output directory: {run_dir}")
     if "dashboard_path" in context:
         print(f"  Dashboard: {context['dashboard_path']}")
+    if "report_paths" in context:
+        print(f"  W&R Report: {context['report_paths']['markdown']}")
     print("=" * 70)
 
     return context

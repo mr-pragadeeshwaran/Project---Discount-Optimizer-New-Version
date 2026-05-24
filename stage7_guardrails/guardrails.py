@@ -23,12 +23,13 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
     df = economics_df.copy()
 
     # ── Apply guardrails per cell ───────────────────────────────────
-    df["guardrail_floor_ok"] = True
+    df["guardrail_floor_ok"]      = True
     df["guardrail_competitor_ok"] = True
-    df["guardrail_change_ok"] = True
-    df["is_throttled"] = False
-    df["throttled_discount_pct"] = df["elbow_discount_pct"]
-    df["phasing_plan"] = ""
+    df["guardrail_change_ok"]     = True
+    df["is_throttled"]            = False
+    # MUST be float — discount can be e.g. 6.3% after throttling
+    df["throttled_discount_pct"]  = df["elbow_discount_pct"].astype(float)
+    df["phasing_plan"]            = ""
 
     for idx, row in df.iterrows():
         mrp = row["mrp"]
@@ -66,18 +67,30 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
     df["rec_discount_pct"] = df["throttled_discount_pct"]
     df["rec_price"] = (df["mrp"] * (1 - df["rec_discount_pct"] / 100)).round(1)
 
-    # Recalculate expected impact at throttled level
+    # Recalculate expected units at throttled level using dual-signal log-log model:
+    #   units(p_rec) = units(p_curr) × (p_rec/p_curr)^price_elast
+    #                               × exp(badge_sens × (d_rec − d_curr))
     for idx, row in df.iterrows():
-        if row["rec_discount_pct"] != row["elbow_discount_pct"]:
-            # Simple elasticity-based adjustment
-            price_ratio = row["rec_price"] / row["current_price"] if row["current_price"] > 0 else 1
-            elast = row["elasticity"]
-            units_ratio = price_ratio ** elast if price_ratio > 0 else 1
-            rec_units = round(row["current_units_day"] * units_ratio, 1)
-            df.at[idx, "rec_units_day"] = rec_units
-            df.at[idx, "rec_revenue_day"] = round(rec_units * row["rec_price"], 0)
+        price_elast  = float(row.get("price_elasticity",  row.get("elasticity", -1.5)))
+        badge_sens   = float(row.get("badge_sensitivity", row.get("discount_sensitivity", 0.01)))
+        current_disc = float(row["current_discount_pct"])
+        rec_disc     = float(row["rec_discount_pct"])
+        current_units = float(row["current_units_day"])
+        mrp           = float(row["mrp"])
+        current_price = float(row.get("current_selling_price", row.get("current_price",
+                              mrp * (1 - current_disc / 100))))
+        rec_price_val = float(row["rec_price"])
+
+        if rec_disc != row["elbow_discount_pct"]:
+            # Dual-signal: price level effect + badge effect
+            price_ratio  = rec_price_val / current_price if current_price > 0 else 1.0
+            badge_delta  = rec_disc - current_disc
+            units_mult   = (price_ratio ** price_elast) * np.exp(badge_sens * badge_delta)
+            rec_units    = round(float(current_units * units_mult), 1)
+            df.at[idx, "rec_units_day"]   = max(rec_units, 0.01)
+            df.at[idx, "rec_revenue_day"] = round(rec_units * rec_price_val, 0)
         else:
-            df.at[idx, "rec_units_day"] = row["elbow_units_day"]
+            df.at[idx, "rec_units_day"]   = row["elbow_units_day"]
             df.at[idx, "rec_revenue_day"] = row["elbow_revenue_day"]
 
     # Volume and revenue change vs current
@@ -92,6 +105,13 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
         0
     )
     df["rec_monthly_savings"] = ((df["current_discount_pct"] - df["rec_discount_pct"]) / 100 * df["mrp"] * df["current_units_day"] * 30).round(0)
+    # Price-led summary (what customers actually see on Blinkit)
+    df["price_change_inr"] = (df["rec_price"] - df["current_price"]).round(1)
+    df["price_change_pct"] = np.where(
+        df["current_price"] > 0,
+        ((df["rec_price"] - df["current_price"]) / df["current_price"] * 100).round(2),
+        0
+    )
 
     # ── Assign tiers ────────────────────────────────────────────────
     df["tier"] = df.apply(_assign_tier, axis=1)
@@ -119,38 +139,64 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _assign_tier(row) -> str:
-    """Assign a tier based on economics, confidence, and guardrails."""
-    savings = row.get("rec_monthly_savings", 0)
-    vol_drop = row.get("rec_vol_change_pct", 0)
-    confidence = row.get("confidence", "Low")
-    current_disc = row.get("current_discount_pct", 0)
-    elbow_disc = row.get("elbow_discount_pct", 0)
-    elbow_roi = row.get("elbow_marginal_roi", 0)
+    """
+    Assign a tier based on THIS-CYCLE ACTION (the throttled discount the brand
+    team is being asked to approve this week), not the full multi-cycle journey.
 
-    # Do Not Act: low confidence or needs experiment
+    Rationale: the user approves week-by-week, not a multi-week commitment.
+    Tiering on the full elbow gap penalised cells with high elasticity even
+    when this week's 3ppt move was perfectly safe.
+
+    Strong Cut criteria are also risk-adjusted by elasticity:
+    - Low elasticity (|e| < 2): treat as safe (small price moves → small volume moves)
+    - High elasticity (|e| ≥ 2): require a tight predicted volume drop this cycle
+    """
+    confidence   = row.get("confidence", "Low")
+    current_disc = row.get("current_discount_pct", 0)
+    elbow_disc   = row.get("elbow_discount_pct", 0)
+    rec_disc     = row.get("rec_discount_pct", elbow_disc)
+
+    # This-cycle realised metrics (after throttling)
+    rec_savings   = row.get("rec_monthly_savings", 0)
+    rec_vol_drop  = row.get("rec_vol_change_pct", 0)
+    elast         = abs(float(row.get("price_elasticity", row.get("elasticity", 1.5))))
+
+    # Gap to elbow (positive = need to REDUCE discount overall)
+    gap = current_disc - elbow_disc
+
+    # Do Not Act: insufficient data
     if confidence == "Needs Experiment":
         return "Do Not Act"
 
-    # Increase: currently under-discounted (elbow > current discount)
-    if elbow_disc > current_disc + 2:
+    # Increase: currently under-discounting (elbow > current by >2ppt)
+    if gap < -2:
         return "Increase"
 
-    # Hold: already near elbow (within 2 ppt)
-    if abs(current_disc - elbow_disc) <= 2:
+    # Hold: already near optimal (within 2 ppt)
+    if abs(gap) <= 2:
         return "Hold"
 
-    # Strong Cut: high savings, low volume risk, high confidence
-    if (savings >= cfg.TIER_STRONG_CUT_MIN_SAVINGS and
-            abs(vol_drop) <= cfg.TIER_STRONG_CUT_MAX_VOL_DROP * 100 and
+    # Over-discounting: classify by THIS-CYCLE economic outcome
+    #
+    # Strong Cut = "fast-track approve" — clear net economic win with bounded
+    # risk this week. Calibrated for the post-tuning elasticity range (-1 to -4):
+    #   savings ≥ ₹5K/month  AND  this-cycle vol drop ≤ 8%
+    # AND high/medium confidence (Low cells need pilot first)
+    if (rec_savings >= 5000 and
+            abs(rec_vol_drop) <= 8.0 and
             confidence in ("High", "Medium")):
         return "Strong Cut"
 
-    # Trade-off: meaningful savings but moderate risk
-    if (savings > 0 and
-            abs(vol_drop) <= cfg.TIER_TRADEOFF_MAX_VOL_DROP * 100):
+    # Trade-off = "review individually" — positive savings, larger volume risk,
+    # or thinner data. The brand team should sanity-check these before acting.
+    if (rec_savings > 0 and
+            abs(rec_vol_drop) <= 20.0 and
+            confidence in ("High", "Medium", "Low")):
         return "Trade-off"
 
-    # Default: Hold if nothing else matches
+    if rec_savings > 0:
+        return "Trade-off"
+
     return "Hold"
 
 
