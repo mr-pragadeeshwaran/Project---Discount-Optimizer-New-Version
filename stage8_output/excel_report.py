@@ -89,8 +89,8 @@ def write_excel(summary, waste_main, reinvest_main, needs_test, df, run_dir):
     # 2b. Multi-cycle roadmap — week-by-week projection
     _build_glide_path_sheet(ws_glide, summary)
 
-    # 3. Per-product breakdown — also formula-driven
-    _build_per_product_sheet(ws_prod, summary, df)
+    # 3. Per-product breakdown — city-by-city, with full weekly glide
+    _build_per_product_sheet(ws_prod, summary, df, waste_main, reinvest_main)
 
     # 4. Detail sheets — straightforward tables
     _build_detail_sheet(ws_cut,  waste_main,    sheet_type="cut")
@@ -677,11 +677,37 @@ def _build_glide_path_sheet(ws, summary):
     ws.freeze_panes = f"A{T_HEAD + 1}"
 
 
-def _build_per_product_sheet(ws, summary, df):
-    """Per-product version of the portfolio table — same 5 metrics."""
-    biz = summary.get("business", {})
-    target = _get_target_disc(summary)
-    last_row = 1 + len(df)
+def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
+    """
+    Per-product sheet: each product gets a 1-line summary + a city-by-city
+    table with the full week-by-week glide HORIZONTALLY.
+
+    Layout per product:
+       <Product title>
+       Today: gross Rs.X, discount Rs.Y (Z%), N cities (a cut / b invest / c hold)
+       ┌──────────┬─────────┬────────┬────────┬──────────┬───┬───┬───┬───┬───┐
+       │ City     │ Current │ Target │ Action │ Save/mo  │W1 │W2 │W3 │...│W12│
+       ├──────────┼─────────┼────────┼────────┼──────────┼───┼───┼───┼───┼───┤
+       │ Bangalore│ 25.9%   │ 22.5%  │ CUT    │ Rs.8,247 │22.9│22.5│22.5│...│22.5│
+       │ Mumbai   │ 24.7%   │ 22.6%  │ CUT    │ Rs.5,722 │22.6│22.6│22.6│...│22.6│
+       │ ...                                                                  │
+       └──────────────────────────────────────────────────────────────────────┘
+    """
+    import v4_config as cfg
+    timeline = int(getattr(cfg, "TARGET_TIMELINE_WEEKS", 12))
+    min_step = float(getattr(cfg, "MIN_DISCOUNT_CHANGE_PPT", 3))
+
+    cut_set = set()
+    if waste_main is not None and not waste_main.empty:
+        cut_set = set(waste_main["cell_id"].dropna())
+    inv_set = set()
+    inv_rec = {}
+    if reinvest_main is not None and not reinvest_main.empty:
+        inv_set = set(reinvest_main["cell_id"].dropna())
+        if "rec_discount_final" in reinvest_main.columns:
+            inv_rec = (reinvest_main.dropna(subset=["rec_discount_final"])
+                                    .set_index("cell_id")["rec_discount_final"]
+                                    .to_dict())
 
     def cell(r, c, val, font=None, align=None, fmt=None, border=None):
         x = ws.cell(row=r, column=c, value=val)
@@ -691,116 +717,179 @@ def _build_per_product_sheet(ws, summary, df):
         if border: x.border = border
         return x
 
-    cell(1, 1, "DISCOUNT OPTIMISATION  ·  PER-PRODUCT VIEW",
+    # ── Header ────────────────────────────────────────────────────────
+    cell(1, 1, "DISCOUNT OPTIMISATION  ·  PER-PRODUCT  ·  CITY × WEEK MATRIX",
          font=f(9, color=MUTED), align=al("left"))
     cell(3, 1, "By product", font=f(20, bold=True, color=INK))
-    cell(4, 1, "Same metrics as the portfolio summary, broken out by SKU. "
-               "The discount % row tells you which products are furthest from the target "
-               "and how this week's plan affects each.",
+    cell(4, 1, f"Each product = one summary line, then one row per city showing the "
+               f"planned discount % at every week of the {timeline}-week glide. "
+               f"Action column: CUT = reduce discount (raise price), INVEST = increase "
+               f"discount (drop price), HOLD = already at target.",
          font=f(10, color=BODY), align=al("left", wrap=True))
-    ws.row_dimensions[4].height = 26
-    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=5)
+    n_cols = 5 + timeline  # 5 fixed + N weekly
+    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=n_cols)
+    ws.row_dimensions[4].height = 30
 
-    # Build per-product blocks. Each block = title + 5 metric rows.
-    # We use SUMPRODUCT with a (product==X) condition via boolean array trick.
-    # Older Excel doesn't have IFS or LET but supports SUMPRODUCT with (range=val) booleans.
+    # Sort products by product_id / grammage for deterministic order
+    if "grammage" in df.columns:
+        product_groups = list(df.groupby(["product_id", "grammage"], sort=True))
+    else:
+        product_groups = [(k, g) for k, g in df.groupby("product_id", sort=True)]
 
-    # Build (product key, display title) list from summary
-    per_prod = biz.get("per_product", {})
-    if not per_prod:
-        return
-
-    # Map product key (e.g. "3583 | 500g") → list of unique products in df
-    # We'll match on Data!B (product) AND Data!C (grammage) when available
     cur_row = 7
-    for pkey, pdata in per_prod.items():
-        # display title — pdata["title"] already includes "(grammage)" suffix
-        # from _compute_business_metrics, so don't re-append.
-        display_title = pdata.get("title", pkey)
-
-        # Parse pkey "ID | grammage" or just "ID" — we'll match by cell_id
-        # PREFIX on the Data sheet (more robust than title matching, since
-        # cell_id = "{pid}_{grammage}_{city}").
-        if " | " in pkey:
-            pid, grm = pkey.split(" | ", 1)
-            prefix = f"{pid}_{grm}_"
+    for key, prod_cells in product_groups:
+        if isinstance(key, tuple):
+            pid, grm = key
+            grm = grm if pd.notna(grm) and str(grm).strip() else ""
         else:
-            pid, grm = pkey, ""
-            prefix = f"{pid}_"
-        plen = len(prefix)
-        cond = f'(LEFT(Data!$A$2:$A${last_row},{plen})="{prefix}")'
+            pid, grm = key, ""
+
+        title = str(prod_cells["title"].iloc[0])[:60]
+        display_title = f"{title}  ({grm})" if grm else title
+
+        # ── Product summary line ──────────────────────────────────────
+        gross   = float((prod_cells["mrp"] * prod_cells["current_units_day"] * 30).sum())
+        spend   = float((prod_cells["mrp"] * prod_cells["current_discount_pct"] / 100
+                          * prod_cells["current_units_day"] * 30).sum())
+        wdisc   = (spend / gross * 100) if gross > 0 else 0
+        n_cells = len(prod_cells)
+        n_cut   = sum(1 for cid in prod_cells["cell_id"] if cid in cut_set and cid not in inv_set)
+        n_inv   = sum(1 for cid in prod_cells["cell_id"] if cid in inv_set)
+        n_hold  = n_cells - n_cut - n_inv
 
         cell(cur_row, 1, display_title,
-             font=f(11, bold=True, color=INK), align=al("left"),
-             border=b(bottom=THIN))
+             font=f(13, bold=True, color=INK), align=al("left"),
+             border=b(bottom=BOLD_RULE))
         ws.merge_cells(start_row=cur_row, start_column=1,
-                       end_row=cur_row, end_column=4)
+                       end_row=cur_row, end_column=n_cols)
         cur_row += 1
 
-        # Header
-        for j, h in enumerate(["Metric", "Today", "After cuts", "After cuts + invest"], 1):
+        summary_line = (
+            f"Today: gross Rs.{gross:,.0f}/mo  ·  discount Rs.{spend:,.0f}/mo "
+            f"({wdisc:.2f}%)  ·  {n_cells} cities ({n_cut} cut, {n_inv} invest, {n_hold} hold)"
+        )
+        cell(cur_row, 1, summary_line,
+             font=f(10, italic=True, color=MUTED), align=al("left"))
+        ws.merge_cells(start_row=cur_row, start_column=1,
+                       end_row=cur_row, end_column=n_cols)
+        cur_row += 2
+
+        # ── City × week table headers ─────────────────────────────────
+        headers = ["City", "Current %", "Target %", "Action", "Save Rs./mo"]
+        headers += [f"W{w}" for w in range(1, timeline + 1)]
+        for j, h in enumerate(headers, 1):
             cell(cur_row, j, h,
                  font=f(10, bold=True, color=INK),
-                 align=al("right" if j > 1 else "left"),
-                 border=b(top=RULE, bottom=RULE))
+                 align=al("center" if j > 1 else "left"),
+                 border=b(top=BOLD_RULE, bottom=RULE))
         cur_row += 1
 
-        R_GROSS = cur_row
-        R_SPEND = cur_row + 1
-        R_UNITS = cur_row + 2
-        R_DISC  = cur_row + 3
+        # Compute per-cell glide and savings, then sort by savings desc
+        city_rows = []
+        for _, r in prod_cells.iterrows():
+            cid = r.get("cell_id")
+            city = str(r.get("city", ""))
+            cur_d = float(r.get("current_discount_pct", 0))
+            mrp = float(r.get("mrp", 0))
+            cur_u = float(r.get("current_units_day", 0))
 
-        K = 30
-        rng_mrp        = f"Data!$E$2:$E${last_row}"
-        rng_cur_disc   = f"Data!$F$2:$F${last_row}"
-        rng_cur_units  = f"Data!$G$2:$G${last_row}"
-        rng_plan_disc  = f"Data!$I$2:$I${last_row}"
-        rng_plan_units = f"Data!$J$2:$J${last_row}"
-        rng_inv_disc   = f"Data!$L$2:$L${last_row}"
-        rng_inv_units  = f"Data!$M$2:$M${last_row}"
+            # Action + target
+            if cid in inv_set:
+                action = "INVEST"
+                target = float(inv_rec.get(cid, cur_d + 3))
+            elif cid in cut_set:
+                action = "CUT"
+                floor = float(r.get("historical_floor_disc", 0)) if pd.notna(r.get("historical_floor_disc")) else 0
+                elbow = float(r.get("elbow_discount_pct", 0)) if pd.notna(r.get("elbow_discount_pct")) else 0
+                target = max(elbow, floor)
+            else:
+                action = "HOLD"
+                target = cur_d
 
-        cell(R_GROSS, 1, "Gross sales (MRP) / mo", font=f(10), align=al("left"))
-        cell(R_GROSS, 2, f"=SUMPRODUCT({cond}*{rng_mrp}*{rng_cur_units})*{K}",
-             fmt='"Rs."#,##0', align=al("right"))
-        cell(R_GROSS, 3, f"=SUMPRODUCT({cond}*{rng_mrp}*{rng_plan_units})*{K}",
-             fmt='"Rs."#,##0', align=al("right"))
-        cell(R_GROSS, 4, f"=SUMPRODUCT({cond}*{rng_mrp}*{rng_inv_units})*{K}",
-             fmt='"Rs."#,##0', align=al("right"))
+            # Per-cycle step (same rule as Stage 7)
+            gap = abs(cur_d - target)
+            if gap < 0.1:
+                step = 0.0
+            elif gap <= min_step:
+                step = gap
+            else:
+                step = max(min_step, gap / float(timeline))
+            direction = -1 if (cur_d - target) > 0 else (1 if (cur_d - target) < 0 else 0)
 
-        cell(R_SPEND, 1, "Discount spend / mo", font=f(10), align=al("left"))
-        cell(R_SPEND, 2, f"=SUMPRODUCT({cond}*{rng_mrp}*{rng_cur_disc}*{rng_cur_units})/100*{K}",
-             fmt='"Rs."#,##0', align=al("right"))
-        cell(R_SPEND, 3, f"=SUMPRODUCT({cond}*{rng_mrp}*{rng_plan_disc}*{rng_plan_units})/100*{K}",
-             fmt='"Rs."#,##0', align=al("right"))
-        cell(R_SPEND, 4, f"=SUMPRODUCT({cond}*{rng_mrp}*{rng_inv_disc}*{rng_inv_units})/100*{K}",
-             fmt='"Rs."#,##0', align=al("right"))
+            # Per-week discount values (W1..W{timeline})
+            weekly = []
+            for w in range(1, timeline + 1):
+                if direction == 0:
+                    d = cur_d
+                else:
+                    d = cur_d + direction * step * w
+                    d = max(d, target) if direction < 0 else min(d, target)
+                weekly.append(round(d, 1))
 
-        cell(R_UNITS, 1, "Units / mo", font=f(10), align=al("left"))
-        cell(R_UNITS, 2, f"=SUMPRODUCT({cond}*{rng_cur_units})*{K}",
-             fmt="#,##0", align=al("right"))
-        cell(R_UNITS, 3, f"=SUMPRODUCT({cond}*{rng_plan_units})*{K}",
-             fmt="#,##0", align=al("right"))
-        cell(R_UNITS, 4, f"=SUMPRODUCT({cond}*{rng_inv_units})*{K}",
-             fmt="#,##0", align=al("right"))
+            # Monthly savings if cell were to reach its target
+            if action == "CUT":
+                save_per_mo = (cur_d - target) / 100 * mrp * cur_u * 30
+            elif action == "INVEST":
+                # Negative = extra spend
+                save_per_mo = (cur_d - target) / 100 * mrp * cur_u * 30
+            else:
+                save_per_mo = 0.0
 
-        cell(R_DISC, 1, "Weighted discount %",
-             font=f(10, bold=True, color=INK), align=al("left"),
-             border=b(top=RULE, bottom=BOLD_RULE))
-        cell(R_DISC, 2, f'=IF(B{R_GROSS}=0,0,B{R_SPEND}/B{R_GROSS}*100)',
-             fmt="0.00\"%\"", font=f(11, bold=True, color=INK), align=al("right"),
-             border=b(top=RULE, bottom=BOLD_RULE))
-        cell(R_DISC, 3, f'=IF(C{R_GROSS}=0,0,C{R_SPEND}/C{R_GROSS}*100)',
-             fmt="0.00\"%\"", font=f(11, bold=True, color=INK), align=al("right"),
-             border=b(top=RULE, bottom=BOLD_RULE))
-        cell(R_DISC, 4, f'=IF(D{R_GROSS}=0,0,D{R_SPEND}/D{R_GROSS}*100)',
-             fmt="0.00\"%\"", font=f(11, bold=True, color=INK), align=al("right"),
-             border=b(top=RULE, bottom=BOLD_RULE))
+            city_rows.append({
+                "city": city, "cur_d": cur_d, "target": target,
+                "action": action, "save": save_per_mo, "weekly": weekly,
+                "sort_key": abs(save_per_mo),
+            })
 
-        cur_row = R_DISC + 3  # spacing before next product
+        city_rows.sort(key=lambda x: -x["sort_key"])
 
-    widths = [40, 20, 20, 22, 60]
+        # Render rows
+        for r in city_rows:
+            action_color = NEG if r["action"] == "CUT" else (POS if r["action"] == "INVEST" else MUTED)
+
+            cell(cur_row, 1, r["city"], font=f(10), align=al("left"))
+            cell(cur_row, 2, r["cur_d"], font=f(10), align=al("right"),
+                 fmt='0.0"%"')
+            cell(cur_row, 3, r["target"], font=f(10, bold=True), align=al("right"),
+                 fmt='0.0"%"')
+            cell(cur_row, 4, r["action"],
+                 font=f(10, bold=True, color=action_color), align=al("center"))
+            sav = r["save"]
+            sav_color = POS if sav > 0 else (NEG if sav < 0 else MUTED)
+            cell(cur_row, 5, sav, font=f(10, color=sav_color), align=al("right"),
+                 fmt='"Rs. "#,##0;"Rs. -"#,##0;"-"')
+
+            # Weekly cells
+            for wi, wval in enumerate(r["weekly"], 1):
+                col = 5 + wi
+                # Highlight: bold when cell has reached its target
+                reached = abs(wval - r["target"]) < 0.05
+                if r["action"] == "HOLD":
+                    wfont = f(9, color=MUTED)
+                elif reached:
+                    wfont = f(9, bold=True, color=POS if r["action"] == "CUT" else NEG)
+                else:
+                    wfont = f(9, color=BODY)
+                cell(cur_row, col, wval, font=wfont, align=al("center"), fmt="0.0")
+
+            # Subtle bottom rule
+            for c in range(1, n_cols + 1):
+                cur_border = ws.cell(row=cur_row, column=c).border
+                ws.cell(row=cur_row, column=c).border = b(bottom=THIN)
+            cur_row += 1
+
+        # Close bottom of this product's table with a heavy rule
+        for c in range(1, n_cols + 1):
+            ws.cell(row=cur_row - 1, column=c).border = b(bottom=BOLD_RULE)
+        cur_row += 2  # spacing before next product
+
+    # Column widths
+    widths = [22, 11, 11, 10, 14] + [7] * timeline
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
+
+    # Freeze the leftmost columns so the city stays visible when scrolling right
+    ws.freeze_panes = "F8"
 
 
 def _build_detail_sheet(ws, df, sheet_type):
