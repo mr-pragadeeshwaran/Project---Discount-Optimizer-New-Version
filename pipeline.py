@@ -165,9 +165,9 @@ def run_pipeline(stages=None):
     if "dashboard_path" in context:
         print(f"  Dashboard: {context['dashboard_path']}")
     if "report_paths" in context:
-        print(f"  W&R Report (MD):  {context['report_paths']['markdown']}")
-        if context['report_paths'].get('pdf'):
-            print(f"  W&R Report (PDF): {context['report_paths']['pdf']}")
+        print(f"  W&R Report (MD):    {context['report_paths']['markdown']}")
+        if context['report_paths'].get('excel'):
+            print(f"  W&R Report (Excel): {context['report_paths']['excel']}")
     print("=" * 70)
 
     return context
