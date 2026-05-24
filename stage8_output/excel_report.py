@@ -774,8 +774,17 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
                        end_row=cur_row, end_column=n_cols)
         cur_row += 2
 
-        # ── City × week table headers ─────────────────────────────────
-        headers = ["City", "Current %", "Target %", "Action", "Save Rs./mo"]
+        # ── City × week table headers (selling-price view) ─────────────
+        # MRP banner row above weeks
+        cell(cur_row, 1, "All values in selling price (Rs.).  "
+             f"MRP for this SKU: Rs.{float(prod_cells['mrp'].iloc[0]):,.0f}.  "
+             "Lower price = deeper discount.",
+             font=f(9, italic=True, color=MUTED), align=al("left"))
+        ws.merge_cells(start_row=cur_row, start_column=1,
+                       end_row=cur_row, end_column=n_cols)
+        cur_row += 1
+
+        headers = ["City", "Current Rs.", "Target Rs.", "Action", "Save Rs./mo"]
         headers += [f"W{w}" for w in range(1, timeline + 1)]
         for j, h in enumerate(headers, 1):
             cell(cur_row, j, h,
@@ -793,65 +802,68 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
             mrp = float(r.get("mrp", 0))
             cur_u = float(r.get("current_units_day", 0))
 
-            # Action + target
+            # Action + target (discount %)
             if cid in inv_set:
                 action = "INVEST"
-                target = float(inv_rec.get(cid, cur_d + 3))
+                target_d = float(inv_rec.get(cid, cur_d + 3))
             elif cid in cut_set:
                 action = "CUT"
                 floor = float(r.get("historical_floor_disc", 0)) if pd.notna(r.get("historical_floor_disc")) else 0
                 elbow = float(r.get("elbow_discount_pct", 0)) if pd.notna(r.get("elbow_discount_pct")) else 0
-                target = max(elbow, floor)
+                target_d = max(elbow, floor)
             else:
                 action = "HOLD"
-                target = cur_d
+                target_d = cur_d
 
             # Per-cycle step (same rule as Stage 7)
-            gap = abs(cur_d - target)
+            gap = abs(cur_d - target_d)
             if gap < 0.1:
                 step = 0.0
             elif gap <= min_step:
                 step = gap
             else:
                 step = max(min_step, gap / float(timeline))
-            direction = -1 if (cur_d - target) > 0 else (1 if (cur_d - target) < 0 else 0)
+            direction = -1 if (cur_d - target_d) > 0 else (1 if (cur_d - target_d) < 0 else 0)
 
-            # Per-week discount values (W1..W{timeline})
-            weekly = []
+            # Per-week DISCOUNT % then convert to selling PRICE
+            weekly_prices = []
             for w in range(1, timeline + 1):
                 if direction == 0:
                     d = cur_d
                 else:
                     d = cur_d + direction * step * w
-                    d = max(d, target) if direction < 0 else min(d, target)
-                weekly.append(round(d, 1))
+                    d = max(d, target_d) if direction < 0 else min(d, target_d)
+                price_w = mrp * (1 - d / 100)
+                weekly_prices.append(round(price_w, 1))
 
-            # Monthly savings if cell were to reach its target
-            if action == "CUT":
-                save_per_mo = (cur_d - target) / 100 * mrp * cur_u * 30
-            elif action == "INVEST":
-                # Negative = extra spend
-                save_per_mo = (cur_d - target) / 100 * mrp * cur_u * 30
-            else:
-                save_per_mo = 0.0
+            # Convert current/target discount to selling price
+            cur_price    = mrp * (1 - cur_d / 100)
+            target_price = mrp * (1 - target_d / 100)
+
+            # Monthly savings (Rs.) — same calc, in discount-spend terms
+            save_per_mo = (cur_d - target_d) / 100 * mrp * cur_u * 30
 
             city_rows.append({
-                "city": city, "cur_d": cur_d, "target": target,
-                "action": action, "save": save_per_mo, "weekly": weekly,
+                "city": city,
+                "cur_price": cur_price, "target_price": target_price,
+                "action": action, "save": save_per_mo,
+                "weekly_prices": weekly_prices,
                 "sort_key": abs(save_per_mo),
             })
 
         city_rows.sort(key=lambda x: -x["sort_key"])
 
-        # Render rows
+        # Render rows — all monetary values
         for r in city_rows:
+            # For CUT: price goes UP → green is the "we reached target" colour
+            # For INVEST: price goes DOWN → red is the "deeper discount, more sold" cue
             action_color = NEG if r["action"] == "CUT" else (POS if r["action"] == "INVEST" else MUTED)
 
             cell(cur_row, 1, r["city"], font=f(10), align=al("left"))
-            cell(cur_row, 2, r["cur_d"], font=f(10), align=al("right"),
-                 fmt='0.0"%"')
-            cell(cur_row, 3, r["target"], font=f(10, bold=True), align=al("right"),
-                 fmt='0.0"%"')
+            cell(cur_row, 2, r["cur_price"], font=f(10), align=al("right"),
+                 fmt='"Rs."#,##0.0')
+            cell(cur_row, 3, r["target_price"], font=f(10, bold=True), align=al("right"),
+                 fmt='"Rs."#,##0.0')
             cell(cur_row, 4, r["action"],
                  font=f(10, bold=True, color=action_color), align=al("center"))
             sav = r["save"]
@@ -859,18 +871,19 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
             cell(cur_row, 5, sav, font=f(10, color=sav_color), align=al("right"),
                  fmt='"Rs. "#,##0;"Rs. -"#,##0;"-"')
 
-            # Weekly cells
-            for wi, wval in enumerate(r["weekly"], 1):
+            # Weekly price cells
+            for wi, wprice in enumerate(r["weekly_prices"], 1):
                 col = 5 + wi
-                # Highlight: bold when cell has reached its target
-                reached = abs(wval - r["target"]) < 0.05
+                reached = abs(wprice - r["target_price"]) < 0.05
                 if r["action"] == "HOLD":
                     wfont = f(9, color=MUTED)
                 elif reached:
-                    wfont = f(9, bold=True, color=POS if r["action"] == "CUT" else NEG)
+                    # Once at target: bold + action colour
+                    wfont = f(9, bold=True, color=NEG if r["action"] == "CUT" else POS)
                 else:
                     wfont = f(9, color=BODY)
-                cell(cur_row, col, wval, font=wfont, align=al("center"), fmt="0.0")
+                cell(cur_row, col, wprice, font=wfont, align=al("center"),
+                     fmt='#,##0.0')
 
             # Subtle bottom rule
             for c in range(1, n_cols + 1):
@@ -884,11 +897,12 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
         cur_row += 2  # spacing before next product
 
     # Column widths
-    widths = [22, 11, 11, 10, 14] + [7] * timeline
+    widths = [22, 13, 13, 10, 14] + [9] * timeline
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
-    # Freeze the leftmost columns so the city stays visible when scrolling right
+    # Freeze the leftmost columns so the city stays visible when scrolling right.
+    # F = first weekly col. Row 8 keeps the header band visible too.
     ws.freeze_panes = "F8"
 
 
