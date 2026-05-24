@@ -528,9 +528,13 @@ def _build_glide_path_sheet(ws, summary):
     cell(1, 1, "DISCOUNT OPTIMISATION  ·  GLIDE PATH (week-by-week roadmap)",
          font=f(9, color=MUTED), align=al("left"))
     cell(3, 1, "Multi-Cycle Roadmap", font=f(20, bold=True, color=INK))
+    plan_max = getattr(__import__("v4_config"), "TARGET_TIMELINE_WEEKS", n_cycles)
     cell(4, 1, f"From {glide.iloc[0]['weighted_discount_pct']:.2f}% weighted discount today "
                f"to a projected {final_disc:.2f}% in {n_cycles} weekly cycles "
-               f"(~{n_cycles/4.3:.1f} months). Target: {target:.2f}%.",
+               f"(~{n_cycles/4.3:.1f} months). Budget was {plan_max} weeks — every "
+               f"cell reached its target faster because gaps were small. "
+               f"Per-cell endpoint = historical floor (the discount each cell "
+               f"has proven it can survive).",
          font=f(10, color=BODY), align=al("left", wrap=True))
     ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=9)
     ws.row_dimensions[4].height = 26

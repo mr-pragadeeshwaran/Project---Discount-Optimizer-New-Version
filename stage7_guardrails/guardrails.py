@@ -60,35 +60,36 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
             df.at[idx, "throttled_discount_pct"] = round(adjusted_disc, 1)
             target_disc = adjusted_disc
 
-        # 2. Per-cycle change cap (targeting the chosen target_disc, not just elbow)
-        # If USE_DYNAMIC_GLIDE is on, the per-cell step is computed from
-        # the user's target duration:
-        #     step = (current − target) / TARGET_TIMELINE_WEEKS
-        # Bounded below by 0.25 ppt and above by MAX_DISCOUNT_CHANGE_PPT.
-        disc_change = current_disc - target_disc  # positive = reducing discount
-        use_dyn = getattr(cfg, "USE_DYNAMIC_GLIDE", False)
-        timeline = getattr(cfg, "TARGET_TIMELINE_WEEKS", None)
-        if use_dyn and timeline and timeline > 0:
-            this_cycle_step = max(0.25, abs(disc_change) / float(timeline))
-            this_cycle_step = min(this_cycle_step, cfg.MAX_DISCOUNT_CHANGE_PPT)
-        else:
-            this_cycle_step = cfg.MAX_DISCOUNT_CHANGE_PPT
+        # 2. Per-cycle step rule:
+        #   - If gap < MIN_DISCOUNT_CHANGE_PPT (3 ppt): close in one shot.
+        #   - Else: per-cycle step = max(MIN, gap / TARGET_TIMELINE_WEEKS),
+        #          capped at MAX (5 ppt). Cell reaches target in ≤ timeline.
+        gap = abs(current_disc - target_disc)
+        min_step = float(getattr(cfg, "MIN_DISCOUNT_CHANGE_PPT", 3))
+        max_step = float(getattr(cfg, "MAX_DISCOUNT_CHANGE_PPT", 5))
+        timeline = getattr(cfg, "TARGET_TIMELINE_WEEKS", 12)
 
-        if abs(disc_change) > this_cycle_step:
+        if gap < 0.1:
+            this_cycle_step = 0.0
+        elif gap <= min_step:
+            this_cycle_step = gap  # single-shot — don't overshoot
+        else:
+            raw_step = gap / float(timeline)
+            this_cycle_step = max(min_step, raw_step)
+            this_cycle_step = min(this_cycle_step, max_step)
+
+        if gap > this_cycle_step + 0.05:
             df.at[idx, "is_throttled"] = True
             df.at[idx, "guardrail_change_ok"] = False
-            if disc_change > 0:
-                throttled = current_disc - this_cycle_step
-            else:
-                throttled = current_disc + this_cycle_step
+            direction = -1 if (current_disc - target_disc) > 0 else 1
+            throttled = current_disc + direction * this_cycle_step
             df.at[idx, "throttled_discount_pct"] = round(max(0, throttled), 1)
-
-            # Phasing plan: full glide path at this cell's pace to the target
             steps = _build_phasing_plan(current_disc, target_disc, this_cycle_step)
             df.at[idx, "phasing_plan"] = " → ".join([f"{s:.1f}%" for s in steps])
-        elif abs(disc_change) >= 0.1:
-            # Already within one cycle's reach of target — go straight there
+        elif gap >= 0.1:
+            # One-shot move — already within a single cycle's reach
             df.at[idx, "throttled_discount_pct"] = round(target_disc, 1)
+            df.at[idx, "phasing_plan"] = f"{current_disc:.1f}% → {target_disc:.1f}%"
 
     # ── Compute final recommended values (after guardrails) ─────────
     df["rec_discount_pct"] = df["throttled_discount_pct"]

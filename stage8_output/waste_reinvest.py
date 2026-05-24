@@ -1124,16 +1124,22 @@ def _compute_glide_path(df, waste_main, reinvest_main):
         else:
             target = cur_d
 
-        gap = cur_d - target
-        if abs(gap) < 0.25:
+        # Same step rule as Stage 7:
+        #   - gap < MIN_DISCOUNT_CHANGE_PPT: one-shot cut/raise
+        #   - else: step = max(MIN, gap/timeline), capped at MAX
+        min_step = float(getattr(cfg, "MIN_DISCOUNT_CHANGE_PPT", 3))
+        gap = cur_d - target  # positive = cut, negative = raise
+        abs_gap = abs(gap)
+        if abs_gap < 0.1:
             step = 0.0
+        elif abs_gap <= min_step:
+            step = abs_gap  # one-shot
         else:
-            raw_step = abs(gap) / float(timeline)
-            step = max(0.25, min(raw_step, max_step))
-            if gap < 0:  # increasing discount (reinvest)
-                step = -step
-            else:        # cutting discount
-                step = step
+            raw_step = abs_gap / float(timeline)
+            step = max(min_step, min(raw_step, max_step))
+        # apply direction
+        if gap < 0:
+            step = -step
         cells.append({
             "mrp": mrp, "cur_d": cur_d, "cur_u": cur_u,
             "elast": elast, "badge": badge,
@@ -1182,7 +1188,23 @@ def _compute_glide_path(df, waste_main, reinvest_main):
             "gap_to_target_ppt":    round(wdisc - target_wd, 2),
             "reached_target":       bool(wdisc <= target_wd + 0.05),
         })
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    # Trim trailing rows that are identical to the prior row — once all
+    # cells have reached their floor, the table flatlines and adding more
+    # rows just clutters the view. Keep one "settled" row to make it
+    # explicit that the plan completes there.
+    if len(out) > 1:
+        last_wdisc = float(out.iloc[-1]["weighted_discount_pct"])
+        keep_to = len(out)
+        for i in range(len(out) - 1, 0, -1):
+            if abs(float(out.iloc[i]["weighted_discount_pct"]) - last_wdisc) < 0.01:
+                keep_to = i + 1
+            else:
+                break
+        # Keep one extra "plan complete" row beyond the last change
+        keep_to = min(keep_to + 0, len(out))
+        out = out.iloc[:keep_to].reset_index(drop=True)
+    return out
 
 
 def _compute_model_accuracy(model_output: dict) -> dict:
