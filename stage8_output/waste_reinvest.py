@@ -67,12 +67,16 @@ def generate_waste_reinvest_report(rec_df, feat_df, model_output, run_dir):
               f"(target={fw['target_weighted_discount_pct']:.1f}%)")
 
     # Write outputs
-    md_path = _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir)
+    md_path  = _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir)
+    pdf_path = _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir)
     _write_csvs(waste_all, reinvest_all, run_dir)
     _write_json(df, model_output, summary, run_dir)
 
-    print(f"  [Stage 8] Report saved: {md_path}")
-    return {"markdown": md_path, "waste_csv": os.path.join(run_dir, "waste.csv"),
+    print(f"  [Stage 8] Markdown report: {md_path}")
+    if pdf_path:
+        print(f"  [Stage 8] PDF report:      {pdf_path}")
+    return {"markdown": md_path, "pdf": pdf_path,
+            "waste_csv": os.path.join(run_dir, "waste.csv"),
             "reinvest_csv": os.path.join(run_dir, "reinvest.csv"),
             "json": os.path.join(run_dir, "per_cell_detail.json")}
 
@@ -776,6 +780,353 @@ def _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir):
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
     return path
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PDF report — brand-team handout. Cover page with the flywheel headline,
+# then per-section pages for waste (Q1), reinvest (Q2), and needs-test cells.
+# Built with reportlab so we get proper tables, paging, and styled headers.
+# ─────────────────────────────────────────────────────────────────────────────
+def _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir):
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import mm
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+            PageBreak, KeepTogether
+        )
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER
+    except ImportError:
+        print("  [Stage 8] reportlab not installed — skipping PDF (pip install reportlab)")
+        return None
+
+    path = os.path.join(run_dir, "WASTE_REINVEST_REPORT.pdf")
+    doc = SimpleDocTemplate(
+        path, pagesize=landscape(A4),
+        leftMargin=12*mm, rightMargin=12*mm,
+        topMargin=10*mm,  bottomMargin=12*mm,
+        title="Waste & Reinvestment Report",
+    )
+
+    # ── Styles ─────────────────────────────────────────────────────────
+    styles = getSampleStyleSheet()
+    BRAND  = colors.HexColor("#1F3864")     # deep navy
+    ACCENT = colors.HexColor("#2E7D32")     # green for savings
+    WARN   = colors.HexColor("#C62828")     # red for waste
+    GREY   = colors.HexColor("#666666")
+    LIGHT  = colors.HexColor("#F4F6FA")     # row stripe
+    HEADER = colors.HexColor("#E8EEF7")     # table header background
+
+    title_style = ParagraphStyle("t", parent=styles["Heading1"],
+                                  fontSize=22, leading=26, textColor=BRAND,
+                                  spaceAfter=4, alignment=TA_LEFT)
+    sub_style   = ParagraphStyle("s", parent=styles["Normal"],
+                                  fontSize=10, textColor=GREY, spaceAfter=8)
+    h2_style    = ParagraphStyle("h2", parent=styles["Heading2"],
+                                  fontSize=14, leading=18, textColor=BRAND,
+                                  spaceBefore=10, spaceAfter=6)
+    body_style  = ParagraphStyle("b", parent=styles["Normal"],
+                                  fontSize=9.5, leading=13, spaceAfter=4)
+    small_style = ParagraphStyle("sm", parent=styles["Normal"],
+                                  fontSize=8, leading=10, textColor=GREY)
+    cell_style  = ParagraphStyle("c", parent=styles["Normal"],
+                                  fontSize=8.5, leading=11)
+
+    story = []
+
+    # ── COVER ──────────────────────────────────────────────────────────
+    story.append(Paragraph("Discount Optimisation Report", title_style))
+    story.append(Paragraph(
+        f"Weekly flywheel plan &nbsp;|&nbsp; Generated {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}"
+        f" &nbsp;|&nbsp; 24 Mantra Organic × Blinkit",
+        sub_style
+    ))
+
+    fw = summary.get("flywheel", {})
+    cur   = fw.get("current_weighted_discount_pct")
+    aft_c = fw.get("after_cuts_weighted_discount_pct")
+    aft_b = fw.get("after_cuts_and_reinvest_weighted_discount_pct")
+    tgt   = fw.get("target_weighted_discount_pct")
+
+    # Headline flywheel table
+    if cur is not None:
+        flywheel_data = [
+            ["", "Avg sell price\n(% of MRP)", "Equivalent\ndiscount", "Gap to target"],
+            ["Target",
+             f"{100-tgt:.2f}%",
+             f"{tgt:.2f}%",
+             "—"],
+            ["Today",
+             f"{100-cur:.2f}%",
+             f"{cur:.2f}%",
+             f"{cur - tgt:+.2f} ppt"],
+            ["After this-cycle PRICE LIFTS only",
+             f"{100-aft_c:.2f}%",
+             f"{aft_c:.2f}%",
+             f"{aft_c - tgt:+.2f} ppt"],
+            ["After PRICE LIFTS + STRATEGIC DROPS",
+             f"{100-aft_b:.2f}%",
+             f"{aft_b:.2f}%",
+             f"{aft_b - tgt:+.2f} ppt"],
+        ]
+        tbl = Table(flywheel_data, colWidths=[95*mm, 35*mm, 30*mm, 35*mm])
+        tbl.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,0),  BRAND),
+            ("TEXTCOLOR",    (0,0), (-1,0),  colors.white),
+            ("FONTNAME",     (0,0), (-1,0),  "Helvetica-Bold"),
+            ("FONTSIZE",     (0,0), (-1,0),  9),
+            ("ALIGN",        (1,0), (-1,-1), "CENTER"),
+            ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+            ("FONTSIZE",     (0,1), (-1,-1), 10),
+            ("BACKGROUND",   (0,1), (-1,1),  LIGHT),
+            ("BACKGROUND",   (0,2), (-1,2),  HEADER),
+            ("FONTNAME",     (0,2), (-1,2),  "Helvetica-Bold"),
+            ("BACKGROUND",   (0,4), (-1,4),  colors.HexColor("#EDF7EE")),
+            ("FONTNAME",     (0,4), (-1,4),  "Helvetica-Bold"),
+            ("TEXTCOLOR",    (0,4), (-1,4),  ACCENT),
+            ("GRID",         (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ("LEFTPADDING",  (0,0), (-1,-1), 6),
+            ("RIGHTPADDING", (0,0), (-1,-1), 6),
+            ("TOPPADDING",   (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 6),
+        ]))
+        story.append(tbl)
+        story.append(Spacer(1, 8*mm))
+
+    # Money summary cards (3-column)
+    cards = [
+        [
+            Paragraph("<b>Monthly savings from cuts</b>", body_style),
+            Paragraph("<b>Budget redirected to growth</b>", body_style),
+            Paragraph("<b>Extra volume from reinvestments</b>", body_style),
+        ],
+        [
+            Paragraph(f"<font color='{WARN.hexval()}' size='18'><b>Rs. {summary['total_wasted']:,.0f}</b></font>",
+                      ParagraphStyle("amt", parent=body_style, fontSize=14, leading=18)),
+            Paragraph(f"<font color='{ACCENT.hexval()}' size='18'><b>Rs. {summary['total_reinvest']:,.0f}</b></font>",
+                      ParagraphStyle("amt", parent=body_style, fontSize=14, leading=18)),
+            Paragraph(f"<font color='{BRAND.hexval()}' size='18'><b>+{summary.get('total_extra_units_monthly', 0):,.0f}</b></font>"
+                      f" units/month",
+                      ParagraphStyle("amt", parent=body_style, fontSize=14, leading=18)),
+        ],
+    ]
+    card_tbl = Table(cards, colWidths=[65*mm, 65*mm, 65*mm])
+    card_tbl.setStyle(TableStyle([
+        ("BACKGROUND",   (0,0), (-1,-1), LIGHT),
+        ("BOX",          (0,0), (0,-1),  0.5, colors.lightgrey),
+        ("BOX",          (1,0), (1,-1),  0.5, colors.lightgrey),
+        ("BOX",          (2,0), (2,-1),  0.5, colors.lightgrey),
+        ("LEFTPADDING",  (0,0), (-1,-1), 10),
+        ("RIGHTPADDING", (0,0), (-1,-1), 10),
+        ("TOPPADDING",   (0,0), (-1,-1), 8),
+        ("BOTTOMPADDING",(0,0), (-1,-1), 10),
+    ]))
+    story.append(card_tbl)
+
+    # Multi-cycle journey + per-category breakdown
+    story.append(Spacer(1, 6*mm))
+    if cur is not None and aft_b is not None and cur > tgt:
+        ppt = max(0.01, cur - aft_b)
+        cycles = int(((cur - tgt) / ppt) + 0.999)
+        story.append(Paragraph(
+            f"<i>This plan covers <b>one cycle</b> (a {ppt:.2f} ppt move). "
+            f"At this pace it takes ~<b>{cycles} weekly cycles</b> to reach the "
+            f"{tgt:.1f}% target. Re-run weekly; the plan re-optimises against fresh data.</i>",
+            body_style
+        ))
+
+    per_cat = fw.get("per_category_current", {})
+    if per_cat:
+        story.append(Spacer(1, 4*mm))
+        story.append(Paragraph("Per-category snapshot", h2_style))
+        cat_data = [["Category", "Today: sell price (% of MRP)", "Equivalent discount"]]
+        for cat, v in per_cat.items():
+            cat_data.append([cat, f"{100-v:.2f}%", f"{v:.2f}%"])
+        cat_tbl = Table(cat_data, colWidths=[60*mm, 65*mm, 50*mm])
+        cat_tbl.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,0),  BRAND),
+            ("TEXTCOLOR",    (0,0), (-1,0),  colors.white),
+            ("FONTNAME",     (0,0), (-1,0),  "Helvetica-Bold"),
+            ("FONTSIZE",     (0,0), (-1,-1), 9.5),
+            ("ALIGN",        (1,0), (-1,-1), "CENTER"),
+            ("GRID",         (0,0), (-1,-1), 0.4, colors.lightgrey),
+            ("TOPPADDING",   (0,0), (-1,-1), 5),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 5),
+            ("ROWBACKGROUNDS",(0,1), (-1,-1), [colors.white, LIGHT]),
+        ]))
+        story.append(cat_tbl)
+
+    # ── Q1 — WASTE (price lifts) ────────────────────────────────────────
+    story.append(PageBreak())
+    story.append(Paragraph("Q1 — Where am I overspending on discount?", title_style))
+    story.append(Paragraph(
+        "Cells sorted by Rs. wasted per month. <b>Now Rs.</b> = current selling price. "
+        "<b>This Week Rs.</b> = what to set on Blinkit this Monday (throttled to a max Rs.3 / 3 ppt move per cycle). "
+        "<b>Eventual Rs.</b> = the model's target price, reached over multiple cycles.",
+        sub_style
+    ))
+    if waste_main.empty:
+        story.append(Paragraph("<i>No High/Medium confidence waste cells found.</i>", body_style))
+    else:
+        story.append(_styled_table(
+            waste_main,
+            cols=[
+                ("title",            "SKU",            55*mm, "left"),
+                ("city",             "City",           28*mm, "left"),
+                ("mrp",              "MRP",            14*mm, "right"),
+                ("current_price",    "Now Rs.",        18*mm, "right"),
+                ("this_week_price",  "This Week Rs.",  24*mm, "right"),
+                ("eventual_price",   "Eventual Rs.",   22*mm, "right"),
+                ("wasted_inr_per_month", "Wasted Rs./mo", 25*mm, "right"),
+                ("confidence",       "Conf",           18*mm, "center"),
+            ],
+            header_color=BRAND, row_color=LIGHT, cell_style=cell_style,
+            money_cols={"mrp", "current_price", "this_week_price",
+                        "eventual_price", "wasted_inr_per_month"},
+        ))
+
+    # ── Q2 — REINVEST (strategic price drops) ──────────────────────────
+    story.append(PageBreak())
+    story.append(Paragraph("Q2 — Where can I reinvest to grow volume?", title_style))
+    story.append(Paragraph(
+        "Cells where dropping price by 3 ppt is projected to drive enough extra volume to be worth the investment. "
+        "<b>Drop by Rs.</b> = the per-unit price drop. <b>+Units/mo</b> = projected incremental volume. "
+        "<b>Budget</b> = additional monthly discount spend needed. These cells are funded by the savings from Q1.",
+        sub_style
+    ))
+    if reinvest_main.empty:
+        story.append(Paragraph("<i>No High/Medium confidence reinvestment candidates this cycle.</i>", body_style))
+    else:
+        story.append(_styled_table(
+            reinvest_main,
+            cols=[
+                ("title",                       "SKU",            55*mm, "left"),
+                ("city",                        "City",           24*mm, "left"),
+                ("mrp",                         "MRP",            14*mm, "right"),
+                ("current_price",               "Now Rs.",        16*mm, "right"),
+                ("new_price",                   "New Rs.",        16*mm, "right"),
+                ("price_drop_inr",              "Drop Rs.",       16*mm, "right"),
+                ("volume_lift_pct",             "Vol +%",         15*mm, "right"),
+                ("extra_volume_units_per_month","+Units/mo",      20*mm, "right"),
+                ("budget_needed_inr_per_month", "Budget Rs./mo",  25*mm, "right"),
+                ("confidence",                  "Conf",           17*mm, "center"),
+            ],
+            header_color=ACCENT, row_color=colors.HexColor("#EDF7EE"), cell_style=cell_style,
+            money_cols={"mrp", "current_price", "new_price", "price_drop_inr",
+                        "budget_needed_inr_per_month", "extra_volume_units_per_month"},
+            pct_cols={"volume_lift_pct"},
+        ))
+
+    # ── Needs Price Test ───────────────────────────────────────────────
+    if not needs_test.empty:
+        story.append(PageBreak())
+        story.append(Paragraph("Needs Price Test (low confidence)", title_style))
+        story.append(Paragraph(
+            "These cells don't have enough clean data — either too few observations, too little discount variation, "
+            "or the demand signal is being confounded by something else (e.g. a launch ramp). "
+            "Run a small A/B price test in one city before acting.",
+            sub_style
+        ))
+        story.append(_styled_table(
+            needs_test,
+            cols=[
+                ("title",                "SKU",        80*mm, "left"),
+                ("city",                 "City",       35*mm, "left"),
+                ("current_discount_pct", "Now %",      18*mm, "right"),
+                ("elbow_discount_pct",   "Elbow %",    20*mm, "right"),
+                ("confidence",           "Confidence", 30*mm, "center"),
+            ],
+            header_color=GREY, row_color=LIGHT, cell_style=cell_style,
+            money_cols=set(),
+        ))
+
+    # ── Footer note on every page ──────────────────────────────────────
+    def _footer(canvas, doc_):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(GREY)
+        canvas.drawString(12*mm, 6*mm,
+            "Discount Optimizer — Stage 8 Flywheel Report  •  "
+            "Customer-facing price (Rs.) is the primary view; equivalent discount % shown for Blinkit entry.")
+        canvas.drawRightString(doc_.pagesize[0] - 12*mm, 6*mm,
+            f"Page {doc_.page}")
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+    return path
+
+
+def _styled_table(df, cols, header_color, row_color, cell_style,
+                   money_cols=None, pct_cols=None):
+    """
+    Helper: build a reportlab Table from a DataFrame given column specs.
+    cols = [(df_column, header_label, width, align), ...]
+    money_cols/pct_cols control numeric formatting.
+    """
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle, Paragraph
+
+    money_cols = money_cols or set()
+    pct_cols   = pct_cols or set()
+
+    def _fmt(col, v):
+        if pd.isna(v): return ""
+        if col in money_cols:
+            return f"{float(v):,.0f}" if abs(float(v)) >= 100 else f"{float(v):,.1f}"
+        if col in pct_cols:
+            return f"{float(v):+.1f}%"
+        if isinstance(v, float):
+            return f"{v:,.1f}"
+        return str(v)
+
+    # Header
+    headers = [Paragraph(f"<b><font color='white'>{h}</font></b>", cell_style)
+               for (_, h, _, _) in cols]
+    rows = [headers]
+
+    # Data rows (cap at 60 to keep PDF manageable; report says how many)
+    df_show = df.head(60)
+    for _, r in df_show.iterrows():
+        row = []
+        for col, _, _, align in cols:
+            v = r.get(col, "")
+            txt = _fmt(col, v)
+            # SKU column: wrap long names
+            if col == "title":
+                txt = txt[:55]
+            row.append(Paragraph(txt, cell_style))
+        rows.append(row)
+
+    widths = [w for (_, _, w, _) in cols]
+    tbl = Table(rows, colWidths=widths, repeatRows=1)
+
+    # Style
+    style_cmds = [
+        ("BACKGROUND",   (0,0), (-1,0),  header_color),
+        ("FONTNAME",     (0,0), (-1,0),  "Helvetica-Bold"),
+        ("FONTSIZE",     (0,0), (-1,0),  8.5),
+        ("ALIGN",        (0,0), (-1,0),  "CENTER"),
+        ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+        ("FONTSIZE",     (0,1), (-1,-1), 8),
+        ("GRID",         (0,0), (-1,-1), 0.3, colors.lightgrey),
+        ("ROWBACKGROUNDS",(0,1), (-1,-1), [colors.white, row_color]),
+        ("LEFTPADDING",  (0,0), (-1,-1), 4),
+        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+        ("TOPPADDING",   (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING",(0,0), (-1,-1), 4),
+    ]
+    # Per-column alignment
+    for i, (_, _, _, align) in enumerate(cols):
+        if align == "right":
+            style_cmds.append(("ALIGN", (i,1), (i,-1), "RIGHT"))
+        elif align == "center":
+            style_cmds.append(("ALIGN", (i,1), (i,-1), "CENTER"))
+        else:
+            style_cmds.append(("ALIGN", (i,1), (i,-1), "LEFT"))
+    tbl.setStyle(TableStyle(style_cmds))
+    return tbl
 
 
 def _write_csvs(waste_all, reinvest_all, run_dir):
