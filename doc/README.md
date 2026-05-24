@@ -26,12 +26,17 @@ substantially rewritten. Key changes:
 | **Stage 7** | Tier on full multi-cycle elbow journey | Tier on **this-cycle action** (what brand approves this week) |
 | **Stage 8** | Reinvest only triggered when elbow > current (nearly never) | **Strategic reinvestment** simulation — cells where +3 ppt drives meaningful volume at acceptable margin cost |
 | **All output** | Discount-% led | **Selling-price led** (₹ first; equivalent % shown for Blinkit entry) |
-| **New** | — | **Flywheel** portfolio summary — cuts and reinvestments tracked against `TARGET_WEIGHTED_DISCOUNT_PCT` |
+| **Flywheel** | — | Portfolio summary — cuts and reinvestments tracked against `TARGET_WEIGHTED_DISCOUNT_PCT` |
+| **Glide path** (NEW) | — | Multi-cycle week-by-week roadmap. Per-cell step = `max(MIN_PPT, gap/TIMELINE)`. Visible in the **Glide Path** sheet of `WASTE_REINVEST_REPORT.xlsx`. |
+| **Glide target** (NEW) | Margin-optimal elbow (0% discount) | Each cell's **proven-safe historical floor** — the lower-quartile of its own past discounts. Never plans a price the cell hasn't operated at. |
+| **Training window** (NEW) | Full history | Last 180 days only. Avoids contamination from launch ramps and outdated price regimes. **Single biggest accuracy lever.** |
+| **Output format** (NEW) | Markdown PDF | **McKinsey-style Excel workbook** with live formulas (`WASTE_REINVEST_REPORT.xlsx`). Markdown still produced for git. |
 
 Diagnostic evidence for each change lives in [MODEL.md](MODEL.md) and
 [FLYWHEEL.md](FLYWHEEL.md). Performance went from train R² = 0.41 / test R²
-= −0.15 / MAPE = 167% to **train R² = 0.86 / test R² = 0.27 / aggregated
-MAPE = 52%** with **plausible per-cell elasticities** (−0.5 to −3.6 range).
+= −0.15 / MAPE = 167% (original) to **train R² = 0.89 / test R² = 0.84 /
+aggregated MAPE = 24%** (current — Strong tier) with **plausible per-cell
+elasticities** (−0.5 to −3.6 range).
 
 ---
 
@@ -240,13 +245,20 @@ Every parameter that controls the system's behavior lives in `v4_config.py`. No 
 | `MARGINAL_ROI_THRESHOLD` | `1.0` | S6 | Elbow: ROI must exceed this |
 | `MIN_MARGIN_PCT` | `0.05` | S7 | Floor: 5% margin above variable cost |
 | `MAX_COMPETITOR_PREMIUM_PCT` | `0.10` | S7 | Max 10% premium over competitor |
-| `MAX_DISCOUNT_CHANGE_PPT` | `3` | S7 | Max 3 ppt change per planning cycle |
+| `MIN_DISCOUNT_CHANGE_PPT` | `3` | S7 | **NEW.** Minimum weekly cut — never make trivial sub-3 ppt moves |
+| `MAX_DISCOUNT_CHANGE_PPT` | `5` | S7 | Hard safety cap per cycle |
+| `USE_DYNAMIC_GLIDE` | `True` | S7 | If on, per-cycle step = `max(MIN, gap/TIMELINE)` capped at MAX |
+| `TARGET_TIMELINE_WEEKS` | `12` | S7/S8 | **NEW.** 3-month budget — full gap must close within this many weeks |
+| `USE_HISTORICAL_FLOOR_TARGET` | `True` | S7/S8 | **NEW.** If on, target = each cell's proven-safe historical floor (not the margin-optimal elbow at 0%) |
+| `HISTORICAL_FLOOR_PERCENTILE` | `25` | S4 | **NEW.** Lower-quartile of past discounts = the cell's "we've been here before" floor |
+| `HISTORICAL_FLOOR_LOOKBACK_DAYS` | `90` | S4 | **NEW.** Window for computing the floor |
+| `TRAIN_LOOKBACK_DAYS` | `180` | S4 | **NEW.** Train only on the last N days of regular-day data. Was the single biggest accuracy lever (R² 0.27 → 0.84). Set to `None` for full-history training. |
 | `TIER_STRONG_CUT_MIN_SAVINGS` | `₹10,000` | S7 | **Note:** Stage 7 now uses a fixed ₹5K floor inline; this config kept for back-compat |
 | `TIER_STRONG_CUT_MAX_VOL_DROP` | `0.05` | S7 | **Note:** Stage 7 now uses an inline 8% this-cycle threshold |
-| `TARGET_WEIGHTED_DISCOUNT_PCT` | `9.0` | S8 | **NEW.** Portfolio target — Stage 8 reports how cuts + reinvestments move toward this |
-| `REINVEST_MIN_ELASTICITY` | `2.0` | S8 | **NEW.** Cell must have \|elasticity\| ≥ this to be a reinvestment candidate |
-| `REINVEST_MIN_VOL_LIFT_PCT` | `5.0` | S8 | **NEW.** Min projected volume lift at +3 ppt for a cell to qualify |
-| `REINVEST_MAX_MARGIN_SAC_PCT` | `10.0` | S8 | **NEW.** Max acceptable margin sacrifice for a reinvestment move |
+| `TARGET_WEIGHTED_DISCOUNT_PCT` | `9.0` | S8 | Portfolio target — Stage 8 reports the gap |
+| `REINVEST_MIN_ELASTICITY` | `2.0` | S8 | Cell must have \|elasticity\| ≥ this to be a reinvestment candidate |
+| `REINVEST_MIN_VOL_LIFT_PCT` | `5.0` | S8 | Min projected volume lift at +3 ppt for a cell to qualify |
+| `REINVEST_MAX_MARGIN_SAC_PCT` | `10.0` | S8 | Max acceptable margin sacrifice for a reinvestment move |
 
 ---
 
@@ -877,49 +889,61 @@ if elbow_price < floor_price:
 - 30% discount → Price = ₹84 < ₹86.73 ❌ **Floor violated**
 - Adjusted discount = (1 - 86.73/120) × 100 = **27.7%** ← New recommendation
 
-### Guardrail 2: Max Change Rate Throttle
+### Guardrail 2: Dynamic per-cycle step (the glide rule)
 
-**Goal:** Prevent price shock. Blinkit's algorithm and customer expectations don't respond well to sudden large price swings.
+**Goal:** Walk every cell to its target over a user-set duration with
+weekly moves that are big enough to matter (≥ 3 ppt) but not so big
+they shock customers (≤ 5 ppt).
 
+The target is `max(elbow_disc, historical_floor_disc)` — by default the
+historical floor wins (`USE_HISTORICAL_FLOOR_TARGET = True`) so the
+system never plans a price the cell has never operated at.
+
+**Per-cycle step rule:**
+
+```python
+gap = abs(current_disc - target_disc)
+
+if gap < 0.1:
+    step = 0            # already at target
+elif gap <= MIN_DISCOUNT_CHANGE_PPT (3):
+    step = gap          # one-shot — don't overshoot
+else:
+    step = max(MIN_DISCOUNT_CHANGE_PPT, gap / TARGET_TIMELINE_WEEKS)
+    step = min(step, MAX_DISCOUNT_CHANGE_PPT)  # absolute safety cap (5)
 ```
-disc_change = current_discount_pct - elbow_discount_pct
 
-if abs(disc_change) > MAX_DISCOUNT_CHANGE_PPT (3):
-    is_throttled = True
-    if disc_change > 0 (reducing discount):
-        throttled_discount = current_discount - MAX_DISCOUNT_CHANGE_PPT
-    else (increasing discount):
-        throttled_discount = current_discount + MAX_DISCOUNT_CHANGE_PPT
-```
+**Examples:**
 
-**Example A — Big reduction needed:**
-- Current = 18%, Elbow = 0%, Change needed = 18 ppt (exceeds max of 3 ppt)
-- This cycle recommendation = **15%**
-- Phasing plan auto-generated: `18% → 15% → 12% → 9% → 6% → 3% → 0%`
-- This takes **6 planning cycles** to reach the optimum
+| Gap | Per-cycle step | Cycles to close |
+|---:|---:|---:|
+| 0.5 ppt | 0.5 (one-shot) | 1 |
+| 2.2 ppt | 2.2 (one-shot) | 1 |
+| 4.6 ppt | 3 (= MIN) | 2 (3 + 1.6) |
+| 36 ppt | 3 (= MIN, raw_step also 3.0) | 12 |
+| 60 ppt | 5 (= MAX cap) | 12 |
 
-**Example B — Small change:**
-- Current = 10%, Elbow = 8%, Change needed = 2 ppt (within limit)
-- No throttle needed. Recommendation = **8%** immediately.
+The phasing plan column in `recommendations.csv` shows the full walk
+e.g. `14.4% → 12.2%` (one-shot) or `25.2% → 22.2% → 20.6%` (2 cycles).
 
 ### Phasing Plan Logic
 
 ```python
-def _build_phasing_plan(current_disc, target_disc, max_step):
+def _build_phasing_plan(current_disc, target_disc, step):
     steps = [current_disc]
     current = current_disc
     direction = -1 if target_disc < current_disc else 1
-
     while abs(current - target_disc) > 0.5:
-        next_step = current + direction * max_step
-        next_step = max(next_step, target_disc)  # Don't overshoot
+        next_step = current + direction * step
+        next_step = max(next_step, target_disc) if direction < 0 \
+                    else min(next_step, target_disc)  # don't overshoot
         steps.append(round(next_step, 1))
         current = next_step
     return steps
 ```
 
-**Output for 18% → 0% with max_step=3:**
-`[18, 15, 12, 9, 6, 3, 0]` → displayed as `"18% → 15% → 12% → 9% → 6% → 3% → 0%"`
+**Output for 25.2% → 20.6% with step=3:** `[25.2, 22.2, 20.6]` →
+displayed as `"25.2% → 22.2% → 20.6%"`.
 
 ### Tiering Decision Tree (THIS-CYCLE metrics)
 

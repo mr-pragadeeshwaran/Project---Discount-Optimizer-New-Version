@@ -60,9 +60,10 @@ Adding cell FE was the single biggest fix:
 
 | Setup | Test log-R² | Test MAPE | Elasticity |
 |---|---:|---:|---:|
-| MixedLM with random intercept only (baseline) | −0.15 | 167% | −5.9 |
+| MixedLM with random intercept only (original baseline) | −0.15 | 167% | −5.9 |
 | OLS + cell FE + log_price | +0.15 | 60% | −3.0 |
-| OLS + cell FE + log_price + Huber (final) | **+0.27** | **52%** | per-cat |
+| OLS + cell FE + Huber + decorrelated badge | +0.27 | 52% | per-cat |
+| **+ TRAIN_LOOKBACK_DAYS=180 + outliers z=2 (current production)** | **+0.84** | **24%** | per-cat |
 
 ### 3. Why **Huber robust** regression instead of plain OLS?
 
@@ -123,7 +124,40 @@ in Stage 5. Cells whose raw slope hits the bound get flagged "elasticity at
 floor/ceiling" in `quality_note`, which downgrades their confidence in
 Stage 5.
 
-### 7. Why **time_trend was tried then removed**
+### 7a. Why **TRAIN_LOOKBACK_DAYS = 180** was the single biggest win
+
+Restricting Stage 4 training to the last 180 days of regular-day rows took
+the model from Weak to Strong in one step:
+
+| Metric | Full-history training | Last-180-days training |
+|---|---:|---:|
+| Train log-R² | 0.86 | 0.89 |
+| Test log-R² | 0.27 | **0.84** |
+| Aggregated MAPE | 53% | **24%** |
+| Aggregated R²(units) | 0.40 | **0.93** |
+
+Why such a dramatic effect? Two structural problems in the older data
+window were poisoning the fit:
+
+1. **Moong Dal launch ramp.** Volume grew 16× from Jan 2025 to Mar 2026
+   because of distribution / awareness expansion, not because of price.
+   The model attributed that growth to discount, inflating elasticity
+   for Dal cells to −5+ and adding huge noise.
+2. **Price-regime mismatch.** Train period averaged 11.7% discount,
+   test period averaged 24.9%. The model learned in one regime and was
+   asked to predict in a wholly different one — guaranteed bad MAPE.
+
+Restricting to 180 days hands the model only the steady-state business
+it's actually in. Configured in `v4_config.py`:
+
+```python
+TRAIN_LOOKBACK_DAYS = 180  # None = full history (the old behavior)
+```
+
+Combined with `OUTLIER_Z_THRESHOLD = 2.0` (tightened from 3.0) — these
+two settings together moved the model into the "Strong" accuracy tier.
+
+### 7b. Why **time_trend was tried then removed**
 
 Moong Dal demand grew **16×** over the data window (4 → 70 units/day, Jan
 2025 → Mar 2026). When a per-cell linear time trend (`days_since_first_obs`)
@@ -175,6 +209,7 @@ The `elasticities` DataFrame has one row per cell with these key columns:
 | `price_elasticity_se` | Standard error (inflated for thin cells) |
 | `badge_sensitivity` | Per-cell shrunk slope on `badge_resid` |
 | `n_observations`, `n_train`, `n_discount_levels`, `disc_pct_std` | Data-quality inputs for the Stage 5 confidence check |
+| `historical_floor_disc` | The cell's lower-quartile discount in the last 90 days. Used by Stage 7 / 8 as the *target* for the multi-week glide path when `USE_HISTORICAL_FLOOR_TARGET=True`. Stops the system from planning discounts the cell has never operated at. |
 
 ---
 
@@ -183,12 +218,12 @@ The `elasticities` DataFrame has one row per cell with these key columns:
 Stage 4 prints (and stores in `diagnostics`) both **daily** and **aggregated** metrics:
 
 ```
-Train log-R²: 0.857  (primary trust signal — in-distribution fit)
-Test  log-R²: 0.271  (out-of-distribution — last 20% by date)
-Test  log-MAE: 0.967 (~163% avg unit error at daily grain)
-Raw-unit MAPE: 56.4%
-Aggregated (3pp bin) MAPE: 52.5%
-Aggregated R²(units):       0.401
+Train log-R²: 0.887  (primary trust signal — in-distribution fit)
+Test  log-R²: 0.844  (out-of-distribution — last 20% by date)
+Test  log-MAE: 0.386
+Raw-unit MAPE: 40.1%
+Aggregated (3pp bin) MAPE: 24.0%
+Aggregated R²(units):       0.928
 ```
 
 The **aggregated** metric is what really matters for this system. Stage 5
@@ -196,8 +231,20 @@ consumes *mean* units per discount level (the saturation curve), not daily
 predictions. Daily-level noise is irreducible for CPG SKU × city data
 (weather, supply hiccups, neighbouring SKU effects we don't observe).
 
-> Aggregated R²(units) ≥ 0.30 with MAPE ≤ 60% is the "good enough" bar
-> for this kind of optimization. Current model clears it.
+### Accuracy tier (shown in the Excel report)
+
+Surfaced on the Summary sheet of `WASTE_REINVEST_REPORT.xlsx` as a
+live IF formula. User can change the thresholds in-cell without
+touching code:
+
+| Tier | Test log-R² | Aggregated MAPE |
+|---|---|---|
+| **Strong** | ≥ 0.70 | ≤ 25% |
+| Moderate | ≥ 0.40 | ≤ 50% |
+| Weak | ≥ 0.10 | ≤ 80% |
+| Unreliable | else | — |
+
+Current production hits **Strong** (R² 0.84, MAPE 24%).
 
 ---
 

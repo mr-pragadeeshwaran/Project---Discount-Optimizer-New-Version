@@ -12,7 +12,8 @@ v4_outputs/20260524_165218/
 ├── waste.csv                    ← Stage 8 cuts list
 ├── reinvest.csv                 ← Stage 8 strategic reinvest list
 ├── per_cell_detail.json         ← full per-cell payload for dashboard
-├── WASTE_REINVEST_REPORT.md     ← human-readable flywheel report (open first)
+├── WASTE_REINVEST_REPORT.xlsx   ← McKinsey-style formula-driven workbook (open this first)
+├── WASTE_REINVEST_REPORT.md     ← same content as plain Markdown (git-friendly)
 └── BRAND_DASHBOARD.html         ← interactive 4-view HTML
 ```
 
@@ -91,6 +92,7 @@ Produced by `stage4_model/elasticity.py`. One row per cell.
 | `product_id`, `grammage`, `city`, `category`, `title`, `cell_id`, `stable_mrp` | Identification |
 | `avg_selling_price`, `avg_units`, `avg_discount_pct` | Cell-history averages |
 | `disc_pct_std`, `n_discount_levels`, `n_observations`, `n_train` | Data-quality stats |
+| `historical_floor_disc` | The cell's lower-quartile discount in the last 90 days. Stage 7/8 use this as the *target* of the multi-week glide path when `USE_HISTORICAL_FLOOR_TARGET=True` (default). |
 | **`price_elasticity`** | Final per-cell elasticity (negative; clipped to `[-4, -0.3]`) |
 | `price_elasticity_global` | Category median used as shrinkage prior |
 | `price_elasticity_se`, `_lower`, `_upper` | Standard error + 95% CI |
@@ -179,31 +181,88 @@ Produced by `stage8_output/waste_reinvest.py` → `_build_waste_table`. Same cel
 
 ---
 
-## 8. `WASTE_REINVEST_REPORT.md` — **the Monday-morning read**
+## 8. `WASTE_REINVEST_REPORT.xlsx` — **the Monday-morning read (Excel)**
 
-Generated markdown. Top-down structure:
+McKinsey-style 6-sheet workbook built with `openpyxl`. Every number on
+the Summary, By Product, and Glide Path sheets is a **live formula**
+referencing the hidden Data sheet — you can edit Data cells and watch
+everything recompute. Only old-school formulas used (SUM, SUMPRODUCT,
+IF, AND, LEFT) so it works in any Excel 2010 or later.
+
+### Sheet 1: Summary
+
+Top of the workbook. Contains in order:
+
+1. **Portfolio table** — Today / After cuts / After cuts + invest, with rows for:
+   Gross sales / Discount spend / Net revenue / Units / **Weighted discount %** (live formula `=B_spend / B_gross * 100`).
+2. **Target and gap** — `B12 − B14` formula for the live gap to target.
+3. **This week's plan** — Cuts / Reinvest / Net change with cells, spend Δ, units Δ.
+4. **Model accuracy** — three metrics + nested-IF formula for the **Strong / Moderate / Weak / Unreliable** tier. The tier thresholds are visible in cell A35 so the brand team can rewrite them in-cell.
+
+### Sheet 2: Glide Path  ← *NEW*
+
+The week-by-week roadmap. Two parts:
+
+| Section | What it shows |
+|---|---|
+| Header card | Today vs end-of-roadmap projection (weighted disc %, monthly spend, net revenue, gap closure) |
+| Week-by-week table | One row per cycle (0..N): Cycle / Label / Weighted Disc % / Gross Sales / Discount Spend / Net Revenue / Units / Cumulative Savings / Gap to Target |
+
+Trailing identical rows are trimmed — once every cell reaches its
+floor, the table stops to avoid showing flat weeks.
+
+See [FLYWHEEL.md](FLYWHEEL.md) for the math.
+
+### Sheet 3: By Product
+
+Per-SKU breakdown of the same 5 metrics as the portfolio table. Uses
+`LEFT(cell_id, N) = "{pid}_{grm}_"` prefix-matching against the Data
+sheet — robust against title variants.
+
+### Sheet 4: Price Lifts (cuts list)
+
+| Column | What |
+|---|---|
+| Product, City, MRP | Identification |
+| Now | Current selling price (Rs.) |
+| This Week | Throttled price for this Monday |
+| Wasted/mo | Full multi-cycle savings opportunity in Rs. |
+| Conf | Inherited from Stage 5 |
+
+A confidence legend explains the High/Medium/Low rules in-sheet.
+
+### Sheet 5: Price Drops (strategic reinvest list)
+
+| Column | What |
+|---|---|
+| Product, City, MRP | — |
+| Now / New | Current vs proposed selling price |
+| Vol Δ | Projected % volume lift |
+| +Units/mo | Absolute volume gain |
+| Budget/mo | Additional discount spend |
+
+### Sheet 6: Needs Test
+
+Cells the model isn't confident enough to act on. A/B test these.
+
+### Sheet 7: Data (hidden)
+
+Raw per-cell data — single source of truth that all the formula sheets reference:
 
 ```
-## Flywheel: Portfolio Rebalancing (selling-price view)
-  Target / Current / After cuts / After cuts + reinvest
-  Per-category current discount
-  Monthly savings, budget redirected, extra units, net margin
-
-  (multi-cycle journey note)
-
-### Confidence breakdown of waste pool
-
-## Q1: Where Am I Overspending on Discount?
-  (waste table, sorted by ₹ wasted/month)
-
-## Q2: Where Can I Reinvest the Saved Money?
-  (reinvest table, sorted by extra units/month)
-
-## Needs Price Test (Low Confidence)
-  (cells where the model can't act — need pilot)
+cell_id | product | grammage | city | mrp |
+cur_disc_pct | cur_units_day | cur_price |
+aftercut_disc_pct | aftercut_units | aftercut_price |
+final_disc_pct | final_units | final_price |
+confidence | elasticity | category
 ```
 
-The "Why" / `logic_explanation` columns are dropped from the markdown tables for readability but are present in the CSVs.
+`Format ▸ Sheet ▸ Unhide` if you want to inspect or what-if it.
+
+### `WASTE_REINVEST_REPORT.md` — same content, plain Markdown
+
+Identical structure to the Excel, just as text. Use for git diffs,
+email, grep, anything where Excel is awkward.
 
 ---
 
@@ -214,10 +273,10 @@ Used by the dashboard. Schema:
 ```json
 {
   "model_diagnostics": {
-    "overall_holdout_mape": 52.5,
-    "overall_holdout_r2":   0.40,
-    "n_train": 6387,
-    "n_test":  2148
+    "overall_holdout_mape": 24.0,
+    "overall_holdout_r2":   0.93,
+    "n_train": 3286,
+    "n_test":  654
   },
   "summary": {
     "total_wasted":    2028905,
@@ -251,10 +310,13 @@ Standalone HTML, no server needed. Four views:
 
 ## Reading order for a fresh run
 
-1. **`WASTE_REINVEST_REPORT.md`** — top of the funnel; understand the portfolio move
-2. **Strong Cut rows in `recommendations.csv`** — this week's fast-track actions
-3. **Reinvest cells in `reinvest.csv`** — strategic growth bets
-4. **`outliers_removed.csv`** — sanity check; investigate clusters
-5. **`elasticity_estimates.csv`** — only if a recommendation looks wrong; trace back
+1. **`WASTE_REINVEST_REPORT.xlsx`** — open this first.
+   - **Summary sheet**: portfolio numbers + this-week plan + accuracy tier.
+   - **Glide Path sheet**: week-by-week projection over the 3-month duration.
+   - **Price Lifts / Drops / Needs Test**: detailed action lists.
+2. **Strong Cut rows in `recommendations.csv`** — this week's fast-track actions with `phasing_plan` column showing the full multi-week glide.
+3. **Reinvest cells in `reinvest.csv`** — strategic growth bets.
+4. **`outliers_removed.csv`** — sanity check; investigate clusters monthly.
+5. **`elasticity_estimates.csv`** — only if a recommendation looks wrong; trace back. Includes `historical_floor_disc` (the cell's proven-safe target).
 
 Skip `fact_table.csv` and `features.csv` unless something downstream looks off — those are audit/replay artifacts.

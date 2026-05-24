@@ -29,7 +29,8 @@ python -X utf8 pipeline.py
 #   ├─ recommendations.csv          ← THIS WEEK's price actions, price-led
 #   ├─ waste.csv                    ← cells where you're over-discounting
 #   ├─ reinvest.csv                 ← cells worth dropping price to grow
-#   ├─ WASTE_REINVEST_REPORT.md     ← flywheel summary (open this first)
+#   ├─ WASTE_REINVEST_REPORT.xlsx   ← McKinsey-style Excel (open this first)
+#   ├─ WASTE_REINVEST_REPORT.md     ← same content as plain Markdown
 #   ├─ BRAND_DASHBOARD.html         ← interactive 4-view dashboard
 #   └─ per_cell_detail.json         ← full per-cell payload for the dashboard
 ```
@@ -108,6 +109,7 @@ python -X utf8 pipeline.py --stages 8           # regenerate report only
                                   │
                                   ▼
                         BRAND_DASHBOARD.html
+                        WASTE_REINVEST_REPORT.xlsx
                         WASTE_REINVEST_REPORT.md
                         recommendations.csv
 ```
@@ -183,10 +185,11 @@ For details beyond this README:
 
 | Metric | What it means | Value |
 |---|---|---|
-| Train log-R² | Fit on training rows | **0.86** |
-| Test log-R² | Out-of-sample fit | **0.27** |
-| Aggregated MAPE (3-ppt discount bins) | Error on the grain the curve uses | **52%** |
-| Aggregated R² (units, same grain) | Variance explained at the curve grain | **0.40** |
+| Train log-R² | Fit on training rows | **0.89** |
+| Test log-R² | Out-of-sample fit | **0.84** |
+| Aggregated MAPE (3-ppt discount bins) | Error on the grain the curve uses | **24%** |
+| Excel accuracy tier | Strong / Moderate / Weak / Unreliable | **Strong** ✓ |
+| Aggregated R² (units, same grain) | Variance explained at the curve grain | **0.93** |
 | Per-category elasticities | Jaggery / Dal / Oil | **−2.5 / −3.6 / −3.3** (plausible CPG range) |
 
 These metrics replaced an earlier hierarchical model that produced train R² = 0.41, test R² = −0.15, and elasticities of −5.9 — see [doc/MODEL.md](doc/MODEL.md) for the diagnosis and fix.
