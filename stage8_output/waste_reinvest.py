@@ -613,18 +613,25 @@ def _apply_guardrails(df):
         if target_price < floor:
             rec_d = max(0, (1 - floor / mrp) * 100)
 
-        # Max change rate per cycle
-        change = abs(cur_d - rec_d)
+        # Per-cycle step: max(MIN_PPT, gap/TIMELINE), no upper cap.
+        # Closes the gap within TARGET_TIMELINE_WEEKS regardless of size.
+        gap = abs(cur_d - rec_d)
+        min_step = float(getattr(cfg, "MIN_DISCOUNT_CHANGE_PPT", 3))
+        timeline = int(getattr(cfg, "TARGET_TIMELINE_WEEKS", 12))
+        if gap <= min_step:
+            cycle_step = gap  # one-shot
+        else:
+            cycle_step = max(min_step, gap / float(timeline))
         phasing = ""
-        if change > cfg.MAX_DISCOUNT_CHANGE_PPT:
+        if gap > cycle_step + 0.05:
             direction = 1 if rec_d > cur_d else -1
-            throttled = cur_d + direction * cfg.MAX_DISCOUNT_CHANGE_PPT
-            steps = [f"{cur_d:.0f}%"]
+            throttled = cur_d + direction * cycle_step
+            steps = [f"{cur_d:.1f}%"]
             c = cur_d
             while abs(c - rec_d) > 0.5:
-                c += direction * cfg.MAX_DISCOUNT_CHANGE_PPT
+                c += direction * cycle_step
                 c = min(c, rec_d) if direction > 0 else max(c, rec_d)
-                steps.append(f"{c:.0f}%")
+                steps.append(f"{c:.1f}%")
             phasing = f" Multi-cycle phasing: {' -> '.join(steps)}."
             rec_d = max(0, throttled)
 
@@ -1084,8 +1091,7 @@ def _compute_glide_path(df, waste_main, reinvest_main):
        cycle | weighted_disc% | gross_sales | discount_spend | net_revenue |
        units | cumulative_savings | gap_to_target
     """
-    timeline = getattr(cfg, "TARGET_TIMELINE_WEEKS", 22)
-    max_step = getattr(cfg, "MAX_DISCOUNT_CHANGE_PPT", 4)
+    timeline = getattr(cfg, "TARGET_TIMELINE_WEEKS", 12)
     target_wd = getattr(cfg, "TARGET_WEIGHTED_DISCOUNT_PCT", 9.0)
 
     cut_set = set()
@@ -1126,7 +1132,9 @@ def _compute_glide_path(df, waste_main, reinvest_main):
 
         # Same step rule as Stage 7:
         #   - gap < MIN_DISCOUNT_CHANGE_PPT: one-shot cut/raise
-        #   - else: step = max(MIN, gap/timeline), capped at MAX
+        #   - else: step = max(MIN, gap/timeline)
+        # NO upper cap — TARGET_TIMELINE_WEEKS is the binding constraint,
+        # so every cell closes its gap within the user-set duration.
         min_step = float(getattr(cfg, "MIN_DISCOUNT_CHANGE_PPT", 3))
         gap = cur_d - target  # positive = cut, negative = raise
         abs_gap = abs(gap)
@@ -1136,7 +1144,7 @@ def _compute_glide_path(df, waste_main, reinvest_main):
             step = abs_gap  # one-shot
         else:
             raw_step = abs_gap / float(timeline)
-            step = max(min_step, min(raw_step, max_step))
+            step = max(min_step, raw_step)
         # apply direction
         if gap < 0:
             step = -step

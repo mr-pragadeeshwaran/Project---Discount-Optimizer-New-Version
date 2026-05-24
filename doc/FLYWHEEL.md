@@ -86,16 +86,18 @@ gap = | current_discount − target_discount |
 if gap < 0.1:                step = 0       (already done)
 elif gap ≤ MIN (3 ppt):      step = gap     (one-shot move)
 else:                         step = max(MIN, gap / TIMELINE_WEEKS)
-                                     bounded by MAX (5 ppt absolute)
 ```
+
+**No upper cap.** TARGET_TIMELINE_WEEKS is the binding constraint —
+every cell closes its full gap within the user-set duration regardless
+of how big the gap is.
 
 Defaults (in `v4_config.py`):
 
 | Knob | Default | What it controls |
 |---|---:|---|
 | `MIN_DISCOUNT_CHANGE_PPT` | 3 | Minimum weekly move. Smaller moves don't meaningfully shift the customer price. |
-| `MAX_DISCOUNT_CHANGE_PPT` | 5 | Hard safety cap per week. |
-| `TARGET_TIMELINE_WEEKS` | 12 | Budget — gaps > 3 ppt spread over up to this many weeks. |
+| `TARGET_TIMELINE_WEEKS` | 12 | Hard duration — full gap must close within this many cycles. |
 
 ### Worked examples (from a real run)
 
@@ -106,9 +108,12 @@ Defaults (in `v4_config.py`):
 | 3.4 ppt | gap > 3, gap/12 = 0.28 → use MIN | 3 ppt | 2 (3 + 0.4) |
 | 4.6 ppt | gap > 3, gap/12 = 0.38 → use MIN | 3 ppt | 2 (3 + 1.6) |
 | 36 ppt | gap > 3, gap/12 = 3.0 → use raw | 3 ppt | 12 |
-| 60 ppt | gap > 3, gap/12 = 5.0 → at MAX cap | 5 ppt | 12 |
+| 60 ppt | gap > 3, gap/12 = 5.0 → use raw | 5 ppt | 12 |
+| 96 ppt | gap > 3, gap/12 = 8.0 → use raw | 8 ppt | 12 |
 
-**Always closes the full gap.** No cell stops half-way.
+**Always closes within TARGET_TIMELINE_WEEKS** regardless of gap size.
+Bigger gaps just mean bigger weekly steps. No half-measures, no
+extending past the deadline.
 
 ---
 
@@ -248,9 +253,8 @@ In `v4_config.py`:
 USE_HISTORICAL_FLOOR_TARGET   = True   # walk to floor (not elbow / 0%)
 HISTORICAL_FLOOR_PERCENTILE   = 25     # lower-quartile of past discounts
 HISTORICAL_FLOOR_LOOKBACK_DAYS = 90    # past-90-day window for the floor
-TARGET_TIMELINE_WEEKS         = 12     # 3 months budget for full glide
+TARGET_TIMELINE_WEEKS         = 12     # 3 months — HARD upper bound, no exceptions
 MIN_DISCOUNT_CHANGE_PPT       = 3      # smallest weekly move
-MAX_DISCOUNT_CHANGE_PPT       = 5      # absolute safety cap
 
 # Strategic reinvest filters
 REINVEST_MIN_ELASTICITY       = 2.0

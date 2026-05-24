@@ -62,11 +62,11 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
 
         # 2. Per-cycle step rule:
         #   - If gap < MIN_DISCOUNT_CHANGE_PPT (3 ppt): close in one shot.
-        #   - Else: per-cycle step = max(MIN, gap / TARGET_TIMELINE_WEEKS),
-        #          capped at MAX (5 ppt). Cell reaches target in ≤ timeline.
+        #   - Else: per-cycle step = max(MIN, gap / TARGET_TIMELINE_WEEKS).
+        # NO upper cap — TARGET_TIMELINE_WEEKS is the binding constraint, so
+        # every cell closes its full gap within the user-set duration.
         gap = abs(current_disc - target_disc)
         min_step = float(getattr(cfg, "MIN_DISCOUNT_CHANGE_PPT", 3))
-        max_step = float(getattr(cfg, "MAX_DISCOUNT_CHANGE_PPT", 5))
         timeline = getattr(cfg, "TARGET_TIMELINE_WEEKS", 12)
 
         if gap < 0.1:
@@ -76,7 +76,6 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
         else:
             raw_step = gap / float(timeline)
             this_cycle_step = max(min_step, raw_step)
-            this_cycle_step = min(this_cycle_step, max_step)
 
         if gap > this_cycle_step + 0.05:
             df.at[idx, "is_throttled"] = True

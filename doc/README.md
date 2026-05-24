@@ -246,9 +246,8 @@ Every parameter that controls the system's behavior lives in `v4_config.py`. No 
 | `MIN_MARGIN_PCT` | `0.05` | S7 | Floor: 5% margin above variable cost |
 | `MAX_COMPETITOR_PREMIUM_PCT` | `0.10` | S7 | Max 10% premium over competitor |
 | `MIN_DISCOUNT_CHANGE_PPT` | `3` | S7 | **NEW.** Minimum weekly cut — never make trivial sub-3 ppt moves |
-| `MAX_DISCOUNT_CHANGE_PPT` | `5` | S7 | Hard safety cap per cycle |
-| `USE_DYNAMIC_GLIDE` | `True` | S7 | If on, per-cycle step = `max(MIN, gap/TIMELINE)` capped at MAX |
-| `TARGET_TIMELINE_WEEKS` | `12` | S7/S8 | **NEW.** 3-month budget — full gap must close within this many weeks |
+| `USE_DYNAMIC_GLIDE` | `True` | S7 | If on, per-cycle step = `max(MIN, gap/TIMELINE)` (no upper cap) |
+| `TARGET_TIMELINE_WEEKS` | `12` | S7/S8 | **NEW.** 3-month HARD deadline — every cell's full gap closes within this duration regardless of size |
 | `USE_HISTORICAL_FLOOR_TARGET` | `True` | S7/S8 | **NEW.** If on, target = each cell's proven-safe historical floor (not the margin-optimal elbow at 0%) |
 | `HISTORICAL_FLOOR_PERCENTILE` | `25` | S4 | **NEW.** Lower-quartile of past discounts = the cell's "we've been here before" floor |
 | `HISTORICAL_FLOOR_LOOKBACK_DAYS` | `90` | S4 | **NEW.** Window for computing the floor |
@@ -910,7 +909,7 @@ elif gap <= MIN_DISCOUNT_CHANGE_PPT (3):
     step = gap          # one-shot — don't overshoot
 else:
     step = max(MIN_DISCOUNT_CHANGE_PPT, gap / TARGET_TIMELINE_WEEKS)
-    step = min(step, MAX_DISCOUNT_CHANGE_PPT)  # absolute safety cap (5)
+    # No upper cap — TARGET_TIMELINE_WEEKS is the binding deadline
 ```
 
 **Examples:**
@@ -921,7 +920,10 @@ else:
 | 2.2 ppt | 2.2 (one-shot) | 1 |
 | 4.6 ppt | 3 (= MIN) | 2 (3 + 1.6) |
 | 36 ppt | 3 (= MIN, raw_step also 3.0) | 12 |
-| 60 ppt | 5 (= MAX cap) | 12 |
+| 60 ppt | 5 (= raw_step 60/12) | 12 |
+| 96 ppt | 8 (= raw_step 96/12) | 12 |
+
+Every cell closes within TARGET_TIMELINE_WEEKS regardless of gap size.
 
 The phasing plan column in `recommendations.csv` shows the full walk
 e.g. `14.4% → 12.2%` (one-shot) or `25.2% → 22.2% → 20.6%` (2 cycles).

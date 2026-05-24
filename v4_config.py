@@ -147,18 +147,16 @@ MAX_COMPETITOR_PREMIUM_PCT = 0.10  # Max 10% above competitor
 #      Still bounded by MAX_DISCOUNT_CHANGE_PPT as an absolute safety rail.
 #   2. STATIC: every cell capped at MAX_DISCOUNT_CHANGE_PPT/cycle.
 USE_DYNAMIC_GLIDE      = True
-TARGET_TIMELINE_WEEKS  = 12    # User-editable: ~3 months. The gap should
-                                # be fully closed by the end of this many
-                                # cycles, not stretched indefinitely.
+TARGET_TIMELINE_WEEKS  = 12    # User-editable: ~3 months. HARD upper
+                                # bound — every cell's full gap must
+                                # close within this many cycles, no
+                                # exceptions. This is the ONLY upper
+                                # constraint on the per-cycle step.
 MIN_DISCOUNT_CHANGE_PPT = 3    # Each weekly cut is at least this big —
-                                # no tiny 0.07 ppt moves that don't
-                                # meaningfully shift the customer price.
-                                # If a cell's gap to target is smaller
-                                # than this, the cell closes the whole
-                                # gap in ONE cycle (single-shot).
-MAX_DISCOUNT_CHANGE_PPT = 5    # Hard safety cap — no cell moves more
-                                # than this in one cycle regardless of
-                                # what the timeline math says.
+                                # no tiny moves that don't meaningfully
+                                # shift the customer price. If a cell's
+                                # gap is smaller than this, the cell
+                                # closes the whole gap in ONE cycle.
 
 # ── What's the END point of the glide? ──
 # True (default):   target = historical_floor_discount per cell.
