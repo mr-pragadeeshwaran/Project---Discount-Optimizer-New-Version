@@ -47,24 +47,32 @@ def generate_waste_reinvest_report(rec_df, feat_df, model_output, run_dir):
     # Separate Low confidence into "Needs Price Test"
     waste_main = waste_all[waste_all["confidence"] != "Low"].copy()
     reinvest_main = reinvest_all[reinvest_all["confidence"] != "Low"].copy()
+    # Remove reinvest cells from the waste view — a cell flagged for strategic
+    # reinvestment should appear ONLY in Q2 (we're investing, not cutting it).
+    if not reinvest_main.empty and "cell_id" in reinvest_main.columns:
+        waste_main = waste_main[~waste_main["cell_id"].isin(reinvest_main["cell_id"])].copy()
     needs_test = pd.concat([
         waste_all[waste_all["confidence"] == "Low"],
         reinvest_all[reinvest_all["confidence"] == "Low"],
     ]).drop_duplicates(subset=["cell_id"])
 
     summary = _build_summary(waste_all, reinvest_all, waste_main, df_all=df)
+    # Canonical business metrics: total_spend / total_sales_at_MRP and per-product breakdown
+    summary["business"] = _compute_business_metrics(df, waste_main, reinvest_main)
 
-    # Print summary
+    # Print summary — business-style
+    biz = summary["business"]
+    t, c, b = biz.get("today", {}), biz.get("after_cuts", {}), biz.get("after_cuts_and_reinvest", {})
     print(f"    Waste cells (High/Med): {len(waste_main)} | Reinvest cells (High/Med): {len(reinvest_main)}")
     print(f"    Needs Price Test: {len(needs_test)} cells")
-    print(f"    Total wasted discount: Rs.{summary['total_wasted']:,.0f}/month")
-    print(f"    Total reinvestment opportunity: Rs.{summary['total_reinvest']:,.0f}/month")
-    fw = summary.get("flywheel", {})
-    if fw.get("current_weighted_discount_pct") is not None:
-        print(f"    Weighted discount: current={fw['current_weighted_discount_pct']:.2f}% "
-              f"→ after_cuts={fw['after_cuts_weighted_discount_pct']:.2f}% "
-              f"→ after_cuts_and_reinvest={fw['after_cuts_and_reinvest_weighted_discount_pct']:.2f}% "
-              f"(target={fw['target_weighted_discount_pct']:.1f}%)")
+    if t:
+        print(f"    Today:           gross=Rs.{t['gross_sales_inr']:>12,.0f}  "
+              f"discount=Rs.{t['discount_spend_inr']:>11,.0f}  ({t['weighted_discount_pct']:.2f}%)")
+        print(f"    After cuts:      gross=Rs.{c['gross_sales_inr']:>12,.0f}  "
+              f"discount=Rs.{c['discount_spend_inr']:>11,.0f}  ({c['weighted_discount_pct']:.2f}%)")
+        print(f"    After cuts+inv:  gross=Rs.{b['gross_sales_inr']:>12,.0f}  "
+              f"discount=Rs.{b['discount_spend_inr']:>11,.0f}  ({b['weighted_discount_pct']:.2f}%)")
+        print(f"    Target weighted discount: {cfg.TARGET_WEIGHTED_DISCOUNT_PCT:.2f}%")
 
     # Write outputs
     md_path  = _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir)
@@ -610,6 +618,176 @@ def _apply_guardrails(df):
     return df
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Business metrics — canonical numbers used in the summary report
+#
+# Discount % is computed the standard brand-finance way:
+#     weighted_discount_pct = total_discount_spend / total_gross_sales_at_MRP × 100
+#
+# That is: of every Rs.100 of full-price potential revenue, how many rupees
+# went out as discount? This is the metric a brand manager actually controls
+# as a budget — not the (mathematically valid but unintuitive) weighted
+# average of percentages by net revenue.
+# ─────────────────────────────────────────────────────────────────────────────
+def _compute_business_metrics(df, waste_main, reinvest_main):
+    """
+    Returns a nested dict with portfolio + per-product metrics under
+    three scenarios:
+      - today                    : current state (last 30-day reality)
+      - after_cuts               : after applying THIS-WEEK waste cuts
+      - after_cuts_and_reinvest  : after both cuts AND strategic reinvestments
+
+    For each scenario we compute, in monthly terms:
+      - gross_sales_inr     = Σ MRP × units × 30
+      - discount_spend_inr  = Σ (MRP − selling_price) × units × 30
+      - net_revenue_inr     = gross_sales − discount_spend
+      - total_units         = Σ units × 30
+      - weighted_discount_pct = discount_spend / gross_sales × 100
+    """
+    if df.empty:
+        return {"today": {}, "after_cuts": {}, "after_cuts_and_reinvest": {},
+                "per_product": {}}
+
+    # Map cell_id → recommended_discount_final for cuts and reinvest
+    cut_disc_map = {}
+    if not waste_main.empty and "rec_discount_final" in waste_main.columns:
+        cut_disc_map = waste_main.dropna(subset=["rec_discount_final"]).set_index(
+            "cell_id")["rec_discount_final"].to_dict()
+    rinv_disc_map = {}
+    if not reinvest_main.empty and "rec_discount_final" in reinvest_main.columns:
+        rinv_disc_map = reinvest_main.dropna(subset=["rec_discount_final"]).set_index(
+            "cell_id")["rec_discount_final"].to_dict()
+
+    def _predict_units(row, new_disc):
+        """Predict daily units at a new discount level using dual-signal model."""
+        cur_units = float(row.get("current_units_day", 0))
+        cur_disc  = float(row["current_discount_pct"])
+        mrp       = float(row["mrp"])
+        if cur_units <= 0 or mrp <= 0:
+            return cur_units
+        cur_price = mrp * (1 - cur_disc / 100)
+        new_price = mrp * (1 - new_disc / 100)
+        if cur_price <= 0 or new_price <= 0:
+            return cur_units
+        elast = float(row.get("price_elasticity", row.get("elasticity", -1.5)))
+        badge = float(row.get("badge_sensitivity", row.get("discount_sensitivity", 0.0)))
+        delta_disc = new_disc - cur_disc
+        try:
+            mult = (new_price / cur_price) ** elast * np.exp(badge * delta_disc)
+            return max(cur_units * mult, 0.01)
+        except Exception:
+            return cur_units
+
+    def _aggregate(rows):
+        """Sum to portfolio + per-product totals for a given list of (mrp, disc, units) tuples."""
+        out = {
+            "gross_sales_inr":      0.0,
+            "discount_spend_inr":   0.0,
+            "net_revenue_inr":      0.0,
+            "total_units":          0.0,
+        }
+        for mrp, disc, units in rows:
+            monthly_units = units * 30
+            gross         = mrp * monthly_units
+            net           = mrp * (1 - disc / 100) * monthly_units
+            spend         = gross - net
+            out["gross_sales_inr"]    += gross
+            out["discount_spend_inr"] += spend
+            out["net_revenue_inr"]    += net
+            out["total_units"]        += monthly_units
+        out["weighted_discount_pct"] = (
+            out["discount_spend_inr"] / out["gross_sales_inr"] * 100
+            if out["gross_sales_inr"] > 0 else 0.0
+        )
+        return out
+
+    # Build the (mrp, discount, units) tuples for the 3 scenarios
+    def _scenario(scenario):
+        tuples = []
+        per_product_tuples = {}
+        for _, row in df.iterrows():
+            mrp   = float(row["mrp"])
+            cur_d = float(row["current_discount_pct"])
+            cell_id = row.get("cell_id", "")
+
+            # A cell appears in BOTH cut and reinvest maps because the
+            # waste table is permissive (anything with current > elbow).
+            # The brand-intent is: cells flagged for strategic reinvest
+            # should be invested in, not cut. So reinvest takes precedence
+            # in 'after_cuts_and_reinvest', and is EXCLUDED from 'after_cuts'
+            # so the headline cuts number reflects only true price lifts.
+            in_reinvest = cell_id in rinv_disc_map
+            in_cut      = cell_id in cut_disc_map
+
+            if scenario == "today":
+                new_d, new_units = cur_d, float(row.get("current_units_day", 0))
+            elif scenario == "after_cuts":
+                if in_cut and not in_reinvest:
+                    new_d = float(cut_disc_map[cell_id])
+                    new_units = _predict_units(row, new_d)
+                else:
+                    new_d, new_units = cur_d, float(row.get("current_units_day", 0))
+            else:  # after_cuts_and_reinvest
+                if in_reinvest:
+                    new_d = float(rinv_disc_map[cell_id])
+                elif in_cut:
+                    new_d = float(cut_disc_map[cell_id])
+                else:
+                    new_d = cur_d
+                if new_d != cur_d:
+                    new_units = _predict_units(row, new_d)
+                else:
+                    new_units = float(row.get("current_units_day", 0))
+
+            tuples.append((mrp, new_d, new_units))
+            # Per-product key: prefer "{pid} | {grammage}", fallback to pid
+            grm = row.get("grammage", "")
+            pkey = f"{row['product_id']} | {grm}" if grm and pd.notna(grm) else str(row["product_id"])
+            per_product_tuples.setdefault(pkey, []).append((mrp, new_d, new_units))
+
+        portfolio = _aggregate(tuples)
+        per_product = {k: _aggregate(v) for k, v in per_product_tuples.items()}
+        return portfolio, per_product
+
+    today_portfolio,    today_per_prod    = _scenario("today")
+    cuts_portfolio,     cuts_per_prod     = _scenario("after_cuts")
+    both_portfolio,     both_per_prod     = _scenario("after_cuts_and_reinvest")
+
+    # Reshape per-product as {product_key: {today, after_cuts, after_both}}
+    all_products = set(today_per_prod) | set(cuts_per_prod) | set(both_per_prod)
+    per_product = {}
+    for pkey in sorted(all_products):
+        # Pull title from df for nicer display
+        sample = df[df["product_id"].astype(str) + (
+            (" | " + df.get("grammage", pd.Series([""] * len(df))).fillna("").astype(str)) if "grammage" in df.columns else ""
+        ) == pkey]
+        raw_title = sample["title"].iloc[0] if not sample.empty else pkey
+        # Disambiguate by grammage — two products can share a title (e.g.
+        # both 500g and 1kg Moong Dal show as "Moong Dal (Dhuli)"). Append
+        # the pack size so brand team can tell them apart.
+        grm = ""
+        if not sample.empty and "grammage" in sample.columns:
+            g = sample["grammage"].iloc[0]
+            if pd.notna(g) and str(g).strip():
+                grm = str(g).strip()
+        title = f"{str(raw_title)[:50]}  ({grm})" if grm else str(raw_title)[:50]
+        per_product[pkey] = {
+            "title":     title,
+            "today":     today_per_prod.get(pkey, {}),
+            "after_cuts": cuts_per_prod.get(pkey, {}),
+            "after_cuts_and_reinvest": both_per_prod.get(pkey, {}),
+        }
+
+    return {
+        "today":                    today_portfolio,
+        "after_cuts":               cuts_portfolio,
+        "after_cuts_and_reinvest":  both_portfolio,
+        "per_product":              per_product,
+        "n_waste_cells":            int(len(waste_main)) if not waste_main.empty else 0,
+        "n_reinvest_cells":         int(len(reinvest_main)) if not reinvest_main.empty else 0,
+    }
+
+
 def _build_summary(waste_all, reinvest_all, waste_main, df_all=None):
     """
     Build portfolio summary dict including the flywheel weighted-discount math:
@@ -698,71 +876,115 @@ def _build_summary(waste_all, reinvest_all, waste_main, df_all=None):
 
 
 def _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir):
-    """Write WASTE_REINVEST_REPORT.md."""
+    """
+    Write WASTE_REINVEST_REPORT.md — mirrors the PDF structure:
+      1. Portfolio summary (sales / spend / discount % under 3 scenarios)
+      2. This week's plan (cells × spend Δ × units Δ)
+      3. Per-product breakdown
+      4. Q1 detail (price lifts), Q2 detail (price drops), Needs Price Test
+    """
+    biz   = summary.get("business", {})
+    today = biz.get("today", {})
+    cuts  = biz.get("after_cuts", {})
+    both  = biz.get("after_cuts_and_reinvest", {})
+    target = cfg.TARGET_WEIGHTED_DISCOUNT_PCT
+
+    def fmt_money(v):
+        if v is None or pd.isna(v): return "—"
+        v = float(v)
+        if abs(v) >= 1e7: return f"Rs. {v/1e7:,.2f} Cr"
+        if abs(v) >= 1e5: return f"Rs. {v/1e5:,.2f} L"
+        return f"Rs. {v:,.0f}"
+
+    def fmt_pct(v):
+        if v is None or pd.isna(v): return "—"
+        return f"{float(v):.2f}%"
+
+    def fmt_units(v):
+        if v is None or pd.isna(v): return "—"
+        return f"{float(v):,.0f}"
+
     lines = []
-    lines.append("# Waste & Reinvestment Report")
-    lines.append(f"\n*Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}*\n")
+    lines.append("# Discount Optimisation — Weekly Report")
+    lines.append(f"\n*Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}  |  24 Mantra Organic × Blinkit*\n")
 
-    # ── Flywheel summary (top of report) — price-led view ──
-    fw = summary.get("flywheel", {})
-    lines.append("## Flywheel: Portfolio Rebalancing (selling-price view)")
-    lines.append("```")
-    cur = fw.get("current_weighted_discount_pct")
-    aft_c = fw.get("after_cuts_weighted_discount_pct")
-    aft_b = fw.get("after_cuts_and_reinvest_weighted_discount_pct")
-    tgt  = fw.get("target_weighted_discount_pct")
-    if cur is not None:
-        # Selling price as % of MRP is what customers effectively see (Rs.X on Rs.Y MRP).
-        cur_sp_ratio  = 100.0 - cur
-        aft_c_sp_ratio = 100.0 - aft_c
-        aft_b_sp_ratio = 100.0 - aft_b
-        tgt_sp_ratio  = 100.0 - tgt
-        lines.append("                                Avg sell price as % of MRP   (equivalent discount)")
-        lines.append(f"Target:                                  {tgt_sp_ratio:>6.2f}%               ({tgt:>5.2f}%)")
-        lines.append(f"Current:                                 {cur_sp_ratio:>6.2f}%               ({cur:>5.2f}%)   gap: {cur - tgt:+.2f} ppt")
-        lines.append(f"After this-cycle PRICE LIFTS only:       {aft_c_sp_ratio:>6.2f}%               ({aft_c:>5.2f}%)")
-        lines.append(f"After PRICE LIFTS + STRATEGIC DROPS:     {aft_b_sp_ratio:>6.2f}%               ({aft_b:>5.2f}%)   <-- flywheel plan")
+    # ── Portfolio summary ──────────────────────────────────────────────
+    lines.append("## Portfolio Summary")
+    lines.append("")
+    if today:
+        lines.append("| Metric | Today | After cuts | After cuts + invest |")
+        lines.append("|---|---:|---:|---:|")
+        lines.append(f"| Gross sales / month (at MRP) | {fmt_money(today.get('gross_sales_inr'))} | {fmt_money(cuts.get('gross_sales_inr'))} | {fmt_money(both.get('gross_sales_inr'))} |")
+        lines.append(f"| Discount spend / month | {fmt_money(today.get('discount_spend_inr'))} | {fmt_money(cuts.get('discount_spend_inr'))} | {fmt_money(both.get('discount_spend_inr'))} |")
+        lines.append(f"| Net revenue / month | {fmt_money(today.get('net_revenue_inr'))} | {fmt_money(cuts.get('net_revenue_inr'))} | {fmt_money(both.get('net_revenue_inr'))} |")
+        lines.append(f"| Units sold / month | {fmt_units(today.get('total_units'))} | {fmt_units(cuts.get('total_units'))} | {fmt_units(both.get('total_units'))} |")
+        lines.append(f"| **Weighted discount %** | **{fmt_pct(today.get('weighted_discount_pct'))}** | **{fmt_pct(cuts.get('weighted_discount_pct'))}** | **{fmt_pct(both.get('weighted_discount_pct'))}** |")
         lines.append("")
-        if fw.get("per_category_current"):
-            lines.append("Per-category current avg sell price (= 100% - discount):")
-            for cat, v in fw["per_category_current"].items():
-                lines.append(f"  {cat:18s}  {100.0 - v:>6.2f}% of MRP    (= {v:>5.2f}% off)")
+        gap = today.get("weighted_discount_pct", 0) - target
+        aft_gap = both.get("weighted_discount_pct", 0) - target
+        lines.append(f"*Target weighted discount: **{target:.2f}%**. Gap today: **+{gap:.2f} ppt**. Gap after this-week plan: **+{aft_gap:.2f} ppt**.*")
         lines.append("")
-    lines.append(f"Monthly savings from cuts:             Rs.{summary['total_wasted']:>12,.0f}")
-    lines.append(f"Monthly budget redirected to growth:   Rs.{summary['total_reinvest']:>12,.0f}")
-    lines.append(f"Extra volume from reinvestments:           {summary.get('total_extra_units_monthly', 0):>12,.0f} units/month")
-    lines.append(f"Net monthly margin improvement:        Rs.{summary['net_margin_cut_reinvest']:>12,.0f}")
-    lines.append("```\n")
 
-    # Multi-cycle journey note
-    if cur is not None and aft_b is not None:
-        ppt_per_cycle = max(0.01, cur - aft_b)
-        cycles_to_target = max(1, int(np.ceil((cur - tgt) / ppt_per_cycle))) if cur > tgt else 0
-        if cycles_to_target > 0:
-            lines.append(f"*This plan covers one cycle ({ppt_per_cycle:.2f} ppt move). At this pace it takes "
-                         f"~{cycles_to_target} cycles to reach the {tgt:.1f}% target. Re-run weekly; "
-                         f"the plan re-optimises against fresh data each time.*\n")
+    # ── This week's plan ───────────────────────────────────────────────
+    n_waste = biz.get("n_waste_cells", 0)
+    n_reinv = biz.get("n_reinvest_cells", 0)
+    spend_change_cut = today.get("discount_spend_inr", 0) - cuts.get("discount_spend_inr", 0)
+    spend_change_inv = both.get("discount_spend_inr", 0)  - cuts.get("discount_spend_inr", 0)
+    units_change_cut = cuts.get("total_units", 0) - today.get("total_units", 0)
+    units_change_inv = both.get("total_units", 0) - cuts.get("total_units", 0)
+    net_spend_change = today.get("discount_spend_inr", 0) - both.get("discount_spend_inr", 0)
+    net_units_change = both.get("total_units", 0) - today.get("total_units", 0)
 
-    # Confidence breakdown of waste pool
-    lines.append("### Confidence breakdown of waste pool")
-    lines.append("```")
-    for c in ["High", "Medium", "Low"]:
-        info = summary["conf_breakdown"].get(c, {"pct": 0, "inr": 0})
-        tag = "  (shown separately as 'Needs Price Test')" if c == "Low" else ""
-        lines.append(f"  {c:8s}: {info['pct']:3.0f}%   Rs.{info['inr']:>10,.0f}{tag}")
-    lines.append("```\n")
+    lines.append("## This Week's Plan")
+    lines.append("")
+    lines.append("| Action | Cells | Discount spend Δ | Units Δ / month |")
+    lines.append("|---|---:|---:|---:|")
+    lines.append(f"| Cut (raise price) | {n_waste} | −{fmt_money(spend_change_cut)} | {int(units_change_cut):+,} |")
+    lines.append(f"| Reinvest (drop price) | {n_reinv} | +{fmt_money(spend_change_inv)} | {int(units_change_inv):+,} |")
+    lines.append(f"| **Net change** | **{n_waste + n_reinv}** | **−{fmt_money(net_spend_change)}** | **{int(net_units_change):+,}** |")
+    lines.append("")
+
+    if today.get("weighted_discount_pct", 0) > target:
+        cur_wd = today["weighted_discount_pct"]
+        aft_wd = both.get("weighted_discount_pct", cur_wd)
+        ppt = max(0.01, cur_wd - aft_wd)
+        cycles = int(((cur_wd - target) / ppt) + 0.999)
+        lines.append(f"*This plan moves the weighted discount by **{ppt:.2f} ppt** in one cycle. "
+                     f"At this pace, reaching the {target:.1f}% target takes ~**{cycles} weekly cycles**. "
+                     f"The plan re-optimises each week against fresh data.*")
+        lines.append("")
+
+    # ── Per-product breakdown ──────────────────────────────────────────
+    per_prod = biz.get("per_product", {})
+    if per_prod:
+        lines.append("## By Product")
+        lines.append("")
+        for pkey, pdata in per_prod.items():
+            t = pdata.get("today", {})
+            c = pdata.get("after_cuts", {})
+            b = pdata.get("after_cuts_and_reinvest", {})
+            if not t: continue
+            lines.append(f"### {pdata.get('title', pkey)}")
+            lines.append("")
+            lines.append("| Metric | Today | After cuts | After cuts + invest |")
+            lines.append("|---|---:|---:|---:|")
+            lines.append(f"| Gross sales / mo | {fmt_money(t.get('gross_sales_inr'))} | {fmt_money(c.get('gross_sales_inr'))} | {fmt_money(b.get('gross_sales_inr'))} |")
+            lines.append(f"| Discount spend / mo | {fmt_money(t.get('discount_spend_inr'))} | {fmt_money(c.get('discount_spend_inr'))} | {fmt_money(b.get('discount_spend_inr'))} |")
+            lines.append(f"| Units / mo | {fmt_units(t.get('total_units'))} | {fmt_units(c.get('total_units'))} | {fmt_units(b.get('total_units'))} |")
+            lines.append(f"| **Weighted discount %** | **{fmt_pct(t.get('weighted_discount_pct'))}** | **{fmt_pct(c.get('weighted_discount_pct'))}** | **{fmt_pct(b.get('weighted_discount_pct'))}** |")
+            lines.append("")
 
     # Q1 table
-    lines.append("## Q1: Where Am I Overspending on Discount?")
+    lines.append("## Where to Raise Prices This Week")
     if waste_main.empty:
-        lines.append("\n*No High/Medium confidence waste cells found.*\n")
+        lines.append("\n*No High/Medium confidence cells to cut this week.*\n")
     else:
         lines.append(_df_to_md_table(waste_main, _waste_cols()))
 
     # Q2 table
-    lines.append("\n## Q2: Where Can I Reinvest the Saved Money?")
+    lines.append("\n## Where to Drop Prices to Grow Volume")
     if reinvest_main.empty:
-        lines.append("\n*No High/Medium confidence reinvestment candidates found.*\n")
+        lines.append("\n*No High/Medium confidence reinvestment candidates this cycle.*\n")
     else:
         lines.append(_df_to_md_table(reinvest_main, _reinvest_cols()))
 
@@ -783,13 +1005,18 @@ def _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PDF report — brand-team handout. Cover page with the flywheel headline,
-# then per-section pages for waste (Q1), reinvest (Q2), and needs-test cells.
-# Built with reportlab so we get proper tables, paging, and styled headers.
+# PDF report — minimalist McKinsey-style business handout.
+#
+# Design principles:
+#   - One subtle accent color (slate navy), used sparingly
+#   - No background colors on table headers — bold text with horizontal rules
+#   - Generous whitespace; hierarchy via typography not chrome
+#   - Numbers right-aligned, text left-aligned, with consistent decimals
+#   - Single font family (Helvetica), 3-4 sizes used consistently
 # ─────────────────────────────────────────────────────────────────────────────
 def _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir):
     try:
-        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from reportlab.lib.units import mm
@@ -797,265 +1024,474 @@ def _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir):
             SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
             PageBreak, KeepTogether
         )
-        from reportlab.lib.enums import TA_LEFT, TA_CENTER
+        from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
     except ImportError:
         print("  [Stage 8] reportlab not installed — skipping PDF (pip install reportlab)")
         return None
 
     path = os.path.join(run_dir, "WASTE_REINVEST_REPORT.pdf")
+    # Portrait A4 — feels more like a clean business memo than a wide spreadsheet
     doc = SimpleDocTemplate(
-        path, pagesize=landscape(A4),
-        leftMargin=12*mm, rightMargin=12*mm,
-        topMargin=10*mm,  bottomMargin=12*mm,
-        title="Waste & Reinvestment Report",
+        path, pagesize=A4,
+        leftMargin=20*mm, rightMargin=20*mm,
+        topMargin=18*mm,  bottomMargin=18*mm,
+        title="Discount Optimisation — Weekly Report",
+        author="24 Mantra Organic × Blinkit",
     )
 
-    # ── Styles ─────────────────────────────────────────────────────────
-    styles = getSampleStyleSheet()
-    BRAND  = colors.HexColor("#1F3864")     # deep navy
-    ACCENT = colors.HexColor("#2E7D32")     # green for savings
-    WARN   = colors.HexColor("#C62828")     # red for waste
-    GREY   = colors.HexColor("#666666")
-    LIGHT  = colors.HexColor("#F4F6FA")     # row stripe
-    HEADER = colors.HexColor("#E8EEF7")     # table header background
+    # ── Design tokens ──────────────────────────────────────────────────
+    INK      = colors.HexColor("#0F172A")   # near-black, primary text
+    BODY     = colors.HexColor("#1F2937")   # body text
+    MUTED    = colors.HexColor("#6B7280")   # secondary text
+    HAIRLINE = colors.HexColor("#E5E7EB")   # very light rule
+    RULE     = colors.HexColor("#9CA3AF")   # medium rule
+    ACCENT   = colors.HexColor("#1E3A5F")   # slate navy — used VERY sparingly
+    POS      = colors.HexColor("#15803D")   # positive (savings)
+    NEG      = colors.HexColor("#B91C1C")   # negative (over-target)
 
-    title_style = ParagraphStyle("t", parent=styles["Heading1"],
-                                  fontSize=22, leading=26, textColor=BRAND,
-                                  spaceAfter=4, alignment=TA_LEFT)
-    sub_style   = ParagraphStyle("s", parent=styles["Normal"],
-                                  fontSize=10, textColor=GREY, spaceAfter=8)
-    h2_style    = ParagraphStyle("h2", parent=styles["Heading2"],
-                                  fontSize=14, leading=18, textColor=BRAND,
-                                  spaceBefore=10, spaceAfter=6)
-    body_style  = ParagraphStyle("b", parent=styles["Normal"],
-                                  fontSize=9.5, leading=13, spaceAfter=4)
-    small_style = ParagraphStyle("sm", parent=styles["Normal"],
-                                  fontSize=8, leading=10, textColor=GREY)
-    cell_style  = ParagraphStyle("c", parent=styles["Normal"],
-                                  fontSize=8.5, leading=11)
+    title_style = ParagraphStyle("t", fontName="Helvetica-Bold",
+                                  fontSize=18, leading=22, textColor=INK,
+                                  spaceAfter=2, alignment=TA_LEFT)
+    eyebrow     = ParagraphStyle("e", fontName="Helvetica",
+                                  fontSize=8, leading=11, textColor=MUTED,
+                                  spaceAfter=14, alignment=TA_LEFT,
+                                  letterSpace=0.5)
+    h2_style    = ParagraphStyle("h2", fontName="Helvetica-Bold",
+                                  fontSize=11, leading=15, textColor=INK,
+                                  spaceBefore=16, spaceAfter=6, alignment=TA_LEFT)
+    h3_style    = ParagraphStyle("h3", fontName="Helvetica-Bold",
+                                  fontSize=9.5, leading=13, textColor=BODY,
+                                  spaceBefore=10, spaceAfter=4, alignment=TA_LEFT)
+    body_style  = ParagraphStyle("b", fontName="Helvetica",
+                                  fontSize=9.5, leading=14, textColor=BODY,
+                                  spaceAfter=6)
+    note_style  = ParagraphStyle("n", fontName="Helvetica-Oblique",
+                                  fontSize=8.5, leading=12, textColor=MUTED,
+                                  spaceAfter=6)
+    label_style = ParagraphStyle("l", fontName="Helvetica",
+                                  fontSize=8, leading=10, textColor=MUTED)
+    cell_style  = ParagraphStyle("c", fontName="Helvetica",
+                                  fontSize=8.5, leading=11, textColor=BODY)
+
+    biz = summary.get("business", {})
+    today = biz.get("today", {})
+    cuts  = biz.get("after_cuts", {})
+    both  = biz.get("after_cuts_and_reinvest", {})
+    target_disc = cfg.TARGET_WEIGHTED_DISCOUNT_PCT
+
+    def _money(v):
+        if v is None or pd.isna(v): return "—"
+        v = float(v)
+        if abs(v) >= 1e7: return f"Rs. {v/1e7:,.2f} Cr"
+        if abs(v) >= 1e5: return f"Rs. {v/1e5:,.2f} L"
+        return f"Rs. {v:,.0f}"
+
+    def _pct(v):
+        if v is None or pd.isna(v): return "—"
+        return f"{float(v):.2f}%"
+
+    def _units(v):
+        if v is None or pd.isna(v): return "—"
+        return f"{float(v):,.0f}"
 
     story = []
 
-    # ── COVER ──────────────────────────────────────────────────────────
-    story.append(Paragraph("Discount Optimisation Report", title_style))
+    # ╔══════════════════════════════════════════════════════════════════╗
+    # PAGE 1 — EXECUTIVE SUMMARY
+    # ╚══════════════════════════════════════════════════════════════════╝
     story.append(Paragraph(
-        f"Weekly flywheel plan &nbsp;|&nbsp; Generated {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}"
-        f" &nbsp;|&nbsp; 24 Mantra Organic × Blinkit",
-        sub_style
-    ))
+        f"DISCOUNT OPTIMISATION  ·  WEEKLY REPORT  ·  {pd.Timestamp.now().strftime('%d %B %Y')}",
+        eyebrow))
+    story.append(Paragraph("Portfolio Summary", title_style))
+    story.append(Paragraph("24 Mantra Organic on Blinkit", body_style))
+    story.append(Spacer(1, 4*mm))
 
-    fw = summary.get("flywheel", {})
-    cur   = fw.get("current_weighted_discount_pct")
-    aft_c = fw.get("after_cuts_weighted_discount_pct")
-    aft_b = fw.get("after_cuts_and_reinvest_weighted_discount_pct")
-    tgt   = fw.get("target_weighted_discount_pct")
-
-    # Headline flywheel table
-    if cur is not None:
-        flywheel_data = [
-            ["", "Avg sell price\n(% of MRP)", "Equivalent\ndiscount", "Gap to target"],
-            ["Target",
-             f"{100-tgt:.2f}%",
-             f"{tgt:.2f}%",
-             "—"],
-            ["Today",
-             f"{100-cur:.2f}%",
-             f"{cur:.2f}%",
-             f"{cur - tgt:+.2f} ppt"],
-            ["After this-cycle PRICE LIFTS only",
-             f"{100-aft_c:.2f}%",
-             f"{aft_c:.2f}%",
-             f"{aft_c - tgt:+.2f} ppt"],
-            ["After PRICE LIFTS + STRATEGIC DROPS",
-             f"{100-aft_b:.2f}%",
-             f"{aft_b:.2f}%",
-             f"{aft_b - tgt:+.2f} ppt"],
+    # ── Headline 3-scenario table ──────────────────────────────────────
+    if today:
+        headline = [
+            ["", "Today",        "After cuts",       "After cuts + invest"],
+            ["Gross sales / month (at MRP)",
+                _money(today.get("gross_sales_inr")),
+                _money(cuts.get("gross_sales_inr")),
+                _money(both.get("gross_sales_inr"))],
+            ["Discount spend / month",
+                _money(today.get("discount_spend_inr")),
+                _money(cuts.get("discount_spend_inr")),
+                _money(both.get("discount_spend_inr"))],
+            ["Net revenue / month",
+                _money(today.get("net_revenue_inr")),
+                _money(cuts.get("net_revenue_inr")),
+                _money(both.get("net_revenue_inr"))],
+            ["Units sold / month",
+                _units(today.get("total_units")),
+                _units(cuts.get("total_units")),
+                _units(both.get("total_units"))],
+            ["Weighted discount %",
+                _pct(today.get("weighted_discount_pct")),
+                _pct(cuts.get("weighted_discount_pct")),
+                _pct(both.get("weighted_discount_pct"))],
         ]
-        tbl = Table(flywheel_data, colWidths=[95*mm, 35*mm, 30*mm, 35*mm])
-        tbl.setStyle(TableStyle([
-            ("BACKGROUND",   (0,0), (-1,0),  BRAND),
-            ("TEXTCOLOR",    (0,0), (-1,0),  colors.white),
-            ("FONTNAME",     (0,0), (-1,0),  "Helvetica-Bold"),
-            ("FONTSIZE",     (0,0), (-1,0),  9),
-            ("ALIGN",        (1,0), (-1,-1), "CENTER"),
-            ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
-            ("FONTSIZE",     (0,1), (-1,-1), 10),
-            ("BACKGROUND",   (0,1), (-1,1),  LIGHT),
-            ("BACKGROUND",   (0,2), (-1,2),  HEADER),
-            ("FONTNAME",     (0,2), (-1,2),  "Helvetica-Bold"),
-            ("BACKGROUND",   (0,4), (-1,4),  colors.HexColor("#EDF7EE")),
-            ("FONTNAME",     (0,4), (-1,4),  "Helvetica-Bold"),
-            ("TEXTCOLOR",    (0,4), (-1,4),  ACCENT),
-            ("GRID",         (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ("LEFTPADDING",  (0,0), (-1,-1), 6),
-            ("RIGHTPADDING", (0,0), (-1,-1), 6),
-            ("TOPPADDING",   (0,0), (-1,-1), 6),
-            ("BOTTOMPADDING",(0,0), (-1,-1), 6),
+        head_tbl = Table(headline, colWidths=[68*mm, 33*mm, 33*mm, 36*mm])
+        head_tbl.setStyle(_minimal_table_style(INK, HAIRLINE, RULE))
+        # Highlight the discount % row (it's the headline metric)
+        head_tbl.setStyle(TableStyle([
+            ("FONTNAME",     (0,5), (-1,5), "Helvetica-Bold"),
+            ("TEXTCOLOR",    (0,5), (-1,5), INK),
+            ("LINEABOVE",    (0,5), (-1,5), 0.5, RULE),
+            ("TOPPADDING",   (0,5), (-1,5), 8),
+            ("BOTTOMPADDING",(0,5), (-1,5), 8),
         ]))
-        story.append(tbl)
-        story.append(Spacer(1, 8*mm))
+        story.append(head_tbl)
+        story.append(Spacer(1, 3*mm))
 
-    # Money summary cards (3-column)
-    cards = [
-        [
-            Paragraph("<b>Monthly savings from cuts</b>", body_style),
-            Paragraph("<b>Budget redirected to growth</b>", body_style),
-            Paragraph("<b>Extra volume from reinvestments</b>", body_style),
-        ],
-        [
-            Paragraph(f"<font color='{WARN.hexval()}' size='18'><b>Rs. {summary['total_wasted']:,.0f}</b></font>",
-                      ParagraphStyle("amt", parent=body_style, fontSize=14, leading=18)),
-            Paragraph(f"<font color='{ACCENT.hexval()}' size='18'><b>Rs. {summary['total_reinvest']:,.0f}</b></font>",
-                      ParagraphStyle("amt", parent=body_style, fontSize=14, leading=18)),
-            Paragraph(f"<font color='{BRAND.hexval()}' size='18'><b>+{summary.get('total_extra_units_monthly', 0):,.0f}</b></font>"
-                      f" units/month",
-                      ParagraphStyle("amt", parent=body_style, fontSize=14, leading=18)),
-        ],
+        # Target reminder line
+        if today.get("weighted_discount_pct") is not None:
+            gap = today["weighted_discount_pct"] - target_disc
+            after_gap = both.get("weighted_discount_pct", 0) - target_disc
+            story.append(Paragraph(
+                f"<font color='{MUTED.hexval()}'>Target weighted discount: "
+                f"<b>{target_disc:.2f}%</b>. "
+                f"Gap today: <font color='{NEG.hexval()}'><b>+{gap:.2f} ppt</b></font>. "
+                f"Gap after this-week plan: <b>+{after_gap:.2f} ppt</b>.</font>",
+                body_style))
+
+    # ── This Week's Plan section ───────────────────────────────────────
+    story.append(Paragraph("This week's plan", h2_style))
+
+    n_waste = biz.get("n_waste_cells", 0)
+    n_reinv = biz.get("n_reinvest_cells", 0)
+    spend_change_cut  = today.get("discount_spend_inr", 0) - cuts.get("discount_spend_inr", 0)
+    spend_change_inv  = both.get("discount_spend_inr", 0)  - cuts.get("discount_spend_inr", 0)
+    units_change_cut  = cuts.get("total_units", 0) - today.get("total_units", 0)
+    units_change_inv  = both.get("total_units", 0) - cuts.get("total_units", 0)
+    net_spend_change  = today.get("discount_spend_inr", 0) - both.get("discount_spend_inr", 0)
+    net_units_change  = both.get("total_units", 0) - today.get("total_units", 0)
+
+    # Wrap colored cells in Paragraph so the <font> tags render
+    num_style = ParagraphStyle("num", fontName="Helvetica", fontSize=9.5,
+                                leading=11, textColor=BODY, alignment=TA_RIGHT)
+    plan_data = [
+        ["", "Cells", "Discount spend Δ", "Units Δ / month"],
+        ["Cut (raise price)",     str(n_waste),
+            Paragraph(_money_signed(-spend_change_cut, POS, NEG), num_style),
+            Paragraph(_units_signed(units_change_cut, POS, NEG), num_style)],
+        ["Reinvest (drop price)", str(n_reinv),
+            Paragraph(_money_signed(spend_change_inv, POS, NEG), num_style),
+            Paragraph(_units_signed(units_change_inv, POS, NEG), num_style)],
+        ["Net change",            f"{n_waste + n_reinv}",
+            Paragraph(_money_signed(-net_spend_change, POS, NEG), num_style),
+            Paragraph(_units_signed(net_units_change, POS, NEG), num_style)],
     ]
-    card_tbl = Table(cards, colWidths=[65*mm, 65*mm, 65*mm])
-    card_tbl.setStyle(TableStyle([
-        ("BACKGROUND",   (0,0), (-1,-1), LIGHT),
-        ("BOX",          (0,0), (0,-1),  0.5, colors.lightgrey),
-        ("BOX",          (1,0), (1,-1),  0.5, colors.lightgrey),
-        ("BOX",          (2,0), (2,-1),  0.5, colors.lightgrey),
-        ("LEFTPADDING",  (0,0), (-1,-1), 10),
-        ("RIGHTPADDING", (0,0), (-1,-1), 10),
-        ("TOPPADDING",   (0,0), (-1,-1), 8),
-        ("BOTTOMPADDING",(0,0), (-1,-1), 10),
+    plan_tbl = Table(plan_data, colWidths=[68*mm, 22*mm, 40*mm, 40*mm])
+    plan_tbl.setStyle(_minimal_table_style(INK, HAIRLINE, RULE))
+    plan_tbl.setStyle(TableStyle([
+        ("FONTNAME",     (0,3), (-1,3), "Helvetica-Bold"),
+        ("LINEABOVE",    (0,3), (-1,3), 0.5, RULE),
+        ("TOPPADDING",   (0,3), (-1,3), 8),
+        ("BOTTOMPADDING",(0,3), (-1,3), 8),
     ]))
-    story.append(card_tbl)
+    story.append(plan_tbl)
+    story.append(Spacer(1, 3*mm))
 
-    # Multi-cycle journey + per-category breakdown
-    story.append(Spacer(1, 6*mm))
-    if cur is not None and aft_b is not None and cur > tgt:
-        ppt = max(0.01, cur - aft_b)
-        cycles = int(((cur - tgt) / ppt) + 0.999)
+    if today.get("weighted_discount_pct", 0) > target_disc:
+        cur_wd = today["weighted_discount_pct"]
+        aft_wd = both.get("weighted_discount_pct", cur_wd)
+        ppt    = max(0.01, cur_wd - aft_wd)
+        cycles = int(((cur_wd - target_disc) / ppt) + 0.999)
         story.append(Paragraph(
-            f"<i>This plan covers <b>one cycle</b> (a {ppt:.2f} ppt move). "
-            f"At this pace it takes ~<b>{cycles} weekly cycles</b> to reach the "
-            f"{tgt:.1f}% target. Re-run weekly; the plan re-optimises against fresh data.</i>",
-            body_style
-        ))
+            f"This plan moves the weighted discount by <b>{ppt:.2f} ppt</b> in one cycle. "
+            f"At this pace, reaching the {target_disc:.1f}% target takes "
+            f"~<b>{cycles} weekly cycles</b>. The plan re-optimises each week against fresh data.",
+            note_style))
 
-    per_cat = fw.get("per_category_current", {})
-    if per_cat:
+    # ╔══════════════════════════════════════════════════════════════════╗
+    # PAGE 2 — PER-PRODUCT BREAKDOWN
+    # ╚══════════════════════════════════════════════════════════════════╝
+    per_prod = biz.get("per_product", {})
+    if per_prod:
+        story.append(PageBreak())
+        story.append(Paragraph(
+            f"DISCOUNT OPTIMISATION  ·  PER-PRODUCT VIEW",
+            eyebrow))
+        story.append(Paragraph("By product", title_style))
+        story.append(Paragraph(
+            "Same metrics as the portfolio summary, broken out by SKU. "
+            "The discount % row tells you which products are furthest from the "
+            f"{target_disc:.0f}% target and how this week's plan affects each.",
+            body_style))
         story.append(Spacer(1, 4*mm))
-        story.append(Paragraph("Per-category snapshot", h2_style))
-        cat_data = [["Category", "Today: sell price (% of MRP)", "Equivalent discount"]]
-        for cat, v in per_cat.items():
-            cat_data.append([cat, f"{100-v:.2f}%", f"{v:.2f}%"])
-        cat_tbl = Table(cat_data, colWidths=[60*mm, 65*mm, 50*mm])
-        cat_tbl.setStyle(TableStyle([
-            ("BACKGROUND",   (0,0), (-1,0),  BRAND),
-            ("TEXTCOLOR",    (0,0), (-1,0),  colors.white),
-            ("FONTNAME",     (0,0), (-1,0),  "Helvetica-Bold"),
-            ("FONTSIZE",     (0,0), (-1,-1), 9.5),
-            ("ALIGN",        (1,0), (-1,-1), "CENTER"),
-            ("GRID",         (0,0), (-1,-1), 0.4, colors.lightgrey),
-            ("TOPPADDING",   (0,0), (-1,-1), 5),
-            ("BOTTOMPADDING",(0,0), (-1,-1), 5),
-            ("ROWBACKGROUNDS",(0,1), (-1,-1), [colors.white, LIGHT]),
-        ]))
-        story.append(cat_tbl)
 
-    # ── Q1 — WASTE (price lifts) ────────────────────────────────────────
+        for pkey, pdata in per_prod.items():
+            t = pdata.get("today", {})
+            c = pdata.get("after_cuts", {})
+            b = pdata.get("after_cuts_and_reinvest", {})
+            if not t: continue
+
+            story.append(Paragraph(pdata.get("title", pkey), h3_style))
+            prod_tbl = Table([
+                ["", "Today", "After cuts", "After cuts + invest"],
+                ["Gross sales (MRP) / mo",
+                    _money(t.get("gross_sales_inr")),
+                    _money(c.get("gross_sales_inr")),
+                    _money(b.get("gross_sales_inr"))],
+                ["Discount spend / mo",
+                    _money(t.get("discount_spend_inr")),
+                    _money(c.get("discount_spend_inr")),
+                    _money(b.get("discount_spend_inr"))],
+                ["Units / mo",
+                    _units(t.get("total_units")),
+                    _units(c.get("total_units")),
+                    _units(b.get("total_units"))],
+                ["Weighted discount %",
+                    _pct(t.get("weighted_discount_pct")),
+                    _pct(c.get("weighted_discount_pct")),
+                    _pct(b.get("weighted_discount_pct"))],
+            ], colWidths=[60*mm, 35*mm, 35*mm, 40*mm])
+            prod_tbl.setStyle(_minimal_table_style(INK, HAIRLINE, RULE))
+            prod_tbl.setStyle(TableStyle([
+                ("FONTNAME",     (0,4), (-1,4), "Helvetica-Bold"),
+                ("LINEABOVE",    (0,4), (-1,4), 0.4, RULE),
+            ]))
+            story.append(prod_tbl)
+            story.append(Spacer(1, 4*mm))
+
+    # ╔══════════════════════════════════════════════════════════════════╗
+    # PAGE 3+ — DETAIL: WHERE TO CUT
+    # ╚══════════════════════════════════════════════════════════════════╝
     story.append(PageBreak())
-    story.append(Paragraph("Q1 — Where am I overspending on discount?", title_style))
     story.append(Paragraph(
-        "Cells sorted by Rs. wasted per month. <b>Now Rs.</b> = current selling price. "
-        "<b>This Week Rs.</b> = what to set on Blinkit this Monday (throttled to a max Rs.3 / 3 ppt move per cycle). "
-        "<b>Eventual Rs.</b> = the model's target price, reached over multiple cycles.",
-        sub_style
-    ))
+        f"DISCOUNT OPTIMISATION  ·  PRICE LIFTS",
+        eyebrow))
+    story.append(Paragraph("Where to raise prices this week", title_style))
+    story.append(Paragraph(
+        "Cells sorted by Rs. wasted per month. <b>Now</b> is the current selling price. "
+        "<b>This Week</b> is what to set on Blinkit this Monday — capped at a 3 ppt move "
+        "per cycle so customers aren't shocked. <b>Eventual</b> is the model's target price, "
+        "reached after multiple weekly cycles.",
+        body_style))
+    story.append(Spacer(1, 3*mm))
+
     if waste_main.empty:
-        story.append(Paragraph("<i>No High/Medium confidence waste cells found.</i>", body_style))
+        story.append(Paragraph("No High/Medium confidence cells to cut this week.", note_style))
     else:
-        story.append(_styled_table(
+        story.append(_minimal_data_table(
             waste_main,
             cols=[
-                ("title",            "SKU",            55*mm, "left"),
-                ("city",             "City",           28*mm, "left"),
-                ("mrp",              "MRP",            14*mm, "right"),
-                ("current_price",    "Now Rs.",        18*mm, "right"),
-                ("this_week_price",  "This Week Rs.",  24*mm, "right"),
-                ("eventual_price",   "Eventual Rs.",   22*mm, "right"),
-                ("wasted_inr_per_month", "Wasted Rs./mo", 25*mm, "right"),
-                ("confidence",       "Conf",           18*mm, "center"),
+                ("title",            "Product",         53*mm, "left"),
+                ("city",             "City",            26*mm, "left"),
+                ("mrp",              "MRP",             12*mm, "right"),
+                ("current_price",    "Now",             14*mm, "right"),
+                ("this_week_price",  "This Week",       18*mm, "right"),
+                ("eventual_price",   "Eventual",        16*mm, "right"),
+                ("wasted_inr_per_month", "Wasted/mo",   22*mm, "right"),
+                ("confidence",       "Conf",            18*mm, "center"),
             ],
-            header_color=BRAND, row_color=LIGHT, cell_style=cell_style,
             money_cols={"mrp", "current_price", "this_week_price",
                         "eventual_price", "wasted_inr_per_month"},
+            cell_style=cell_style,
+            ink=INK, hairline=HAIRLINE, rule=RULE, muted=MUTED,
+            # Plain integer with thousand separators — consistent across all
+            # rows of the detail table (avoids mixing "2.67 L" and "97,230").
+            money_fn=lambda v: f"{float(v):,.0f}",
         ))
 
-    # ── Q2 — REINVEST (strategic price drops) ──────────────────────────
+    # ╔══════════════════════════════════════════════════════════════════╗
+    # NEXT PAGE — DETAIL: WHERE TO INVEST
+    # ╚══════════════════════════════════════════════════════════════════╝
     story.append(PageBreak())
-    story.append(Paragraph("Q2 — Where can I reinvest to grow volume?", title_style))
     story.append(Paragraph(
-        "Cells where dropping price by 3 ppt is projected to drive enough extra volume to be worth the investment. "
-        "<b>Drop by Rs.</b> = the per-unit price drop. <b>+Units/mo</b> = projected incremental volume. "
-        "<b>Budget</b> = additional monthly discount spend needed. These cells are funded by the savings from Q1.",
-        sub_style
-    ))
+        f"DISCOUNT OPTIMISATION  ·  STRATEGIC INVESTMENTS",
+        eyebrow))
+    story.append(Paragraph("Where to drop prices to grow volume", title_style))
+    story.append(Paragraph(
+        "Cells where dropping the price by 3 ppt is projected to add enough volume "
+        "to be worth the extra discount spend. These are funded by the savings from "
+        "the price lifts above.",
+        body_style))
+    story.append(Spacer(1, 3*mm))
+
     if reinvest_main.empty:
-        story.append(Paragraph("<i>No High/Medium confidence reinvestment candidates this cycle.</i>", body_style))
+        story.append(Paragraph("No High/Medium confidence reinvestment candidates this cycle.", note_style))
     else:
-        story.append(_styled_table(
+        story.append(_minimal_data_table(
             reinvest_main,
             cols=[
-                ("title",                       "SKU",            55*mm, "left"),
-                ("city",                        "City",           24*mm, "left"),
-                ("mrp",                         "MRP",            14*mm, "right"),
-                ("current_price",               "Now Rs.",        16*mm, "right"),
-                ("new_price",                   "New Rs.",        16*mm, "right"),
-                ("price_drop_inr",              "Drop Rs.",       16*mm, "right"),
-                ("volume_lift_pct",             "Vol +%",         15*mm, "right"),
-                ("extra_volume_units_per_month","+Units/mo",      20*mm, "right"),
-                ("budget_needed_inr_per_month", "Budget Rs./mo",  25*mm, "right"),
-                ("confidence",                  "Conf",           17*mm, "center"),
+                ("title",                       "Product",       53*mm, "left"),
+                ("city",                        "City",          22*mm, "left"),
+                ("mrp",                         "MRP",           12*mm, "right"),
+                ("current_price",               "Now",           14*mm, "right"),
+                ("new_price",                   "New",           14*mm, "right"),
+                ("volume_lift_pct",             "Vol Δ",         15*mm, "right"),
+                ("extra_volume_units_per_month","+Units/mo",     19*mm, "right"),
+                ("budget_needed_inr_per_month", "Budget/mo",     22*mm, "right"),
+                ("confidence",                  "Conf",          18*mm, "center"),
             ],
-            header_color=ACCENT, row_color=colors.HexColor("#EDF7EE"), cell_style=cell_style,
-            money_cols={"mrp", "current_price", "new_price", "price_drop_inr",
+            money_cols={"mrp", "current_price", "new_price",
                         "budget_needed_inr_per_month", "extra_volume_units_per_month"},
             pct_cols={"volume_lift_pct"},
+            cell_style=cell_style,
+            ink=INK, hairline=HAIRLINE, rule=RULE, muted=MUTED,
+            money_fn=lambda v: f"{float(v):,.0f}",
         ))
 
-    # ── Needs Price Test ───────────────────────────────────────────────
+    # ╔══════════════════════════════════════════════════════════════════╗
+    # FINAL PAGE — NEEDS PRICE TEST
+    # ╚══════════════════════════════════════════════════════════════════╝
     if not needs_test.empty:
         story.append(PageBreak())
-        story.append(Paragraph("Needs Price Test (low confidence)", title_style))
         story.append(Paragraph(
-            "These cells don't have enough clean data — either too few observations, too little discount variation, "
-            "or the demand signal is being confounded by something else (e.g. a launch ramp). "
-            "Run a small A/B price test in one city before acting.",
-            sub_style
-        ))
-        story.append(_styled_table(
+            f"DISCOUNT OPTIMISATION  ·  PILOT REQUIRED",
+            eyebrow))
+        story.append(Paragraph("Cells needing a price test", title_style))
+        story.append(Paragraph(
+            "These cells don't have enough clean data to act on. The model isn't "
+            "confident enough — usually because of too few observations, too little "
+            "price variation, or a launch ramp confounding the elasticity signal. "
+            "Run a small A/B test in one city before changing anything.",
+            body_style))
+        story.append(Spacer(1, 3*mm))
+        story.append(_minimal_data_table(
             needs_test,
             cols=[
-                ("title",                "SKU",        80*mm, "left"),
-                ("city",                 "City",       35*mm, "left"),
-                ("current_discount_pct", "Now %",      18*mm, "right"),
-                ("elbow_discount_pct",   "Elbow %",    20*mm, "right"),
-                ("confidence",           "Confidence", 30*mm, "center"),
+                ("title",                "Product",     85*mm, "left"),
+                ("city",                 "City",        35*mm, "left"),
+                ("current_discount_pct", "Now %",       20*mm, "right"),
+                ("elbow_discount_pct",   "Model %",     20*mm, "right"),
+                ("confidence",           "Status",      28*mm, "center"),
             ],
-            header_color=GREY, row_color=LIGHT, cell_style=cell_style,
             money_cols=set(),
+            cell_style=cell_style,
+            ink=INK, hairline=HAIRLINE, rule=RULE, muted=MUTED,
         ))
 
-    # ── Footer note on every page ──────────────────────────────────────
+    # ── Footer ─────────────────────────────────────────────────────────
     def _footer(canvas, doc_):
         canvas.saveState()
         canvas.setFont("Helvetica", 7)
-        canvas.setFillColor(GREY)
-        canvas.drawString(12*mm, 6*mm,
-            "Discount Optimizer — Stage 8 Flywheel Report  •  "
-            "Customer-facing price (Rs.) is the primary view; equivalent discount % shown for Blinkit entry.")
-        canvas.drawRightString(doc_.pagesize[0] - 12*mm, 6*mm,
-            f"Page {doc_.page}")
+        canvas.setFillColor(MUTED)
+        canvas.drawString(20*mm, 10*mm,
+            "Discount % is computed as total monthly discount spend ÷ total monthly gross sales at MRP.")
+        canvas.drawRightString(doc_.pagesize[0] - 20*mm, 10*mm,
+            f"{doc_.page}")
+        # subtle top rule on every page after page 1
+        if doc_.page > 1:
+            canvas.setStrokeColor(HAIRLINE)
+            canvas.setLineWidth(0.5)
+            canvas.line(20*mm, doc_.pagesize[1] - 12*mm,
+                        doc_.pagesize[0] - 20*mm, doc_.pagesize[1] - 12*mm)
         canvas.restoreState()
 
     doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
     return path
+
+
+def _money_signed(v, pos_color, neg_color):
+    """Format a signed currency change with color cue (used in plan table)."""
+    if v is None or pd.isna(v) or abs(v) < 1: return "—"
+    sign = "−" if v < 0 else "+"
+    val = abs(float(v))
+    if val >= 1e7: s = f"{sign}Rs. {val/1e7:,.2f} Cr"
+    elif val >= 1e5: s = f"{sign}Rs. {val/1e5:,.2f} L"
+    else: s = f"{sign}Rs. {val:,.0f}"
+    color = pos_color.hexval() if v < 0 else neg_color.hexval()  # spend going DOWN is positive
+    return f'<font color="{color}">{s}</font>'
+
+
+def _units_signed(v, pos_color, neg_color):
+    """Format a signed unit change with color cue."""
+    if v is None or pd.isna(v) or abs(v) < 1: return "—"
+    sign = "+" if v > 0 else "−"
+    color = pos_color.hexval() if v > 0 else neg_color.hexval()
+    return f'<font color="{color}">{sign}{abs(int(v)):,}</font>'
+
+
+def _minimal_table_style(ink, hairline, rule):
+    """Shared minimalist table style — top + header bottom rules, no grid."""
+    from reportlab.platypus import TableStyle
+    return TableStyle([
+        # Header row
+        ("FONTNAME",     (0,0), (-1,0),  "Helvetica-Bold"),
+        ("FONTSIZE",     (0,0), (-1,0),  8.5),
+        ("TEXTCOLOR",    (0,0), (-1,0),  ink),
+        ("ALIGN",        (1,0), (-1,0),  "RIGHT"),
+        ("LINEABOVE",    (0,0), (-1,0),  0.8, ink),
+        ("LINEBELOW",    (0,0), (-1,0),  0.5, ink),
+        ("TOPPADDING",   (0,0), (-1,0),  6),
+        ("BOTTOMPADDING",(0,0), (-1,0),  6),
+        # Body rows
+        ("FONTNAME",     (0,1), (-1,-1), "Helvetica"),
+        ("FONTSIZE",     (0,1), (-1,-1), 9.5),
+        ("ALIGN",        (0,1), (0,-1),  "LEFT"),
+        ("ALIGN",        (1,1), (-1,-1), "RIGHT"),
+        ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+        ("TOPPADDING",   (0,1), (-1,-1), 5),
+        ("BOTTOMPADDING",(0,1), (-1,-1), 5),
+        # Bottom rule
+        ("LINEBELOW",    (0,-1), (-1,-1), 0.8, ink),
+    ])
+
+
+def _minimal_data_table(df, cols, money_cols, cell_style, ink, hairline, rule, muted,
+                         pct_cols=None, money_fn=None):
+    """Minimalist data table for the detail pages."""
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle, Paragraph
+
+    pct_cols = pct_cols or set()
+    money_fn = money_fn or (lambda v: f"{float(v):,.0f}")
+
+    def _fmt(col, v):
+        if pd.isna(v): return ""
+        if col in money_cols:
+            return money_fn(v)
+        if col in pct_cols:
+            return f"{float(v):+.1f}%"
+        if isinstance(v, float):
+            return f"{v:,.1f}"
+        return str(v)
+
+    # Header
+    headers = [Paragraph(f"<b><font size='8'>{h}</font></b>", cell_style)
+               for (_, h, _, _) in cols]
+    rows = [headers]
+    for _, r in df.head(60).iterrows():
+        row = []
+        for col, _, _, align in cols:
+            v = r.get(col, "")
+            txt = _fmt(col, v)
+            if col == "title":
+                txt = txt[:55]
+            row.append(Paragraph(txt, cell_style))
+        rows.append(row)
+
+    widths = [w for (_, _, w, _) in cols]
+    tbl = Table(rows, colWidths=widths, repeatRows=1)
+
+    style_cmds = [
+        ("FONTSIZE",     (0,0), (-1,0),  8.5),
+        ("TEXTCOLOR",    (0,0), (-1,0),  ink),
+        ("LINEABOVE",    (0,0), (-1,0),  0.8, ink),
+        ("LINEBELOW",    (0,0), (-1,0),  0.5, ink),
+        ("TOPPADDING",   (0,0), (-1,0),  6),
+        ("BOTTOMPADDING",(0,0), (-1,0),  6),
+        ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+        ("TOPPADDING",   (0,1), (-1,-1), 4),
+        ("BOTTOMPADDING",(0,1), (-1,-1), 4),
+        ("LINEBELOW",    (0,-1), (-1,-1), 0.8, ink),
+    ]
+    # very subtle row separators
+    for r in range(1, len(rows) - 1):
+        style_cmds.append(("LINEBELOW", (0, r), (-1, r), 0.25, hairline))
+    # per-col alignment
+    for i, (_, _, _, align) in enumerate(cols):
+        if align == "right":
+            style_cmds.append(("ALIGN", (i, 0), (i, -1), "RIGHT"))
+        elif align == "center":
+            style_cmds.append(("ALIGN", (i, 0), (i, -1), "CENTER"))
+        else:
+            style_cmds.append(("ALIGN", (i, 0), (i, -1), "LEFT"))
+    tbl.setStyle(TableStyle(style_cmds))
+    return tbl
 
 
 def _styled_table(df, cols, header_color, row_color, cell_style,
