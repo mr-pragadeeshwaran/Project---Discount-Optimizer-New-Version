@@ -137,7 +137,23 @@ MARGINAL_ROI_THRESHOLD = 1.0   # Elbow: where marginal ROI crosses this
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MIN_MARGIN_PCT = 0.05          # 5% min margin above variable cost
 MAX_COMPETITOR_PREMIUM_PCT = 0.10  # Max 10% above competitor
-MAX_DISCOUNT_CHANGE_PPT = 3    # Max 3 percentage-point change per cycle
+
+# ── Per-cycle discount change cap ──
+# Two modes:
+#   1. DYNAMIC (default): system derives the per-cell step from the user-
+#      set duration in TARGET_TIMELINE_WEEKS. Each cell walks from its
+#      current discount to its target over that many weeks.
+#         per_cell_step = (current_disc − target_disc) / TARGET_TIMELINE_WEEKS
+#      Still bounded by MAX_DISCOUNT_CHANGE_PPT as an absolute safety rail.
+#   2. STATIC: every cell capped at MAX_DISCOUNT_CHANGE_PPT/cycle.
+USE_DYNAMIC_GLIDE      = True
+TARGET_TIMELINE_WEEKS  = 22    # User-editable: ~5 months. Change to set
+                                # the speed of the rebalance — smaller =
+                                # faster (bigger weekly cuts), larger =
+                                # safer (smaller weekly cuts).
+MAX_DISCOUNT_CHANGE_PPT = 4    # Hard safety cap — no cell moves more
+                                # than this in one cycle regardless of
+                                # what the timeline math says.
 STRATEGIC_SKUS = []             # SKU IDs with override rules
 
 # Tiering thresholds

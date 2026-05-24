@@ -71,19 +71,23 @@ def write_excel(summary, waste_main, reinvest_main, needs_test, df, run_dir):
     """
     wb = Workbook()
     # Default sheet — rename and use as Summary
-    ws_sum  = wb.active
+    ws_sum   = wb.active
     ws_sum.title = "Summary"
-    ws_prod = wb.create_sheet("By Product")
-    ws_cut  = wb.create_sheet("Price Lifts")
-    ws_inv  = wb.create_sheet("Price Drops")
-    ws_test = wb.create_sheet("Needs Test")
-    ws_data = wb.create_sheet("Data")
+    ws_glide = wb.create_sheet("Glide Path")
+    ws_prod  = wb.create_sheet("By Product")
+    ws_cut   = wb.create_sheet("Price Lifts")
+    ws_inv   = wb.create_sheet("Price Drops")
+    ws_test  = wb.create_sheet("Needs Test")
+    ws_data  = wb.create_sheet("Data")
 
     # 1. Build the Data sheet first — everything else references it.
     _build_data_sheet(ws_data, df, waste_main, reinvest_main)
 
     # 2. Build the Summary using formulas that reference Data!
     _build_summary_sheet(ws_sum, summary, df)
+
+    # 2b. Multi-cycle roadmap — week-by-week projection
+    _build_glide_path_sheet(ws_glide, summary)
 
     # 3. Per-product breakdown — also formula-driven
     _build_per_product_sheet(ws_prod, summary, df)
@@ -488,6 +492,185 @@ def _build_summary_sheet(ws, summary, df):
     widths = [44, 22, 22, 24, 60]
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
+
+
+def _build_glide_path_sheet(ws, summary):
+    """
+    Week-by-week roadmap: shows the user the full glide path the system
+    has plotted from today to the target weighted discount.
+
+    Columns:
+       Cycle | Label | Weighted Disc % | Gross Sales | Discount Spend |
+       Net Revenue | Units | Cumulative Savings | Gap to Target | Status
+
+    User can change TARGET_TIMELINE_WEEKS in v4_config.py and re-run
+    the pipeline to recompute this whole table.
+    """
+    glide = summary.get("glide_path")
+    if glide is None or glide.empty:
+        return
+
+    def cell(r, c, val, font=None, align=None, fmt=None, border=None):
+        x = ws.cell(row=r, column=c, value=val)
+        x.font = font or f(10)
+        if align: x.alignment = align
+        if fmt: x.number_format = fmt
+        if border: x.border = border
+        return x
+
+    target = _get_target_disc(summary)
+    n_cycles = len(glide) - 1
+    final_disc = float(glide.iloc[-1]["weighted_discount_pct"])
+    final_gap  = final_disc - target
+    cum_savings = float(glide.iloc[-1]["cumulative_savings"])
+
+    # ── Header block ──────────────────────────────────────────────────
+    cell(1, 1, "DISCOUNT OPTIMISATION  ·  GLIDE PATH (week-by-week roadmap)",
+         font=f(9, color=MUTED), align=al("left"))
+    cell(3, 1, "Multi-Cycle Roadmap", font=f(20, bold=True, color=INK))
+    cell(4, 1, f"From {glide.iloc[0]['weighted_discount_pct']:.2f}% weighted discount today "
+               f"to a projected {final_disc:.2f}% in {n_cycles} weekly cycles "
+               f"(~{n_cycles/4.3:.1f} months). Target: {target:.2f}%.",
+         font=f(10, color=BODY), align=al("left", wrap=True))
+    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=9)
+    ws.row_dimensions[4].height = 26
+
+    # Note on how the duration is set
+    cell(6, 1,
+         f"Each cell walks toward its individual target at a rate of "
+         f"(current discount − target) ÷ {n_cycles} weeks. The portfolio's "
+         f"weighted discount drops faster in early weeks (when the most "
+         f"over-discounted cells move fastest) and slows as cells reach their "
+         f"targets. To change the speed: edit TARGET_TIMELINE_WEEKS in v4_config.py.",
+         font=f(9, italic=True, color=MUTED), align=al("left", wrap=True))
+    ws.merge_cells(start_row=6, start_column=1, end_row=6, end_column=9)
+    ws.row_dimensions[6].height = 36
+
+    # Why the projection might not reach the 9% target
+    biz = summary.get("business", {})
+    n_actionable = int(biz.get("n_waste_cells", 0)) + int(biz.get("n_reinvest_cells", 0))
+    needs_test_count = 33 - n_actionable  # rough — 33 is the typical portfolio size
+    if final_gap > 0.5:
+        cell(7, 1,
+             f"This roadmap only moves the {n_actionable} cells the model is "
+             f"confident enough to act on. The remaining cells are flagged "
+             f"'Needs Price Test' (Sheet 'Needs Test') — they don't have enough clean "
+             f"data to project safely. To close the rest of the gap to {target:.0f}%, "
+             f"run small A/B price tests on those cells, add the test results to your "
+             f"weekly data, and they'll join future runs of this glide path automatically.",
+             font=f(9, italic=True, color=NEG), align=al("left", wrap=True))
+        ws.merge_cells(start_row=7, start_column=1, end_row=7, end_column=9)
+        ws.row_dimensions[7].height = 42
+
+    # ── Headline outcome cards ────────────────────────────────────────
+    H_ROW = 9
+    cell(H_ROW, 1, "End-of-roadmap projection",
+         font=f(12, bold=True, color=INK), align=al("left"))
+    ws.merge_cells(start_row=H_ROW, start_column=1, end_row=H_ROW, end_column=9)
+
+    outcome_data = [
+        ["", "Today", f"After {n_cycles} weeks", "Change"],
+        ["Weighted discount %",
+            f"{glide.iloc[0]['weighted_discount_pct']:.2f}%",
+            f"{final_disc:.2f}%",
+            f"{final_disc - float(glide.iloc[0]['weighted_discount_pct']):+.2f} ppt"],
+        ["Monthly discount spend",
+            f"Rs. {float(glide.iloc[0]['discount_spend_inr']):,.0f}",
+            f"Rs. {float(glide.iloc[-1]['discount_spend_inr']):,.0f}",
+            f"-Rs. {cum_savings:,.0f}/mo"],
+        ["Monthly net revenue",
+            f"Rs. {float(glide.iloc[0]['net_revenue_inr']):,.0f}",
+            f"Rs. {float(glide.iloc[-1]['net_revenue_inr']):,.0f}",
+            f"+Rs. {float(glide.iloc[-1]['net_revenue_inr']) - float(glide.iloc[0]['net_revenue_inr']):,.0f}/mo"],
+        ["Gap to target",
+            f"{float(glide.iloc[0]['weighted_discount_pct']) - target:+.2f} ppt",
+            f"{final_gap:+.2f} ppt",
+            "TARGET REACHED" if final_gap <= 0.05 else f"still {final_gap:.2f} ppt short"],
+    ]
+    O_HEAD = H_ROW + 2
+    for j, h in enumerate(outcome_data[0], 1):
+        cell(O_HEAD, j, h, font=f(10, bold=True, color=INK),
+             align=al("right" if j > 1 else "left"),
+             border=b(top=BOLD_RULE, bottom=RULE))
+    for i, row in enumerate(outcome_data[1:], 1):
+        rr = O_HEAD + i
+        for j, v in enumerate(row, 1):
+            txt_color = INK
+            if j == 4 and i == 1:  # weighted disc change
+                txt_color = POS if "−" in str(v) or v.startswith("-") else MUTED
+            elif j == 4 and i == 2:  # spend change
+                txt_color = POS
+            elif j == 4 and i == 3:  # revenue change
+                txt_color = POS
+            elif j == 4 and i == 4:
+                txt_color = POS if "TARGET" in str(v) else NEG
+            cell(rr, j, v, font=f(10, bold=(i == 4), color=txt_color),
+                 align=al("right" if j > 1 else "left"))
+
+    # ── The full week-by-week table ───────────────────────────────────
+    T_TITLE = O_HEAD + 7
+    cell(T_TITLE, 1, "Week-by-week projection",
+         font=f(12, bold=True, color=INK), align=al("left"))
+
+    T_HEAD = T_TITLE + 2
+    headers = ["Cycle", "Label", "Weighted Disc %", "Gross Sales / mo",
+               "Discount Spend / mo", "Net Revenue / mo", "Units / mo",
+               "Cumulative Savings", "Gap to Target"]
+    for j, h in enumerate(headers, 1):
+        cell(T_HEAD, j, h, font=f(10, bold=True, color=INK),
+             align=al("right" if j > 1 else "left"),
+             border=b(top=BOLD_RULE, bottom=RULE))
+
+    for i, row in glide.iterrows():
+        rr = T_HEAD + 1 + i
+        # Highlight the row where target is first reached
+        is_first_target = bool(row["reached_target"]) and (
+            i == 0 or not glide.iloc[i - 1]["reached_target"])
+        bold = is_first_target
+        bg_color = INK if bold else None
+        # Today row gets bold treatment too
+        is_today = (i == 0)
+        if is_today or is_first_target:
+            font_kwargs = {"bold": True, "color": INK}
+        else:
+            font_kwargs = {"color": BODY}
+
+        cell(rr, 1, int(row["cycle"]), font=f(10, **font_kwargs),
+             align=al("center"), fmt="0")
+        cell(rr, 2, row["label"], font=f(10, **font_kwargs), align=al("left"))
+        cell(rr, 3, float(row["weighted_discount_pct"]),
+             font=f(10, **font_kwargs), align=al("right"), fmt="0.00\"%\"")
+        cell(rr, 4, float(row["gross_sales_inr"]),
+             font=f(10, **font_kwargs), align=al("right"), fmt="\"Rs.\"#,##0")
+        cell(rr, 5, float(row["discount_spend_inr"]),
+             font=f(10, **font_kwargs), align=al("right"), fmt="\"Rs.\"#,##0")
+        cell(rr, 6, float(row["net_revenue_inr"]),
+             font=f(10, **font_kwargs), align=al("right"), fmt="\"Rs.\"#,##0")
+        cell(rr, 7, float(row["total_units"]),
+             font=f(10, **font_kwargs), align=al("right"), fmt="#,##0")
+        sav = float(row["cumulative_savings"])
+        sav_color = POS if sav > 0 else MUTED
+        cell(rr, 8, sav, font=f(10, color=sav_color, bold=font_kwargs.get("bold", False)),
+             align=al("right"), fmt="\"Rs.\"+#,##0;\"Rs.\"-#,##0;-")
+        gap = float(row["gap_to_target_ppt"])
+        gap_color = NEG if gap > 0.5 else POS
+        cell(rr, 9, gap, font=f(10, color=gap_color, bold=font_kwargs.get("bold", False)),
+             align=al("right"), fmt="+0.00\" ppt\";-0.00\" ppt\";\"0.00 ppt\"")
+
+        if is_first_target:
+            for c in range(1, 10):
+                ws.cell(row=rr, column=c).border = b(top=RULE, bottom=RULE)
+
+    # Bottom border on last row
+    last_data_row = T_HEAD + len(glide)
+    for c in range(1, 10):
+        ws.cell(row=last_data_row, column=c).border = b(bottom=BOLD_RULE)
+
+    # Column widths
+    widths = [8, 12, 17, 20, 20, 20, 15, 22, 18]
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = f"A{T_HEAD + 1}"
 
 
 def _build_per_product_sheet(ws, summary, df):

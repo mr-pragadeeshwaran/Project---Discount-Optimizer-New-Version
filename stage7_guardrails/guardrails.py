@@ -46,22 +46,34 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
             adjusted_disc = max(0, (1 - floor_price / mrp) * 100)
             df.at[idx, "throttled_discount_pct"] = round(adjusted_disc, 1)
 
-        # 2. Max change rate (3 ppt per cycle)
+        # 2. Per-cycle change cap
+        # If USE_DYNAMIC_GLIDE is on, the per-cell step is computed from
+        # the user's target duration:
+        #     step = (current − target) / TARGET_TIMELINE_WEEKS
+        # Bounded below by 0.25 ppt (always move if there's a meaningful
+        # gap) and above by MAX_DISCOUNT_CHANGE_PPT (absolute safety).
+        # If off, the legacy fixed cap applies.
         disc_change = current_disc - elbow_disc  # positive = reducing discount
-        if abs(disc_change) > cfg.MAX_DISCOUNT_CHANGE_PPT:
+        use_dyn = getattr(cfg, "USE_DYNAMIC_GLIDE", False)
+        timeline = getattr(cfg, "TARGET_TIMELINE_WEEKS", None)
+        if use_dyn and timeline and timeline > 0:
+            this_cycle_step = max(0.25, abs(disc_change) / float(timeline))
+            this_cycle_step = min(this_cycle_step, cfg.MAX_DISCOUNT_CHANGE_PPT)
+        else:
+            this_cycle_step = cfg.MAX_DISCOUNT_CHANGE_PPT
+
+        if abs(disc_change) > this_cycle_step:
             df.at[idx, "is_throttled"] = True
             df.at[idx, "guardrail_change_ok"] = False
             if disc_change > 0:
-                # Reducing discount: throttle to max step
-                throttled = current_disc - cfg.MAX_DISCOUNT_CHANGE_PPT
+                throttled = current_disc - this_cycle_step
             else:
-                # Increasing discount: throttle to max step
-                throttled = current_disc + cfg.MAX_DISCOUNT_CHANGE_PPT
+                throttled = current_disc + this_cycle_step
             df.at[idx, "throttled_discount_pct"] = round(max(0, throttled), 1)
 
-            # Build phasing plan
-            steps = _build_phasing_plan(current_disc, elbow_disc, cfg.MAX_DISCOUNT_CHANGE_PPT)
-            df.at[idx, "phasing_plan"] = " → ".join([f"{s:.0f}%" for s in steps])
+            # Phasing plan: full glide path at this cell's pace
+            steps = _build_phasing_plan(current_disc, elbow_disc, this_cycle_step)
+            df.at[idx, "phasing_plan"] = " → ".join([f"{s:.1f}%" for s in steps])
 
     # ── Compute final recommended values (after guardrails) ─────────
     df["rec_discount_pct"] = df["throttled_discount_pct"]

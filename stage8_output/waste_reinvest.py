@@ -18,6 +18,8 @@ class NpEncoder(json.JSONEncoder):
         if isinstance(obj, (np.floating,)): return float(obj)
         if isinstance(obj, np.ndarray): return obj.tolist()
         if isinstance(obj, (pd.Timestamp,)): return str(obj)
+        if isinstance(obj, pd.DataFrame): return obj.to_dict(orient="records")
+        if isinstance(obj, pd.Series): return obj.to_dict()
         return super().default(obj)
 
 
@@ -61,6 +63,8 @@ def generate_waste_reinvest_report(rec_df, feat_df, model_output, run_dir):
     summary["business"] = _compute_business_metrics(df, waste_main, reinvest_main)
     # Model accuracy from Stage 4 diagnostics — pulled into the brand-team report
     summary["model_accuracy"] = _compute_model_accuracy(model_output)
+    # Multi-cycle roadmap: week-by-week projection over the target duration
+    summary["glide_path"] = _compute_glide_path(df, waste_main, reinvest_main)
 
     # Print summary — business-style
     biz = summary["business"]
@@ -1059,6 +1063,120 @@ def _confidence_legend_md() -> str:
         "Cells where the model flagged a data-quality concern (boundary-hit elasticity "
         "or rapid demand growth) are automatically downgraded one tier.*"
     )
+
+
+def _compute_glide_path(df, waste_main, reinvest_main):
+    """
+    Project the portfolio week-by-week from today to the target duration.
+
+    For each cell, the per-cycle discount move is:
+       step = (current_disc − target_disc) / TARGET_TIMELINE_WEEKS
+       bounded by [0.25, MAX_DISCOUNT_CHANGE_PPT] for safety
+    where target_disc is:
+       - cut cells (in waste_main):    elbow_discount (often 0% per Stage 6)
+       - reinvest cells (in reinvest_main): current + ~3 ppt (one-time strategic move)
+       - others:                       current (no change)
+
+    Each cycle's predicted units come from the dual-signal log-log model
+    (same math the rest of the system uses).
+
+    Returns a DataFrame with one row per week:
+       cycle | weighted_disc% | gross_sales | discount_spend | net_revenue |
+       units | cumulative_savings | gap_to_target
+    """
+    timeline = getattr(cfg, "TARGET_TIMELINE_WEEKS", 22)
+    max_step = getattr(cfg, "MAX_DISCOUNT_CHANGE_PPT", 4)
+    target_wd = getattr(cfg, "TARGET_WEIGHTED_DISCOUNT_PCT", 9.0)
+
+    cut_set = set()
+    if not waste_main.empty:
+        cut_set = set(waste_main["cell_id"].dropna())
+    rinv_disc = {}
+    if not reinvest_main.empty and "rec_discount_final" in reinvest_main.columns:
+        rinv_disc = (reinvest_main.dropna(subset=["rec_discount_final"])
+                                  .set_index("cell_id")["rec_discount_final"]
+                                  .to_dict())
+
+    cells = []
+    for _, r in df.iterrows():
+        cid = r.get("cell_id")
+        mrp = float(r.get("mrp", 0))
+        cur_d = float(r.get("current_discount_pct", 0))
+        cur_u = float(r.get("current_units_day", 0))
+        if mrp <= 0 or cur_u <= 0:
+            continue
+        elast = float(r.get("price_elasticity", r.get("elasticity", -1.5)))
+        badge = float(r.get("badge_sensitivity", r.get("discount_sensitivity", 0.0)))
+
+        # Target & per-cycle step
+        if cid in rinv_disc:
+            target = float(rinv_disc[cid])
+        elif cid in cut_set:
+            # For cut cells, target = elbow_discount (capped at 0 minimum)
+            elbow = float(r.get("elbow_discount_pct", 0))
+            target = max(0.0, elbow)
+        else:
+            target = cur_d
+
+        gap = cur_d - target
+        if abs(gap) < 0.25:
+            step = 0.0
+        else:
+            raw_step = abs(gap) / float(timeline)
+            step = max(0.25, min(raw_step, max_step))
+            if gap < 0:  # increasing discount (reinvest)
+                step = -step
+            else:        # cutting discount
+                step = step
+        cells.append({
+            "mrp": mrp, "cur_d": cur_d, "cur_u": cur_u,
+            "elast": elast, "badge": badge,
+            "target": target, "step": step,
+        })
+
+    # Simulate cycles 0..N inclusive
+    def _predict_units(c, d):
+        cur_p = c["mrp"] * (1 - c["cur_d"] / 100)
+        new_p = c["mrp"] * (1 - d / 100)
+        if cur_p <= 0 or new_p <= 0:
+            return c["cur_u"]
+        try:
+            mult = (new_p / cur_p) ** c["elast"] * np.exp(c["badge"] * (d - c["cur_d"]))
+            return max(c["cur_u"] * mult, 0.01)
+        except Exception:
+            return c["cur_u"]
+
+    rows = []
+    today_spend = None
+    for cycle in range(int(timeline) + 1):
+        gross = 0.0; spend = 0.0; units = 0.0
+        for c in cells:
+            # Discount at this cycle = cur - cycle * step, clamped to target
+            d = c["cur_d"] - cycle * c["step"]  # step is positive for cutting
+            if c["step"] > 0:   # cutting → d going down → clamp to target from below
+                d = max(d, c["target"])
+            elif c["step"] < 0: # raising disc → d going up → clamp to target from above
+                d = min(d, c["target"])
+            u = _predict_units(c, d)
+            gross += c["mrp"] * u * 30
+            spend += c["mrp"] * d / 100 * u * 30
+            units += u * 30
+        wdisc = spend / gross * 100 if gross > 0 else 0
+        if cycle == 0:
+            today_spend = spend
+        rows.append({
+            "cycle":                cycle,
+            "label":                "Today" if cycle == 0 else f"Week {cycle}",
+            "weighted_discount_pct":round(wdisc, 2),
+            "gross_sales_inr":      round(gross, 0),
+            "discount_spend_inr":   round(spend, 0),
+            "net_revenue_inr":      round(gross - spend, 0),
+            "total_units":          round(units, 0),
+            "cumulative_savings":   round(today_spend - spend, 0),
+            "gap_to_target_ppt":    round(wdisc - target_wd, 2),
+            "reached_target":       bool(wdisc <= target_wd + 0.05),
+        })
+    return pd.DataFrame(rows)
 
 
 def _compute_model_accuracy(model_output: dict) -> dict:
