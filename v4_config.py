@@ -147,13 +147,28 @@ MAX_COMPETITOR_PREMIUM_PCT = 0.10  # Max 10% above competitor
 #      Still bounded by MAX_DISCOUNT_CHANGE_PPT as an absolute safety rail.
 #   2. STATIC: every cell capped at MAX_DISCOUNT_CHANGE_PPT/cycle.
 USE_DYNAMIC_GLIDE      = True
-TARGET_TIMELINE_WEEKS  = 22    # User-editable: ~5 months. Change to set
+TARGET_TIMELINE_WEEKS  = 12    # User-editable: ~3 months. Change to set
                                 # the speed of the rebalance — smaller =
                                 # faster (bigger weekly cuts), larger =
                                 # safer (smaller weekly cuts).
 MAX_DISCOUNT_CHANGE_PPT = 4    # Hard safety cap — no cell moves more
                                 # than this in one cycle regardless of
                                 # what the timeline math says.
+
+# ── What's the END point of the glide? ──
+# True (default):   target = historical_floor_discount per cell.
+#                   The proven-safe minimum discount based on the cell's
+#                   own past behaviour. The system never pushes a cell
+#                   to a discount level it has never operated at.
+# False:            target = elbow_discount per cell (margin-optimal,
+#                   often 0% with the current cost structure).
+USE_HISTORICAL_FLOOR_TARGET  = True
+
+# What percentile of the cell's recent observed discounts counts as the
+# "floor we know it can survive". 25 = lower quartile = "we've been here
+# on ~25% of days, units held up, so we can return to this safely".
+HISTORICAL_FLOOR_PERCENTILE  = 25
+HISTORICAL_FLOOR_LOOKBACK_DAYS = 90   # Look back 90 days for the floor
 STRATEGIC_SKUS = []             # SKU IDs with override rules
 
 # Tiering thresholds

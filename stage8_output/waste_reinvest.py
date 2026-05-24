@@ -1112,9 +1112,15 @@ def _compute_glide_path(df, waste_main, reinvest_main):
         if cid in rinv_disc:
             target = float(rinv_disc[cid])
         elif cid in cut_set:
-            # For cut cells, target = elbow_discount (capped at 0 minimum)
+            # Target = historical floor (proven safe) if config flag is on,
+            # else the margin-optimal elbow (often 0%).
             elbow = float(r.get("elbow_discount_pct", 0))
-            target = max(0.0, elbow)
+            if getattr(cfg, "USE_HISTORICAL_FLOOR_TARGET", False):
+                hist_floor = float(r.get("historical_floor_disc", elbow))
+                # Use max(elbow, floor) — don't go below the proven-safe level
+                target = max(0.0, max(elbow, hist_floor))
+            else:
+                target = max(0.0, elbow)
         else:
             target = cur_d
 

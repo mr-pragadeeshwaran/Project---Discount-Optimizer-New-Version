@@ -425,6 +425,22 @@ def _build_elasticity_table(
         disc_std   = float(gdf["discount_pct"].std())   if "discount_pct" in gdf.columns else 0.0
         n_disc_lvl = int(gdf["discount_pct"].round(0).nunique()) if "discount_pct" in gdf.columns else 0
 
+        # ── Historical FLOOR: the proven-safe minimum discount the cell
+        # has actually operated at recently. We use the lower quartile of
+        # observed regular-day discounts in the last lookback window.
+        # By definition the cell has been at-or-below this level on ~25%
+        # of days with healthy enough sales to be in the dataset.
+        floor_pct = float(getattr(cfg, "HISTORICAL_FLOOR_PERCENTILE", 25)) / 100.0
+        floor_lookback = int(getattr(cfg, "HISTORICAL_FLOOR_LOOKBACK_DAYS", 90))
+        gdf_reg = gdf[gdf["is_regular_day"] == 1] if "is_regular_day" in gdf.columns else gdf
+        if not gdf_reg.empty and "discount_pct" in gdf_reg.columns:
+            recent_cut = pd.to_datetime(gdf_reg[COL["date"]]).max() - pd.Timedelta(days=floor_lookback)
+            recent = gdf_reg[pd.to_datetime(gdf_reg[COL["date"]]) >= recent_cut]
+            src = recent if len(recent) >= 10 else gdf_reg
+            historical_floor = max(0.0, float(src["discount_pct"].quantile(floor_pct)))
+        else:
+            historical_floor = max(0.0, avg_disc)  # safe fallback
+
         cell_pe = cell_price_slopes.get(sku_key, cat_elast.get(cat, default_e))
         cell_bs = cell_badge_slopes.get(sku_key, cat_badge.get(cat, 0.01))
         cat_pe  = cat_elast.get(cat, default_e)
@@ -447,6 +463,7 @@ def _build_elasticity_table(
             "avg_selling_price":        round(avg_price, 2),
             "avg_units":                round(avg_units, 1),
             "avg_discount_pct":         round(avg_disc, 1),
+            "historical_floor_disc":    round(historical_floor, 1),
             "disc_pct_std":             round(disc_std, 2),
             "n_discount_levels":        n_disc_lvl,
             "n_observations":           n_obs,

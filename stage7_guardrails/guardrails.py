@@ -33,27 +33,39 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
 
     for idx, row in df.iterrows():
         mrp = row["mrp"]
-        elbow_disc = row["elbow_discount_pct"]
         current_disc = row["current_discount_pct"]
-        elbow_price = mrp * (1 - elbow_disc / 100)
+        elbow_disc = row["elbow_discount_pct"]
+
+        # Choose the target: historical floor (proven safe) OR elbow (margin-optimal).
+        # Historical floor is the cell's own past lower-quartile discount, so the
+        # system never plans a price level the cell has never operated at.
+        if getattr(cfg, "USE_HISTORICAL_FLOOR_TARGET", False):
+            hist_floor = float(row.get("historical_floor_disc", elbow_disc))
+            # Use whichever target is more aggressive (lower) but still safe:
+            # if hist_floor < current_disc, use hist_floor; never below elbow either
+            # We want target = max(elbow, hist_floor) so we don't undershoot the
+            # observed safe zone but also don't push deeper than margin-optimal
+            target_disc = max(elbow_disc, hist_floor)
+        else:
+            target_disc = elbow_disc
+
+        target_price = mrp * (1 - target_disc / 100)
 
         # 1. Floor price check (variable_cost + min margin)
-        costs = mrp * cfg.DEFAULT_COGS_PCT + cfg.DEFAULT_COMMISSION_PCT * elbow_price + cfg.DEFAULT_FULFILLMENT_FEE
+        costs = mrp * cfg.DEFAULT_COGS_PCT + cfg.DEFAULT_COMMISSION_PCT * target_price + cfg.DEFAULT_FULFILLMENT_FEE
         floor_price = costs * (1 + cfg.MIN_MARGIN_PCT)
-        if elbow_price < floor_price:
+        if target_price < floor_price:
             df.at[idx, "guardrail_floor_ok"] = False
-            # Adjust to floor
             adjusted_disc = max(0, (1 - floor_price / mrp) * 100)
             df.at[idx, "throttled_discount_pct"] = round(adjusted_disc, 1)
+            target_disc = adjusted_disc
 
-        # 2. Per-cycle change cap
+        # 2. Per-cycle change cap (targeting the chosen target_disc, not just elbow)
         # If USE_DYNAMIC_GLIDE is on, the per-cell step is computed from
         # the user's target duration:
         #     step = (current − target) / TARGET_TIMELINE_WEEKS
-        # Bounded below by 0.25 ppt (always move if there's a meaningful
-        # gap) and above by MAX_DISCOUNT_CHANGE_PPT (absolute safety).
-        # If off, the legacy fixed cap applies.
-        disc_change = current_disc - elbow_disc  # positive = reducing discount
+        # Bounded below by 0.25 ppt and above by MAX_DISCOUNT_CHANGE_PPT.
+        disc_change = current_disc - target_disc  # positive = reducing discount
         use_dyn = getattr(cfg, "USE_DYNAMIC_GLIDE", False)
         timeline = getattr(cfg, "TARGET_TIMELINE_WEEKS", None)
         if use_dyn and timeline and timeline > 0:
@@ -71,9 +83,12 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
                 throttled = current_disc + this_cycle_step
             df.at[idx, "throttled_discount_pct"] = round(max(0, throttled), 1)
 
-            # Phasing plan: full glide path at this cell's pace
-            steps = _build_phasing_plan(current_disc, elbow_disc, this_cycle_step)
+            # Phasing plan: full glide path at this cell's pace to the target
+            steps = _build_phasing_plan(current_disc, target_disc, this_cycle_step)
             df.at[idx, "phasing_plan"] = " → ".join([f"{s:.1f}%" for s in steps])
+        elif abs(disc_change) >= 0.1:
+            # Already within one cycle's reach of target — go straight there
+            df.at[idx, "throttled_discount_pct"] = round(target_disc, 1)
 
     # ── Compute final recommended values (after guardrails) ─────────
     df["rec_discount_pct"] = df["throttled_discount_pct"]
