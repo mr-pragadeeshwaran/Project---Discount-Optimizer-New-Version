@@ -976,6 +976,9 @@ def _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir):
 
     # Q1 table
     lines.append("## Where to Raise Prices This Week")
+    lines.append("")
+    lines.append(_confidence_legend_md())
+    lines.append("")
     if waste_main.empty:
         lines.append("\n*No High/Medium confidence cells to cut this week.*\n")
     else:
@@ -983,6 +986,9 @@ def _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir):
 
     # Q2 table
     lines.append("\n## Where to Drop Prices to Grow Volume")
+    lines.append("")
+    lines.append(_confidence_legend_md())
+    lines.append("")
     if reinvest_main.empty:
         lines.append("\n*No High/Medium confidence reinvestment candidates this cycle.*\n")
     else:
@@ -1266,9 +1272,10 @@ def _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir):
     story.append(Paragraph(
         "Cells sorted by Rs. wasted per month. <b>Now</b> is the current selling price. "
         "<b>This Week</b> is what to set on Blinkit this Monday — capped at a 3 ppt move "
-        "per cycle so customers aren't shocked. <b>Eventual</b> is the model's target price, "
-        "reached after multiple weekly cycles.",
+        "per cycle so customers aren't shocked. <b>Wasted/mo</b> is the full multi-cycle "
+        "savings opportunity if you walked the price all the way back to MRP.",
         body_style))
+    story.append(_confidence_legend(body_style, note_style))
     story.append(Spacer(1, 3*mm))
 
     if waste_main.empty:
@@ -1277,17 +1284,16 @@ def _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir):
         story.append(_minimal_data_table(
             waste_main,
             cols=[
-                ("title",            "Product",         53*mm, "left"),
-                ("city",             "City",            26*mm, "left"),
-                ("mrp",              "MRP",             12*mm, "right"),
-                ("current_price",    "Now",             14*mm, "right"),
-                ("this_week_price",  "This Week",       18*mm, "right"),
-                ("eventual_price",   "Eventual",        16*mm, "right"),
-                ("wasted_inr_per_month", "Wasted/mo",   22*mm, "right"),
+                ("title",            "Product",         60*mm, "left"),
+                ("city",             "City",            30*mm, "left"),
+                ("mrp",              "MRP",             14*mm, "right"),
+                ("current_price",    "Now",             16*mm, "right"),
+                ("this_week_price",  "This Week",       20*mm, "right"),
+                ("wasted_inr_per_month", "Wasted/mo",   25*mm, "right"),
                 ("confidence",       "Conf",            18*mm, "center"),
             ],
             money_cols={"mrp", "current_price", "this_week_price",
-                        "eventual_price", "wasted_inr_per_month"},
+                        "wasted_inr_per_month"},
             cell_style=cell_style,
             ink=INK, hairline=HAIRLINE, rule=RULE, muted=MUTED,
             # Plain integer with thousand separators — consistent across all
@@ -1308,6 +1314,7 @@ def _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir):
         "to be worth the extra discount spend. These are funded by the savings from "
         "the price lifts above.",
         body_style))
+    story.append(_confidence_legend(body_style, note_style))
     story.append(Spacer(1, 3*mm))
 
     if reinvest_main.empty:
@@ -1383,6 +1390,31 @@ def _write_pdf(summary, waste_main, reinvest_main, needs_test, run_dir):
 
     doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
     return path
+
+
+def _confidence_legend_md() -> str:
+    """One-line plain-English explanation of the Conf column for markdown reports."""
+    return (
+        "*Confidence: **High** = 200+ days of clean history with 10+ distinct discount levels "
+        "and ≥3 ppt of price variation; the model trusts this cell. "
+        "**Medium** = 100+ days and 5+ discount levels — actionable but worth a review. "
+        "**Low** = thin data; shown separately as 'Needs Price Test'. "
+        "Cells where the model flagged a data-quality concern (boundary-hit elasticity "
+        "or rapid demand growth) are automatically downgraded one tier.*"
+    )
+
+
+def _confidence_legend(body_style, note_style):
+    """One-line plain-English explanation of the Conf column for the brand team."""
+    from reportlab.platypus import Paragraph
+    return Paragraph(
+        "<i>Confidence: <b>High</b> = 200+ days of clean history with 10+ distinct discount levels "
+        "and ≥3 ppt of price variation; the model trusts this cell.  "
+        "<b>Medium</b> = 100+ days and 5+ discount levels — actionable but worth a review.  "
+        "<b>Low</b> = thin data; shown separately as 'Needs Price Test'.  "
+        "Cells where the model flagged a data-quality concern (boundary-hit elasticity or "
+        "rapid demand growth) are automatically downgraded one tier.</i>",
+        note_style)
 
 
 def _money_signed(v, pos_color, neg_color):
@@ -1626,13 +1658,14 @@ def _write_json(df, model_output, summary, run_dir):
 
 
 def _waste_cols():
-    # Lean view: 3 prices (now / this week / eventual), then ₹ wasted + conf
+    # 2 prices (now / this week), wasted ₹/mo, confidence
+    # Eventual = MRP for nearly every cell (margin-optimal elbow = no discount),
+    # so it's redundant — dropped.
     return [
         ("title", "SKU"), ("city", "City"),
         ("mrp", "MRP"),
         ("current_price", "Now Rs."),
         ("this_week_price", "This Week Rs."),
-        ("eventual_price", "Eventual Rs."),
         ("wasted_inr_per_month", "Wasted Rs./mo"),
         ("confidence", "Conf"),
     ]
