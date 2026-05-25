@@ -206,6 +206,20 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
         cell_price_slopes, cell_badge_slopes,
     )
 
+    # ── Per-cell train R² ───────────────────────────────────────────
+    # For each cell, how well does the per-category model fit THIS
+    # cell's own historical training data? Higher R² = the price /
+    # quantity relationship is captured well for this cell, so the
+    # elasticity estimate is reliable. Reported per row in the Excel
+    # By Product sheet so the brand team can see model fit per city.
+    cell_train_r2 = _compute_cell_train_r2(models, train, has_grammage)
+    if cell_train_r2:
+        elasticities["cell_train_r2"] = elasticities["cell_id"].map(
+            cell_train_r2
+        ).fillna(0.0).round(3)
+    else:
+        elasticities["cell_train_r2"] = 0.0
+
     # ── Diagnostics (daily + aggregated) ─────────────────────────────
     diagnostics = _compute_diagnostics(models, train, test_eval, cat_metrics)
     diagnostics["model_type"] = "PerCategory_CellFE_Huber"
@@ -495,6 +509,59 @@ def _build_elasticity_table(
               f"badge_sens={bs.mean():+.4f}  n_cells={len(gdf)}")
 
     return df_out
+
+
+def _compute_cell_train_r2(models: dict, train: pd.DataFrame,
+                            has_grammage: bool) -> dict:
+    """
+    Per-cell train R² — for each cell, the share of variation in
+    log_units the per-category model captures using THIS cell's own
+    training rows.
+
+    Returns {cell_id_str: r2}.
+    """
+    COL = cfg.COL
+    if not models:
+        return {}
+
+    out = {}
+    # We need cell_id in the same format as elasticities table —
+    # "{pid}_{grm}_{city}" or "{pid}_{city}"
+    grp_keys = [COL["product_id"], COL["grammage"], COL["city"]] \
+               if has_grammage and COL["grammage"] in train.columns \
+               else [COL["product_id"], COL["city"]]
+
+    for key, gdf in train.groupby(grp_keys):
+        if isinstance(key, tuple):
+            if len(key) == 3:
+                pid, grm, city = key
+            else:
+                pid, city = key; grm = None
+        else:
+            pid = key; grm = None; city = ""
+
+        cell_id = f"{pid}_{grm}_{city}" if grm else f"{pid}_{city}"
+        cat = gdf["category"].iloc[0]
+        m = models.get(cat)
+        if m is None or len(gdf) < 5:
+            continue
+        try:
+            yhat = np.asarray(m.predict(gdf))
+            y    = gdf["log_units"].values
+            mask = np.isfinite(y) & np.isfinite(yhat)
+            if mask.sum() < 3:
+                continue
+            ss_res = float(((y[mask] - yhat[mask]) ** 2).sum())
+            ss_tot = float(((y[mask] - y[mask].mean()) ** 2).sum())
+            if ss_tot <= 0:
+                continue
+            r2 = 1.0 - ss_res / ss_tot
+            # Cap so cells with weird negative R² (truly bad fit) don't
+            # look absurd. -0.5 already says "model is worse than mean".
+            out[cell_id] = max(min(r2, 1.0), -0.5)
+        except Exception:
+            continue
+    return out
 
 
 def _compute_diagnostics(models: dict, train: pd.DataFrame,

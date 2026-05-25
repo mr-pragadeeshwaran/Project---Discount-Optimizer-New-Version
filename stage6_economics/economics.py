@@ -107,6 +107,7 @@ def compute_economics(curves_df: pd.DataFrame,
             # Current state
             "current_discount_pct":  round(current_disc, 1),
             "historical_floor_disc": round(float(cell.get("historical_floor_disc", current_disc)), 1),
+            "cell_train_r2":         round(float(cell.get("cell_train_r2", 0)), 3),
             "current_selling_price": round(current_price, 2),
             "current_price":         round(current_price, 2),    # alias
             "current_units_day":     round(current_row["units"], 1)         if current_row else 0,

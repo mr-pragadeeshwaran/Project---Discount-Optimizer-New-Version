@@ -726,7 +726,7 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
                f"Action column: CUT = reduce discount (raise price), INVEST = increase "
                f"discount (drop price), HOLD = already at target.",
          font=f(10, color=BODY), align=al("left", wrap=True))
-    n_cols = 7 + timeline  # 7 fixed (City, Conf, Obs, CurRs, TgtRs, Action, Save) + N weekly
+    n_cols = 8 + timeline  # 8 fixed (City, Conf, Cell R², Obs, CurRs, TgtRs, Action, Save) + N weekly
     ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=n_cols)
     ws.row_dimensions[4].height = 30
 
@@ -810,8 +810,13 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
             cur_row += 2  # 1 accuracy row + 1 blank
 
         # ── City × week table headers (selling-price view) ─────────────
-        # Now includes Conf + Obs so each row has its own confidence proof
-        headers = ["City", "Conf", "Obs", "Current Rs.", "Target Rs.",
+        # Each row carries 3 confidence signals:
+        #   Conf       — High/Medium/Low/Needs Experiment (Stage 5 tier)
+        #   Cell R²    — model's fit on THIS cell's own training data
+        #                (numerical proof of accuracy at city level)
+        #   Obs        — number of training rows backing the estimate
+        headers = ["City", "Conf", "Cell R²", "Obs",
+                   "Current Rs.", "Target Rs.",
                    "Action", "Save Rs./mo"]
         headers += [f"W{w}" for w in range(1, timeline + 1)]
         for j, h in enumerate(headers, 1):
@@ -874,10 +879,11 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
             # Per-cell confidence (from Stage 5) + observation count
             conf = str(r.get("confidence", "—"))
             n_obs = int(r.get("n_observations", 0)) if pd.notna(r.get("n_observations")) else 0
+            cell_r2 = float(r.get("cell_train_r2", 0)) if pd.notna(r.get("cell_train_r2")) else 0.0
 
             city_rows.append({
                 "city": city,
-                "conf": conf, "n_obs": n_obs,
+                "conf": conf, "cell_r2": cell_r2, "n_obs": n_obs,
                 "cur_price": cur_price, "target_price": target_price,
                 "action": action, "save": save_per_mo,
                 "weekly_prices": weekly_prices,
@@ -887,8 +893,8 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
         city_rows.sort(key=lambda x: -x["sort_key"])
 
         # Render rows — all monetary values
-        # Column layout now: City | Conf | Obs | Cur Rs. | Tgt Rs. | Action | Save | W1..Wn
-        total_cols_per_row = 7 + timeline
+        # Column layout: City | Conf | Cell R² | Obs | Cur | Tgt | Action | Save | W1..Wn
+        total_cols_per_row = 8 + timeline
         for r in city_rows:
             action_color = NEG if r["action"] == "CUT" else (POS if r["action"] == "INVEST" else MUTED)
             conf_color = {
@@ -897,25 +903,34 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
                 "Low":               NEG,
                 "Needs Experiment":  NEG,
             }.get(r["conf"], MUTED)
+            # Cell R² color: green ≥0.7, slate ≥0.4, red ≥0.1, grey below
+            r2v = r["cell_r2"]
+            if r2v >= 0.7:    r2_color = POS
+            elif r2v >= 0.4:  r2_color = ACCENT
+            elif r2v >= 0.1:  r2_color = NEG
+            else:             r2_color = MUTED
 
             cell(cur_row, 1, r["city"], font=f(10), align=al("left"))
             cell(cur_row, 2, r["conf"],
                  font=f(10, bold=True, color=conf_color), align=al("center"))
-            cell(cur_row, 3, r["n_obs"], font=f(10), align=al("center"), fmt="#,##0")
-            cell(cur_row, 4, r["cur_price"], font=f(10), align=al("right"),
+            cell(cur_row, 3, r2v,
+                 font=f(10, bold=True, color=r2_color), align=al("center"),
+                 fmt="0.00")
+            cell(cur_row, 4, r["n_obs"], font=f(10), align=al("center"), fmt="#,##0")
+            cell(cur_row, 5, r["cur_price"], font=f(10), align=al("right"),
                  fmt='"Rs."#,##0.0')
-            cell(cur_row, 5, r["target_price"], font=f(10, bold=True), align=al("right"),
+            cell(cur_row, 6, r["target_price"], font=f(10, bold=True), align=al("right"),
                  fmt='"Rs."#,##0.0')
-            cell(cur_row, 6, r["action"],
+            cell(cur_row, 7, r["action"],
                  font=f(10, bold=True, color=action_color), align=al("center"))
             sav = r["save"]
             sav_color = POS if sav > 0 else (NEG if sav < 0 else MUTED)
-            cell(cur_row, 7, sav, font=f(10, color=sav_color), align=al("right"),
+            cell(cur_row, 8, sav, font=f(10, color=sav_color), align=al("right"),
                  fmt='"Rs. "#,##0;"Rs. -"#,##0;"-"')
 
-            # Weekly price cells start at column 8
+            # Weekly price cells start at column 9
             for wi, wprice in enumerate(r["weekly_prices"], 1):
-                col = 7 + wi
+                col = 8 + wi
                 reached = abs(wprice - r["target_price"]) < 0.05
                 if r["action"] == "HOLD":
                     wfont = f(9, color=MUTED)
@@ -934,14 +949,14 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
             ws.cell(row=cur_row - 1, column=c).border = b(bottom=BOLD_RULE)
         cur_row += 2
 
-    # Column widths (City + Conf + Obs + 3 prices + Save + N weekly)
-    widths = [22, 11, 7, 13, 13, 10, 14] + [9] * timeline
+    # Column widths (City + Conf + Cell R² + Obs + 2 prices + Action + Save + N weekly)
+    widths = [22, 11, 9, 7, 13, 13, 10, 14] + [9] * timeline
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
-    # Freeze the leftmost 7 columns (through Save Rs./mo) so city + conf +
-    # current/target prices stay visible while scrolling right through weeks.
-    ws.freeze_panes = "H8"
+    # Freeze the leftmost 8 columns (through Save Rs./mo) so city + conf +
+    # cell R² + obs + prices + action stay visible while scrolling right.
+    ws.freeze_panes = "I8"
 
 
 def _build_detail_sheet(ws, df, sheet_type):
