@@ -43,15 +43,5 @@ for coord, label in [
 ]:
     print(f"  Summary!{coord:5s} {label:40s} = {fetch('Summary', coord)}")
 
-print("\n=== By Product — first product (rows 9-12) ===")
-for coord, label in [
-    ('B9',  'gross today'),
-    ('C9',  'gross after-cuts'),
-    ('D9',  'gross after-both'),
-    ('B10', 'spend today'),
-    ('B11', 'units today'),
-    ('B12', 'weighted disc % today'),
-    ('C12', 'weighted disc % after-cuts'),
-    ('D12', 'weighted disc % after-both'),
-]:
-    print(f"  By Product!{coord:5s} {label:30s} = {fetch('By Product', coord)}")
+# By Product sheet was redesigned as a city × week glide matrix —
+# values are pre-computed in Python, not formulas. Skip the formula check.

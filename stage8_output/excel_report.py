@@ -726,7 +726,7 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
                f"Action column: CUT = reduce discount (raise price), INVEST = increase "
                f"discount (drop price), HOLD = already at target.",
          font=f(10, color=BODY), align=al("left", wrap=True))
-    n_cols = 5 + timeline  # 5 fixed + N weekly
+    n_cols = 7 + timeline  # 7 fixed (City, Conf, Obs, CurRs, TgtRs, Action, Save) + N weekly
     ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=n_cols)
     ws.row_dimensions[4].height = 30
 
@@ -757,34 +757,62 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
         n_inv   = sum(1 for cid in prod_cells["cell_id"] if cid in inv_set)
         n_hold  = n_cells - n_cut - n_inv
 
+        # ── Product title row (merged) ────────────────────────────────
         cell(cur_row, 1, display_title,
              font=f(13, bold=True, color=INK), align=al("left"),
              border=b(bottom=BOLD_RULE))
         ws.merge_cells(start_row=cur_row, start_column=1,
-                       end_row=cur_row, end_column=n_cols)
+                       end_row=cur_row, end_column=n_cols + 2)
         cur_row += 1
 
-        summary_line = (
-            f"Today: gross Rs.{gross:,.0f}/mo  ·  discount Rs.{spend:,.0f}/mo "
-            f"({wdisc:.2f}%)  ·  {n_cells} cities ({n_cut} cut, {n_inv} invest, {n_hold} hold)"
-        )
-        cell(cur_row, 1, summary_line,
-             font=f(10, italic=True, color=MUTED), align=al("left"))
-        ws.merge_cells(start_row=cur_row, start_column=1,
-                       end_row=cur_row, end_column=n_cols)
-        cur_row += 2
+        # ── Mini-summary table in PROPER cells (label row + value row) ─
+        # Two rows: labels on row N, values on row N+1. 8 columns of metrics.
+        summary_labels = ["MRP",  "Today gross/mo", "Today discount/mo",
+                          "Today disc %", "Cities", "Cut", "Invest", "Hold"]
+        summary_values = [float(prod_cells["mrp"].iloc[0]),
+                          gross, spend, wdisc,
+                          n_cells, n_cut, n_inv, n_hold]
+        for j, lbl in enumerate(summary_labels, 1):
+            cell(cur_row, j, lbl,
+                 font=f(9, color=MUTED), align=al("center"),
+                 border=b(bottom=THIN))
+        for j, val in enumerate(summary_values, 1):
+            if j == 1:        # MRP
+                fmt = '"Rs."#,##0'
+            elif j in (2, 3): # gross / discount
+                fmt = '"Rs."#,##0'
+            elif j == 4:      # disc %
+                fmt = '0.00"%"'
+            else:             # counts
+                fmt = "0"
+            cell(cur_row + 1, j, val,
+                 font=f(11, bold=True, color=INK), align=al("center"),
+                 fmt=fmt, border=b(top=THIN))
+        cur_row += 3  # 2 mini-summary rows + 1 blank
+
+        # ── Accuracy note (cell, not a banner) ────────────────────────
+        acc = summary.get("model_accuracy", {})
+        if acc.get("available"):
+            tier_color = {"Strong": POS, "Moderate": ACCENT,
+                          "Weak": NEG, "Unreliable": NEG}.get(acc.get("tier", ""), MUTED)
+            cell(cur_row, 1, "Model accuracy:",
+                 font=f(9, color=MUTED), align=al("right"))
+            cell(cur_row, 2, acc.get("tier", "—"),
+                 font=f(10, bold=True, color=tier_color), align=al("left"))
+            cell(cur_row, 3, "Test R²:",
+                 font=f(9, color=MUTED), align=al("right"))
+            cell(cur_row, 4, acc.get("test_r2_log", 0),
+                 font=f(10, bold=True), align=al("left"), fmt="0.00")
+            cell(cur_row, 5, "MAPE:",
+                 font=f(9, color=MUTED), align=al("right"))
+            cell(cur_row, 6, acc.get("test_mape_agg", 0),
+                 font=f(10, bold=True), align=al("left"), fmt='0.0"%"')
+            cur_row += 2  # 1 accuracy row + 1 blank
 
         # ── City × week table headers (selling-price view) ─────────────
-        # MRP banner row above weeks
-        cell(cur_row, 1, "All values in selling price (Rs.).  "
-             f"MRP for this SKU: Rs.{float(prod_cells['mrp'].iloc[0]):,.0f}.  "
-             "Lower price = deeper discount.",
-             font=f(9, italic=True, color=MUTED), align=al("left"))
-        ws.merge_cells(start_row=cur_row, start_column=1,
-                       end_row=cur_row, end_column=n_cols)
-        cur_row += 1
-
-        headers = ["City", "Current Rs.", "Target Rs.", "Action", "Save Rs./mo"]
+        # Now includes Conf + Obs so each row has its own confidence proof
+        headers = ["City", "Conf", "Obs", "Current Rs.", "Target Rs.",
+                   "Action", "Save Rs./mo"]
         headers += [f"W{w}" for w in range(1, timeline + 1)]
         for j, h in enumerate(headers, 1):
             cell(cur_row, j, h,
@@ -843,8 +871,13 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
             # Monthly savings (Rs.) — same calc, in discount-spend terms
             save_per_mo = (cur_d - target_d) / 100 * mrp * cur_u * 30
 
+            # Per-cell confidence (from Stage 5) + observation count
+            conf = str(r.get("confidence", "—"))
+            n_obs = int(r.get("n_observations", 0)) if pd.notna(r.get("n_observations")) else 0
+
             city_rows.append({
                 "city": city,
+                "conf": conf, "n_obs": n_obs,
                 "cur_price": cur_price, "target_price": target_price,
                 "action": action, "save": save_per_mo,
                 "weekly_prices": weekly_prices,
@@ -854,56 +887,61 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
         city_rows.sort(key=lambda x: -x["sort_key"])
 
         # Render rows — all monetary values
+        # Column layout now: City | Conf | Obs | Cur Rs. | Tgt Rs. | Action | Save | W1..Wn
+        total_cols_per_row = 7 + timeline
         for r in city_rows:
-            # For CUT: price goes UP → green is the "we reached target" colour
-            # For INVEST: price goes DOWN → red is the "deeper discount, more sold" cue
             action_color = NEG if r["action"] == "CUT" else (POS if r["action"] == "INVEST" else MUTED)
+            conf_color = {
+                "High":              POS,
+                "Medium":            ACCENT,
+                "Low":               NEG,
+                "Needs Experiment":  NEG,
+            }.get(r["conf"], MUTED)
 
             cell(cur_row, 1, r["city"], font=f(10), align=al("left"))
-            cell(cur_row, 2, r["cur_price"], font=f(10), align=al("right"),
+            cell(cur_row, 2, r["conf"],
+                 font=f(10, bold=True, color=conf_color), align=al("center"))
+            cell(cur_row, 3, r["n_obs"], font=f(10), align=al("center"), fmt="#,##0")
+            cell(cur_row, 4, r["cur_price"], font=f(10), align=al("right"),
                  fmt='"Rs."#,##0.0')
-            cell(cur_row, 3, r["target_price"], font=f(10, bold=True), align=al("right"),
+            cell(cur_row, 5, r["target_price"], font=f(10, bold=True), align=al("right"),
                  fmt='"Rs."#,##0.0')
-            cell(cur_row, 4, r["action"],
+            cell(cur_row, 6, r["action"],
                  font=f(10, bold=True, color=action_color), align=al("center"))
             sav = r["save"]
             sav_color = POS if sav > 0 else (NEG if sav < 0 else MUTED)
-            cell(cur_row, 5, sav, font=f(10, color=sav_color), align=al("right"),
+            cell(cur_row, 7, sav, font=f(10, color=sav_color), align=al("right"),
                  fmt='"Rs. "#,##0;"Rs. -"#,##0;"-"')
 
-            # Weekly price cells
+            # Weekly price cells start at column 8
             for wi, wprice in enumerate(r["weekly_prices"], 1):
-                col = 5 + wi
+                col = 7 + wi
                 reached = abs(wprice - r["target_price"]) < 0.05
                 if r["action"] == "HOLD":
                     wfont = f(9, color=MUTED)
                 elif reached:
-                    # Once at target: bold + action colour
                     wfont = f(9, bold=True, color=NEG if r["action"] == "CUT" else POS)
                 else:
                     wfont = f(9, color=BODY)
                 cell(cur_row, col, wprice, font=wfont, align=al("center"),
                      fmt='#,##0.0')
 
-            # Subtle bottom rule
-            for c in range(1, n_cols + 1):
-                cur_border = ws.cell(row=cur_row, column=c).border
+            for c in range(1, total_cols_per_row + 1):
                 ws.cell(row=cur_row, column=c).border = b(bottom=THIN)
             cur_row += 1
 
-        # Close bottom of this product's table with a heavy rule
-        for c in range(1, n_cols + 1):
+        for c in range(1, total_cols_per_row + 1):
             ws.cell(row=cur_row - 1, column=c).border = b(bottom=BOLD_RULE)
-        cur_row += 2  # spacing before next product
+        cur_row += 2
 
-    # Column widths
-    widths = [22, 13, 13, 10, 14] + [9] * timeline
+    # Column widths (City + Conf + Obs + 3 prices + Save + N weekly)
+    widths = [22, 11, 7, 13, 13, 10, 14] + [9] * timeline
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
-    # Freeze the leftmost columns so the city stays visible when scrolling right.
-    # F = first weekly col. Row 8 keeps the header band visible too.
-    ws.freeze_panes = "F8"
+    # Freeze the leftmost 7 columns (through Save Rs./mo) so city + conf +
+    # current/target prices stay visible while scrolling right through weeks.
+    ws.freeze_panes = "H8"
 
 
 def _build_detail_sheet(ws, df, sheet_type):
