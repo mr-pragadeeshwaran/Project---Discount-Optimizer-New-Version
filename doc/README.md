@@ -7,6 +7,7 @@
 >
 > **Companion docs:**
 > - [../README.md](../README.md) — quick start + system overview
+> - **[COMPLETE_FLOW.md](COMPLETE_FLOW.md)** — **the whole system in one story: every stage with logic, math, diagrams, a worked example (Delhi-NCR Jaggery end-to-end), FAQ. Start here if you want one document that explains everything.**
 > - [MODEL.md](MODEL.md) — Stage 4 elasticity model deep dive ("why is the model built this way?")
 > - [FLYWHEEL.md](FLYWHEEL.md) — Stage 8 cuts ↔ reinvestments portfolio logic
 > - [OUTPUTS.md](OUTPUTS.md) — every output file column-by-column
