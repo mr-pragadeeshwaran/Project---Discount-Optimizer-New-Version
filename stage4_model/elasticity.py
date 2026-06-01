@@ -130,16 +130,29 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
     print(f"    Train: {len(train):,} rows (up to {split_date.date()}) | "
           f"Test (eval): {len(test_eval):,} rows / {len(test):,} total")
 
-    # ── Build formula and month controls ─────────────────────────────
+    # ── Build formula and month + DOW + lag controls ────────────────
+    # Lag / DOW features were added in May 2026 after the robustness
+    # experiments showed they cut within-cell test residual variance
+    # roughly in half (within-cell test R² median moved from -0.43 to
+    # -0.04). See scripts/experiments/experiments_robustness.py and
+    # MODEL_EXPERIMENTS.md for the full comparison.
     month_cols = [f"month_{m}" for m in range(2, 13) if f"month_{m}" in train.columns]
+    dow_cols   = [f"dow_{d}"   for d in range(1, 7)  if f"dow_{d}"   in train.columns]
+    lag_cols_avail = [c for c in ["lag1_log_units", "lag7_log_units",
+                                  "lag1_log_price", "lag1_discount",
+                                  "rolling_mean_7d_log_units",
+                                  "rolling_mean_14d_log_units"]
+                      if c in train.columns]
     months_term = (" + " + " + ".join(month_cols)) if month_cols else ""
+    dows_term   = (" + " + " + ".join(dow_cols))   if dow_cols   else ""
+    lags_term   = (" + " + " + ".join(lag_cols_avail)) if lag_cols_avail else ""
     formula_core = (
         "log_units ~ C(sku_city) + log_price + badge_resid "
         "+ osa_rolling_7d + log_ad_sov + rpi + is_weekend"
-        + months_term
+        + months_term + dows_term + lags_term
     )
     print(f"  [Stage 4] Per-category formula: "
-          f"log_units ~ C(sku_city) + log_price + badge_resid + controls")
+          f"log_units ~ C(sku_city) + log_price + badge_resid + controls + lags/DOW")
 
     # ── Fit one Huber-robust OLS per category ───────────────────────
     models = {}
@@ -219,6 +232,23 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
         ).fillna(0.0).round(3)
     else:
         elasticities["cell_train_r2"] = 0.0
+
+    # ── Per-cell test R² (held-out) ─────────────────────────────────
+    cell_test_r2 = _compute_cell_test_r2(models, test_eval, has_grammage)
+    if cell_test_r2:
+        elasticities["cell_test_r2"] = elasticities["cell_id"].map(
+            cell_test_r2
+        ).fillna(np.nan).round(3)
+    else:
+        elasticities["cell_test_r2"] = np.nan
+
+    # ── Per-cell confidence score (0-100) and tier ─────────────────
+    # Combines: data density, price variation, in-sample fit,
+    # elasticity sign correctness, elasticity plausibility, and CI
+    # tightness. Designed for SCALING to many SKUs × cities — for any
+    # new cell we can score it without needing labelled outcomes.
+    # See MODEL_EXPERIMENTS.md for the derivation.
+    elasticities = _add_cell_confidence(elasticities, raw_price_slopes)
 
     # ── Diagnostics (daily + aggregated) ─────────────────────────────
     diagnostics = _compute_diagnostics(models, train, test_eval, cat_metrics)
@@ -514,19 +544,28 @@ def _build_elasticity_table(
 def _compute_cell_train_r2(models: dict, train: pd.DataFrame,
                             has_grammage: bool) -> dict:
     """
-    Per-cell train R² — for each cell, the share of variation in
-    log_units the per-category model captures using THIS cell's own
-    training rows.
+    Per-cell AGGREGATED R² — the share of variation captured at the
+    3-ppt-discount-bin grain (NOT daily). This is the grain the
+    saturation curve actually uses, so it's the right "is the model
+    confident here?" metric for a city.
 
-    Returns {cell_id_str: r2}.
+    For each cell:
+      1. Group training rows into 3-ppt discount bins.
+      2. For each bin, compute mean_actual_units and mean_predicted_units.
+      3. R² across the bins.
+
+    Daily-level R² is dominated by irreducible weather/weekday/noise
+    for small cells — even a perfect model would score 0.2-0.4. The
+    aggregated R² strips that noise and shows the price-effect quality.
+
+    Returns {cell_id_str: r2}. Cells with fewer than 3 valid bins get
+    no entry (caller will show as N/A or 0).
     """
     COL = cfg.COL
     if not models:
         return {}
 
     out = {}
-    # We need cell_id in the same format as elasticities table —
-    # "{pid}_{grm}_{city}" or "{pid}_{city}"
     grp_keys = [COL["product_id"], COL["grammage"], COL["city"]] \
                if has_grammage and COL["grammage"] in train.columns \
                else [COL["product_id"], COL["city"]]
@@ -543,25 +582,141 @@ def _compute_cell_train_r2(models: dict, train: pd.DataFrame,
         cell_id = f"{pid}_{grm}_{city}" if grm else f"{pid}_{city}"
         cat = gdf["category"].iloc[0]
         m = models.get(cat)
+        if m is None or len(gdf) < 10:
+            continue
+        try:
+            yhat_log = np.asarray(m.predict(gdf))
+            y_units  = gdf[COL["offtake_qty"]].values.astype(float)
+            yhat_units = np.exp(np.clip(yhat_log, -3, 10))
+            disc     = gdf["discount_pct"].values
+
+            mask = np.isfinite(y_units) & np.isfinite(yhat_units) & np.isfinite(disc)
+            if mask.sum() < 10:
+                continue
+
+            sub = pd.DataFrame({
+                "bin":    (disc[mask] // 3 * 3).astype(int),
+                "actual": y_units[mask],
+                "pred":   yhat_units[mask],
+            })
+            # Need at least 3 obs per bin for the mean to be reliable
+            grp = sub.groupby("bin").agg(
+                n=("actual", "size"),
+                act=("actual", "mean"),
+                prd=("pred",   "mean"),
+            ).reset_index()
+            grp = grp[grp["n"] >= 3]
+            if len(grp) < 3:
+                continue   # not enough discount variation in this cell
+
+            ss_res = float(((grp["act"] - grp["prd"]) ** 2).sum())
+            ss_tot = float(((grp["act"] - grp["act"].mean()) ** 2).sum())
+            if ss_tot <= 0:
+                continue
+            r2 = 1.0 - ss_res / ss_tot
+            out[cell_id] = max(min(r2, 1.0), -0.5)
+        except Exception:
+            continue
+    return out
+
+
+def _compute_cell_test_r2(models: dict, test: pd.DataFrame,
+                           has_grammage: bool) -> dict:
+    """Per-cell held-out R²: how well does the per-category model predict
+    this cell's TEST log_units? Same formulation as train R² but on the
+    held-out window. NaN if too few test rows."""
+    COL = cfg.COL
+    if not models or test is None or test.empty:
+        return {}
+    grp_keys = [COL["product_id"], COL["grammage"], COL["city"]] \
+               if has_grammage and COL["grammage"] in test.columns \
+               else [COL["product_id"], COL["city"]]
+    out = {}
+    for key, gdf in test.groupby(grp_keys):
+        if isinstance(key, tuple):
+            if len(key) == 3:
+                pid, grm, city = key
+            else:
+                pid, city = key; grm = None
+        else:
+            pid = key; grm = None; city = ""
+        cell_id = f"{pid}_{grm}_{city}" if grm else f"{pid}_{city}"
+        cat = gdf["category"].iloc[0]
+        m = models.get(cat)
         if m is None or len(gdf) < 5:
             continue
         try:
             yhat = np.asarray(m.predict(gdf))
             y    = gdf["log_units"].values
             mask = np.isfinite(y) & np.isfinite(yhat)
-            if mask.sum() < 3:
-                continue
+            if mask.sum() < 3: continue
             ss_res = float(((y[mask] - yhat[mask]) ** 2).sum())
             ss_tot = float(((y[mask] - y[mask].mean()) ** 2).sum())
-            if ss_tot <= 0:
-                continue
+            if ss_tot <= 0: continue
             r2 = 1.0 - ss_res / ss_tot
-            # Cap so cells with weird negative R² (truly bad fit) don't
-            # look absurd. -0.5 already says "model is worse than mean".
-            out[cell_id] = max(min(r2, 1.0), -0.5)
+            out[cell_id] = max(min(r2, 1.0), -2.0)  # clamp very-bad R² for display
         except Exception:
             continue
     return out
+
+
+def _add_cell_confidence(elasticities: pd.DataFrame, raw_price_slopes: dict) -> pd.DataFrame:
+    """
+    Per-cell confidence score (0-100). Designed so a brand team can scale this
+    to thousands of SKU × city cells and know which ones to ACT on vs which
+    need a price test before any move.
+
+    Score combines five sub-scores (0-1 each, weighted):
+      - density (n_train)              w = 0.25  full credit at >=120 train rows
+      - variation (n_price_levels)     w = 0.20  full credit at >=15 distinct prices
+      - in-sample fit (cell_train_r2)  w = 0.20  full credit at >=0.50
+      - plausibility (elast in band)   w = 0.15  binary: elasticity in [-4, -0.3]?
+      - CI tightness (1 - se/|elast|)  w = 0.20  full credit at |elast|/se >= 4
+
+    Tier mapping:
+      score >= 70  → HIGH       (act on price moves)
+      score >= 50  → MEDIUM     (act but smaller step / closer monitoring)
+      score >= 30  → LOW        (hold; consider a structured A/B price test)
+      score <  30  → DO_NOT_ACT (run a price test first; flag thin/unstable cell)
+    """
+    e = elasticities.copy()
+
+    # ── sub-score components ──────────────────────────────────────
+    density  = np.clip(e["n_train"]            / 120.0, 0, 1)
+    variation= np.clip(e["n_discount_levels"]  / 15.0,  0, 1)
+    fit      = np.clip((e.get("cell_train_r2", 0).astype(float)) / 0.50, 0, 1)
+
+    pe = e["price_elasticity"].astype(float)
+    plausibility = ((pe >= -4.0) & (pe <= -0.3)).astype(float)
+
+    se = e["price_elasticity_se"].astype(float).replace(0, 1e-6)
+    tightness = np.clip(np.abs(pe) / (se * 4.0), 0, 1)   # |elast|/se >= 4 → full credit
+
+    # ── composite ─────────────────────────────────────────────────
+    score = (
+        0.25 * density +
+        0.20 * variation +
+        0.20 * fit +
+        0.15 * plausibility +
+        0.20 * tightness
+    ) * 100.0
+    e["confidence_score"] = score.round(1)
+    # tier mapping
+    def _tier(s):
+        if s >= 70: return "HIGH"
+        if s >= 50: return "MEDIUM"
+        if s >= 30: return "LOW"
+        return "DO_NOT_ACT"
+    e["confidence_tier"] = e["confidence_score"].apply(_tier)
+
+    # ── exposed sub-scores for audit / Excel ──────────────────────
+    e["conf_density"]      = density.round(3)
+    e["conf_variation"]    = variation.round(3)
+    e["conf_fit"]          = fit.round(3)
+    e["conf_plausibility"] = plausibility.astype(int)
+    e["conf_tightness"]    = tightness.round(3)
+
+    return e
 
 
 def _compute_diagnostics(models: dict, train: pd.DataFrame,
