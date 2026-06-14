@@ -802,6 +802,12 @@ def _build_track_record_sheet(ws, summary):
         if live.get("illustrative"):
             cell(r, 1, "↓ Illustrative (back-cast on the holdout — not a real acted cycle)",
                  font=f(9, bold=True, color=ACCENT), align=al("left")); r += 1
+            cell(r, 1, "Per-city numbers are noisy — the model nails some cells and misses "
+                       "others (shown honestly, not cherry-picked). The reliable signal is "
+                       "the aggregate DIRECTION in Part A2, not any single city's figure.",
+                 font=f(9, italic=True, color=MUTED), align=al("left", wrap=True))
+            ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
+            ws.row_dimensions[r].height = 30; r += 1
         hdr = ["Product · City", "Price was", "Price became",
                "Predicted units", "Actual units", "Predicted vol Δ", "Actual vol Δ"]
         for j, h in enumerate(hdr, 1):
