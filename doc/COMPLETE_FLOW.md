@@ -283,6 +283,22 @@ else:
 
 For our Delhi-NCR example: `target = max(0%, 12.2%) = 12.2%` (= ₹79.0 price).
 
+#### Is it worth discounting? (the inelastic gate)
+
+Before a cell can qualify for a reinvest (deeper-discount) move, it must
+clear an **inelasticity gate**. Cells with `|elasticity| ≤
+INELASTIC_ELASTICITY_THRESHOLD` (default 1.0) are flagged `is_inelastic`
+and read as **"unlikely to pay — hold/raise"** (not "can't pay" — we only
+have observational evidence the cut is *unlikely* to move enough volume to
+profit). These cells are screened out of the Price Drops list and surfaced
+on the Leakage sheet.
+
+The reinvest qualification also now nets out **leakage**: the volume lift
+behind the gate uses `net = gross × true_incremental_frac` (REAL new demand
+only — see §7 Sheet 4), so a cell whose "growth" is mostly borrowed
+(pull-forward) or stolen (sibling cannibalization) no longer qualifies, and
+the headline shown to the brand is the net number, not the gross.
+
 #### Per-cycle step (the glide rule)
 
 ```
@@ -321,7 +337,7 @@ needs savings ≥ ₹5K AND vol-drop ≤ 8% — this cell hits ≥ ₹5K but the
 
 **File:** `stage8_output/waste_reinvest.py` + `stage8_output/excel_report.py`
 
-Generates the McKinsey-style 8-sheet workbook that the brand team opens
+Generates the McKinsey-style 9-sheet workbook that the brand team opens
 Monday morning. See §7 for the sheet-by-sheet view.
 
 ---
@@ -403,6 +419,16 @@ and the forward-validation receipts in
 [scripts/diagnostics/proof_loop.py](../scripts/diagnostics/proof_loop.py)
 (also surfaced as the **Track Record** sheet in the weekly Excel).
 
+- **Recovery test (synthetic).**
+  [scripts/diagnostics/recovery_test.py](../scripts/diagnostics/recovery_test.py)
+  plants a *known* elasticity into fake sales data — complete with the exact
+  endogeneity trap (discounts co-timed with ad flights) that biases a naive
+  fit — and checks the pipeline recovers it. It does, landing ~3.7× closer to
+  the planted truth than the naive estimate. Honest caveat: a small (~0.2)
+  residual over-estimate remains, and it's reported in the output, not hidden.
+  This proves the *machinery* works on a controlled case; it's a complement to
+  the real-data R²/MAPE above, not a substitute.
+
 ### Per-city level (By Product sheet)
 
 Each row in the city table carries 3 confidence signals:
@@ -443,7 +469,7 @@ test in that city before acting.
 
 ## 7. How to read the Excel report
 
-8 sheets, in reading order:
+9 sheets, in reading order:
 
 ### Sheet 1 — Summary
 
@@ -510,7 +536,36 @@ Powered by [track_record.py](../stage8_output/track_record.py); the same
 logic runs standalone via
 [proof_loop.py](../scripts/diagnostics/proof_loop.py).
 
-### Sheet 4 — By Product (the workhorse)
+### Sheet 4 — Leakage (where promo lift really comes from)
+
+Not every unit a promo "adds" is genuinely new. This sheet decomposes
+each cell's promo uplift into three buckets, **purely from units** (no
+COGS / margin assumptions):
+
+- **REAL** — genuinely incremental demand.
+- **BORROWED** — pull-forward `φ`: a dip *below* baseline in the weeks
+  *after* a promo (customers stockpiled, so they buy less later).
+- **STOLEN** — cannibalization `κ`: a dip in sibling packs *during* the
+  promo (the deal pulled buyers off another SKU, not into the category).
+
+The headline per cell is `true_incremental_frac = clip(1 − φ − κ, 0, 1)`.
+These are **observational proxies, not proven causation** — read them as
+"≈", "consistent with", a "directional signal", not a controlled
+measurement. Each cell carries a `leakage_confidence` flag
+(`no_promo` / `always_promo` / `no_variation` / `low` / `medium` /
+`high`, with `_no_siblings` / `_over_attributed` suffixes) so you know how
+much to trust the split.
+
+The sheet also surfaces the **inelastic gate**: cells with
+`|elasticity| ≤ 1` are flagged `is_inelastic` — *"unlikely to pay —
+hold/raise"* — because a deeper cut there is unlikely to move enough
+volume to profit (and these are screened out of Price Drops).
+
+On 24 Mantra the read so far: most staples are low-leakage, while
+**Sunflower Oil 1L** shows ~13–18% pull-forward — consistent with
+stockpiling on the bigger pack.
+
+### Sheet 5 — By Product (the workhorse)
 
 For each of the 4 SKUs:
 
@@ -533,14 +588,18 @@ Bangalore   Low     0.75     109  71.8    71.8    HOLD          —      71.8   
 Frozen panes keep City + Conf + Cell R² + Obs + Cur + Tgt + Action +
 Save visible when scrolling right through W1..W12.
 
-### Sheets 5, 6, 7 — Price Lifts / Price Drops / Needs Test
+### Sheets 6, 7, 8 — Price Lifts / Price Drops / Needs Test
 
 Standalone lists for bulk-loading into Blinkit:
 - **Price Lifts** — all cuts, sorted by ₹ wasted/mo
-- **Price Drops** — strategic reinvestments
+- **Price Drops** — strategic reinvestments. The volume lift here is now
+  **net of leakage** (`gross_volume_lift_pct` shown alongside the headline
+  `net_volume_lift_pct`, which equals `volume_lift_pct`), and inelastic
+  (`|ε| ≤ 1`) cells are screened out — so the brand isn't shown a "growth"
+  number that's mostly borrowed or stolen.
 - **Needs Test** — Low-confidence cells that should get a pilot first
 
-### Sheet 8 — Data (hidden)
+### Sheet 9 — Data (hidden)
 
 The single source of truth. 16 columns × 33 cells. Format ▸ Sheet ▸
 Unhide to peek. All other sheets reference this via formulas.
@@ -565,8 +624,10 @@ TARGET_WEIGHTED_DISCOUNT_PCT = 9.0   # portfolio target shown in Glide Path
 
 # Strategic reinvest filters
 REINVEST_MIN_ELASTICITY      = 2.0
-REINVEST_MIN_VOL_LIFT_PCT    = 5.0
+REINVEST_MIN_VOL_LIFT_PCT    = 5.0   # gate now applied to NET-of-leakage lift
 REINVEST_MAX_MARGIN_SAC_PCT  = 10.0
+INELASTIC_ELASTICITY_THRESHOLD = 1.0 # |ε| ≤ this ⇒ "unlikely to pay — hold/raise",
+                                      # screened out of reinvest, flagged on Leakage sheet
 ```
 
 | You want | Change |
@@ -664,3 +725,17 @@ Weekly. Each run re-reads fresh data, re-fits the model on the last 180 days, an
 - [doc/MODEL.md](MODEL.md) — Stage 4 deep dive, all the design choices with experimental evidence
 - [doc/FLYWHEEL.md](FLYWHEEL.md) — Stage 8 deep dive, glide rule and reinvest filters
 - [doc/OUTPUTS.md](OUTPUTS.md) — column-by-column output file reference
+
+### Diagnostic / credibility scripts
+
+Standalone audits the model has to survive before you trust the report:
+
+- [scripts/diagnostics/model_credibility_report.py](../scripts/diagnostics/model_credibility_report.py)
+  → `v4_outputs/_credibility/` — decision-vs-full accuracy, confidence
+  calibration, and an omitted-variable bias probe.
+- [scripts/diagnostics/proof_loop.py](../scripts/diagnostics/proof_loop.py)
+  → `v4_outputs/_proof_loop/` — the out-of-time backtest + discount-move
+  validation behind the Track Record sheet.
+- [scripts/diagnostics/recovery_test.py](../scripts/diagnostics/recovery_test.py)
+  → `v4_outputs/_recovery/` — plants a known elasticity in synthetic data and
+  checks the pipeline recovers it (see §6).

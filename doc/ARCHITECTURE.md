@@ -1,6 +1,6 @@
 # Architecture — the system end to end
 
-> The complete data flow, every gate, what each stage produces, and how the May 2026 confidence layer wraps around the original 8-stage pipeline. Read this once, then use the deep-dive docs for any single piece.
+> The complete data flow, every gate, what each stage produces, how the May 2026 confidence layer wraps around the original 8-stage pipeline, and the validation & leakage layer that now sits on top of it. Read this once, then use the deep-dive docs for any single piece.
 
 ---
 
@@ -175,6 +175,14 @@ v4_outputs/_readiness/
 │                                                                     │
 │   → tier:  HIGH (≥70) | MEDIUM (50-70) | LOW (30-50) | DO_NOT_ACT   │
 │                                                                     │
+│ Honest accuracy (NEW): Stage 4 also emits held-out metrics for the  │
+│ DECISION engine — the price/badge curve that actually sets prices — │
+│ not just the full lag-laden regression. Keys: decision_test_r2 /    │
+│ _mape (daily) and decision_test_r2_bin / _mape_bin (3ppt discount-  │
+│ bin grain). The credibility report headlines these (~0.87 R²,       │
+│ ~25.8% MAPE at the bin grain on 24 Mantra); the full-model R²       │
+│ (~0.88) is shown as "context only — does not set prices".           │
+│                                                                     │
 │ Out: elasticity_estimates.csv                                       │
 │ Knobs: TRAIN_LOOKBACK_DAYS, TEST_SPLIT_PCT, ELASTICITY_FLOOR/CEIL,  │
 │        N_PRIOR_PRICE, N_PRIOR_BADGE                                 │
@@ -245,6 +253,13 @@ v4_outputs/_readiness/
 │ TARGET_WEIGHTED_DISCOUNT_PCT.                                       │
 │ Generates the McKinsey-style Excel workbook + Markdown twin.        │
 │                                                                     │
+│ Leakage + inelastic feed in here (NEW): the Price Drops (reinvest)  │
+│ list now qualifies and headlines cells on the NET-of-leakage volume │
+│ lift (gross × true_incremental_frac), and screens out inelastic     │
+│ (|ε| ≤ 1) cells. New columns: gross_volume_lift_pct,                │
+│ net_volume_lift_pct (volume_lift_pct now = net). See the VALIDATION │
+│ & LEAKAGE LAYER section below.                                       │
+│                                                                     │
 │ Out: waste.csv, reinvest.csv,                                       │
 │      WASTE_REINVEST_REPORT.xlsx, WASTE_REINVEST_REPORT.md,          │
 │      BRAND_DASHBOARD.html                                           │
@@ -301,6 +316,79 @@ In practice they agree most of the time. When they disagree, the **stricter** wi
 
 ---
 
+## Validation & leakage layer — the "do we believe it?" wrapper
+
+The 8-stage pipeline answers *what should we act on?*. This third layer answers the prior question a buyer actually asks first — *should we believe the numbers at all, and is the "growth" real?* It is **additive**: it does not change Stages 1–7's logic, but it (a) re-frames how accuracy is reported and (b) feeds two new signals into Stage 8. All of it is deliberately hedged — these are receipts and proxies, not guarantees.
+
+### Three validation deliverables
+
+```
+scripts/diagnostics/model_credibility_report.py
+   → v4_outputs/_credibility/CREDIBILITY_REPORT.md
+     + decision_vs_full_by_cell.csv, confidence_calibration.csv,
+       elasticity_bias_probe.csv
+   What it shows:
+     ─ decision-vs-full accuracy: the price-engine (decision) model
+       held-out R²/MAPE vs the lag-laden full-regression R². Headlines
+       the decision number (~0.87 R², ~25.8% MAPE at the 3ppt bin grain);
+       full R² (~0.88) is labelled "context only — does not set prices".
+       Overall tier honestly computes "Moderate".
+     ─ confidence calibration: do HIGH/MEDIUM cells actually predict
+       better out-of-sample than LOW cells?
+     ─ elasticity bias probe: omitted-variable check — does adding the
+       controls move the price coefficient (sign of confounding)?
+
+scripts/diagnostics/proof_loop.py    (module: stage8_output/track_record.py)
+   → v4_outputs/_proof_loop/PROOF_LOOP_REPORT.md + discount_move_validation.csv
+   → Excel sheet "Track Record"
+   Section A — out-of-time forward validation: train as-of N weeks ago,
+     grade the forecasts on weeks the model never saw, plus a discount-move
+     validation (when price actually moved, did volume respond as predicted?)
+     with a verdict (e.g. "directional / conservative"). HONEST CAVEAT:
+     forward ABSOLUTE-volume R² is ≈ 0 — this is a price-RESPONSE model,
+     NOT a demand forecaster.
+   Section B — illustrative per-city live scorecard (price was → became,
+     predicted vs actual units). Clearly labelled NOT a real acted cycle
+     until the brand acts on fresh data; score_live() is built and ready.
+
+scripts/diagnostics/recovery_test.py
+   → v4_outputs/_recovery/RECOVERY_REPORT.md
+   Synthetic known-truth recovery: plants a KNOWN elasticity with a
+   deliberate endogeneity trap (discounts co-timed with ad flights) and
+   shows the model recovers it ~3.7× closer to truth than a naive fit.
+   The honest ~0.2 residual over-estimate is reported, not hidden.
+```
+
+### The leakage decomposition (Stage 8 → Excel "Leakage" sheet)
+
+`stage8_output/leakage.py` splits a promo's unit uplift into **REAL** vs **BORROWED** vs **STOLEN** — purely unit-based, **no COGS / margins**:
+
+- **φ — pull-forward (BORROWED):** a dip below baseline in the weeks *after* a promo (consistent with stockpiling).
+- **κ — cannibalization (STOLEN):** a dip in sibling packs (same real category + city) *during* the promo.
+- `true_incremental_frac = clip(1 − φ − κ, 0, 1)` — the share of uplift that looks genuinely new.
+
+These are **observational proxies, not proven causation** — there is no counterfactual or confounder adjustment, so the report wording stays hedged ("≈", "consistent with", "directional signal"). `leakage_confidence` ∈ {`no_promo`, `always_promo`, `no_variation`, `low`, `medium`, `high`}, with `_no_siblings` / `_over_attributed` suffixes when the decomposition is shakier. Finding on 24 Mantra: most staples are low-leakage; Sunflower Oil 1L shows ~13–18% pull-forward (stockpiling).
+
+### The inelastic gate
+
+Config knob `INELASTIC_ELASTICITY_THRESHOLD = 1.0` (`v4_config.py`). Cells with `|elasticity| ≤ 1` are flagged `is_inelastic` = *"unlikely to pay — hold/raise"* (NOT a claim that they *can't* pay — hedged). Surfaced on the Leakage sheet.
+
+### How BOTH feed Stage 8
+
+```
+Leakage (φ, κ, true_incremental_frac) ─┐
+                                       ├─► Stage 8 reinvest (Price Drops):
+Inelastic gate (|ε| ≤ 1) ──────────────┘   - qualify + headline on NET lift
+                                            = gross × true_incremental_frac
+                                          - screen out inelastic cells
+   New reinvest columns: gross_volume_lift_pct, net_volume_lift_pct
+   (volume_lift_pct now equals the net figure shown to the brand).
+```
+
+So the growth a brand is asked to fund is net of borrowing and theft, and cells that look unlikely to respond to a cut are kept off the reinvest list entirely.
+
+---
+
 ## Sources of truth
 
 | Question | File |
@@ -310,6 +398,10 @@ In practice they agree most of the time. When they disagree, the **stricter** wi
 | "How does the whole brand look right now?" | `v4_outputs/_readiness/DATA_READINESS_REPORT.md` |
 | "Why was this row tiered Strong Cut?" | Cross-reference: `confidence_tier == HIGH/MEDIUM` in `elasticity_estimates.csv` AND `confidence == High/Medium` in Stage 5 output AND `tier == Strong Cut` in `recommendations.csv` |
 | "Why was this row tiered Do Not Act?" | Either `confidence_tier == DO_NOT_ACT` (model gate), or curve `confidence == Needs Experiment` |
+| "How accurate is the model that actually sets prices?" | `v4_outputs/_credibility/CREDIBILITY_REPORT.md` (decision-engine held-out R²/MAPE; full-model R² is context only) |
+| "Has it held up out-of-time, and did real price moves respond as predicted?" | `v4_outputs/_proof_loop/PROOF_LOOP_REPORT.md` + Excel "Track Record" sheet |
+| "Can the machinery recover a known elasticity through an endogeneity trap?" | `v4_outputs/_recovery/RECOVERY_REPORT.md` |
+| "Is this cell's promo growth real, or borrowed/stolen — and is it even worth discounting?" | Excel "Leakage" sheet; `true_incremental_frac`, `pull_forward`, `cannibalization`, `leakage_confidence`, `is_inelastic` |
 
 ---
 
@@ -347,7 +439,10 @@ All in `v4_config.py`.
 
 ### Portfolio
 - `TARGET_WEIGHTED_DISCOUNT_PCT` (9.0) — flywheel target weighted discount
-- `REINVEST_MIN_VOL_LIFT_PCT`, `REINVEST_MAX_MARGIN_SAC_PCT`, `REINVEST_MIN_ELASTICITY` — reinvest qualification
+- `REINVEST_MIN_VOL_LIFT_PCT`, `REINVEST_MAX_MARGIN_SAC_PCT`, `REINVEST_MIN_ELASTICITY` — reinvest qualification (the vol-lift gate now reads the NET-of-leakage lift)
+
+### Validation & leakage (June 2026)
+- `INELASTIC_ELASTICITY_THRESHOLD` (1.0) — cells with `|elasticity| ≤ 1` are flagged `is_inelastic` ("unlikely to pay — hold/raise") and screened off the reinvest list. Surfaced on the Excel "Leakage" sheet.
 
 ---
 

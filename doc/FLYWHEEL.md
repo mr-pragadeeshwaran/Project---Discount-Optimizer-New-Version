@@ -164,18 +164,19 @@ Each waste cell carries:
 
 ## How the reinvest side identifies cells
 
-`_build_reinvest_table()` simulates a `+3 ppt` discount move for every cell and keeps those that pass all six gates:
+`_build_reinvest_table()` simulates a `+3 ppt` discount move for every cell and keeps those that pass all the gates:
 
 | Filter | Reason |
 |---|---|
 | `confidence ∈ {High, Medium}` | Don't reinvest where the model is unsure |
+| not `is_inelastic` (`|elasticity| > 1`) | Inelastic cells are "unlikely to pay" — hold/raise, don't discount deeper (see below) |
 | `|elasticity| ≥ REINVEST_MIN_ELASTICITY` (2.0) | Need real volume response |
 | `current_discount < category_mean − 1 ppt` | Room to grow vs peers |
 | `quality_note` doesn't say "elasticity at floor" | Boundary cells are unreliable |
-| Simulated `vol_lift ≥ 5%` | Move must produce meaningful units |
+| **NET** `vol_lift ≥ 5%` (after leakage haircut) | Move must produce meaningful *real* units, not borrowed/stolen ones (see below) |
 | Simulated `margin_sacrifice ≤ 10%` | Don't burn more than 10% of contribution |
 
-Cells passing all 6 gates get a `+3 ppt` one-shot move. The simulation uses the same dual-signal math as the model:
+Cells passing all the gates get a `+3 ppt` one-shot move. The simulation uses the same dual-signal math as the model:
 
 ```
 new_units  = current_units × (new_price / current_price)^elasticity
@@ -184,6 +185,29 @@ new_margin = (new_price − variable_cost) × new_units
 ```
 
 In practice many candidates pass with **negative margin sacrifice** — volume gain outweighs price drop and the move grows margin too. Pure-win opportunities.
+
+### Refinement 1 — screen out inelastic cells
+
+A cell with `|elasticity| ≤ 1` (`INELASTIC_ELASTICITY_THRESHOLD = 1.0` in `v4_config.py`) is flagged `is_inelastic = "unlikely to pay — hold/raise"` and dropped from the reinvest list before any other gate runs. The wording is hedged on purpose: it does **not** say a cell *can't* pay, only that the measured response makes a deeper cut unlikely to pay back — revenue barely moves (or falls) while the subsidy rises. These are price-hold/raise candidates, not discount-deeper candidates. The flag is surfaced on the **Leakage** sheet so the brand can see exactly which cells were excluded and why. (At default config the `|ε| ≥ 2.0` gate already subsumes this, but the inelastic screen is kept so the rule still holds if `REINVEST_MIN_ELASTICITY` is lowered.)
+
+### Refinement 2 — headline the NET-of-leakage volume lift
+
+The simulated `vol_lift` is **gross** — it counts every extra unit the price cut moves, even the units that were merely pulled forward from a future week or stolen from a sibling pack. Stage 8 now haircuts that gross lift by the leakage real-incremental fraction (from the **Leakage** sheet, `stage8_output/leakage.py`):
+
+```
+true_incremental_frac = clip(1 − pull_forward(φ) − cannibalization(κ), 0, 1)
+net_lift              = gross_lift × true_incremental_frac
+```
+
+`net_lift` is what the `≥ 5%` qualification gate now checks, and it is also the lift **headlined to the brand** — so "growth" that is really borrowed (pull-forward) or stolen (cannibalization) no longer qualifies a cell for a deeper discount, and the brand is never shown a lift number that's mostly leakage. Gross is kept alongside for transparency. These are observational proxies, not proven causation — read them as a directional signal (most 24 Mantra staples come back low-leakage; e.g. Sunflower Oil 1L shows ≈13–18% pull-forward consistent with stockpiling).
+
+New reinvest columns:
+
+| Column | What it is |
+|---|---|
+| `gross_volume_lift_pct` | Raw simulated lift before any haircut |
+| `net_volume_lift_pct` | Gross × `true_incremental_frac` — the real, incremental lift |
+| `volume_lift_pct` | The headline lift; now **equals `net_volume_lift_pct`** (was gross) |
 
 ---
 
