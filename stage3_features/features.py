@@ -109,8 +109,42 @@ def engineer_features(fact_df: pd.DataFrame) -> pd.DataFrame:
     for m in range(2, 13):
         df[f"month_{m}"] = (df["month"] == m).astype(int)
 
+    # Day-of-week dummies (drop dow=0 / Monday as baseline) — captures
+    # the systematic weekday-vs-weekend grocery shopping rhythm that
+    # E1 experiments showed is a major component of within-cell variance.
+    for d in range(1, 7):
+        df[f"dow_{d}"] = (df["day_of_week"] == d).astype(int)
+
     # ── Deep promo flag ───────────────────────────────────────────────
     df["is_deep_promo"] = (df["discount_pct"] > 20).astype(int)
+
+    # ── Lag / momentum features (computed PER CELL, sorted by date) ──
+    # These were the single biggest accuracy lever in the robustness
+    # experiments (scripts/experiments/experiments_robustness.py):
+    # within-cell test R² median moved from -0.43 → -0.04 when added.
+    # Each lag is computed BEFORE filtering — they use the cell's own
+    # earlier rows regardless of regular/event/OOS status, so the model
+    # always has a fresh signal for "how did this cell perform recently".
+    df["lag1_log_units"] = df.groupby(grp)["log_units"].shift(1)
+    df["lag7_log_units"] = df.groupby(grp)["log_units"].shift(7)
+    df["lag1_log_price"] = df.groupby(grp)["log_price"].shift(1)
+    df["lag1_discount"]  = df.groupby(grp)["discount_pct"].shift(1)
+    df["rolling_mean_7d_log_units"] = (
+        df.groupby(grp)["log_units"]
+          .transform(lambda s: s.shift(1).rolling(7, min_periods=2).mean())
+    )
+    df["rolling_mean_14d_log_units"] = (
+        df.groupby(grp)["log_units"]
+          .transform(lambda s: s.shift(1).rolling(14, min_periods=3).mean())
+    )
+    # Sensible fill for the first 7-14 days of each cell — use cell mean
+    # so we don't drop those rows entirely. The model can still distinguish
+    # a "warm-up" row via the cell intercept.
+    lag_cols = ["lag1_log_units", "lag7_log_units", "lag1_log_price", "lag1_discount",
+                "rolling_mean_7d_log_units", "rolling_mean_14d_log_units"]
+    for col in lag_cols:
+        df[col] = df.groupby(grp)[col].transform(lambda s: s.fillna(s.mean()))
+        df[col] = df[col].fillna(df[col].mean())  # global fallback for entirely-NaN cells
 
     # ── Drop rows with NaN in critical features ──────────────────────
     feature_cols = get_feature_columns()
@@ -144,9 +178,14 @@ def get_feature_columns() -> list:
         "rpi",                # Relative price vs competitor
         "is_weekend",         # Weekend demand lift
         "is_deep_promo",      # Deep promo flag
+        # Lag / momentum (added May 2026 — see MODEL_EXPERIMENTS.md):
+        "lag1_log_units", "lag7_log_units",
+        "lag1_log_price", "lag1_discount",
+        "rolling_mean_7d_log_units", "rolling_mean_14d_log_units",
     ]
     month_cols = [f"month_{m}" for m in range(2, 13)]
-    return base + month_cols
+    dow_cols   = [f"dow_{d}"   for d in range(1, 7)]
+    return base + month_cols + dow_cols
 
 
 if __name__ == "__main__":

@@ -15,7 +15,9 @@ import v4_config as cfg
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, (np.integer,)): return int(obj)
-        if isinstance(obj, (np.floating,)): return float(obj)
+        if isinstance(obj, (np.floating,)):
+            f = float(obj)
+            return f if np.isfinite(f) else None   # never emit NaN/Inf into JSON
         if isinstance(obj, np.ndarray): return obj.tolist()
         if isinstance(obj, (pd.Timestamp,)): return str(obj)
         if isinstance(obj, pd.DataFrame): return obj.to_dict(orient="records")
@@ -65,6 +67,15 @@ def generate_waste_reinvest_report(rec_df, feat_df, model_output, run_dir):
     summary["model_accuracy"] = _compute_model_accuracy(model_output)
     # Multi-cycle roadmap: week-by-week projection over the target duration
     summary["glide_path"] = _compute_glide_path(df, waste_main, reinvest_main)
+    # Track Record (the receipts): out-of-time backtest + live realised-vs-predicted.
+    # This is what turns "trust the model" into proven outcomes for a buyer.
+    try:
+        from stage8_output.track_record import build_track_record
+        summary["track_record"] = build_track_record(feat_df, run_dir)
+    except Exception as e:
+        print(f"  [Stage 8] Track Record skipped: {type(e).__name__}: {e}")
+        summary["track_record"] = {"backtest": {"available": False},
+                                   "live": {"available": False}}
 
     # Print summary — business-style
     biz = summary["business"]
@@ -1242,11 +1253,22 @@ def _compute_model_accuracy(model_output: dict) -> dict:
     n_train    = int(d.get("n_train", 0))
     n_test     = int(d.get("n_test",  0))
 
-    if test_r2 >= 0.70 and agg_mape <= 25:
+    # ── Decision-model held-out accuracy (the HONEST headline) ──────
+    # This is the price/badge curve that actually sets recommendations,
+    # scored on held-out data WITHOUT the lag/momentum features that inflate
+    # the full-model R² above. Quote THIS to a buyer. Falls back to the
+    # full-model number if Stage 4 didn't emit it (older runs).
+    dec_r2_bin   = float(d.get("decision_test_r2_bin",  agg_r2))
+    dec_mape_bin = float(d.get("decision_test_mape_bin", agg_mape))
+    dec_r2_daily = float(d.get("decision_test_r2",      test_r2))
+    dec_mape_day = float(d.get("decision_test_mape",    daily_mape))
+
+    # Tier is now based on the DECISION model — what governs prices.
+    if dec_r2_bin >= 0.70 and dec_mape_bin <= 25:
         tier = "Strong"
-    elif test_r2 >= 0.40 and agg_mape <= 50:
+    elif dec_r2_bin >= 0.40 and dec_mape_bin <= 50:
         tier = "Moderate"
-    elif test_r2 >= 0.10 and agg_mape <= 80:
+    elif dec_r2_bin >= 0.10 and dec_mape_bin <= 80:
         tier = "Weak"
     else:
         tier = "Unreliable"
@@ -1254,6 +1276,12 @@ def _compute_model_accuracy(model_output: dict) -> dict:
     return {
         "available": True,
         "tier":             tier,
+        # decision model (the engine that sets prices) — honest headline
+        "decision_r2_bin":   round(dec_r2_bin, 3),
+        "decision_mape_bin": round(dec_mape_bin, 1),
+        "decision_r2_daily": round(dec_r2_daily, 3),
+        "decision_mape_daily": round(dec_mape_day, 1),
+        # full statistical model (incl. momentum) — context only
         "train_r2_log":     round(train_r2, 3),
         "test_r2_log":      round(test_r2, 3),
         "test_mape_daily":  round(daily_mape, 1),

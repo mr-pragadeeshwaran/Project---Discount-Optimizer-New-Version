@@ -321,7 +321,7 @@ needs savings ≥ ₹5K AND vol-drop ≤ 8% — this cell hits ≥ ₹5K but the
 
 **File:** `stage8_output/waste_reinvest.py` + `stage8_output/excel_report.py`
 
-Generates the McKinsey-style 7-sheet workbook that the brand team opens
+Generates the McKinsey-style 8-sheet workbook that the brand team opens
 Monday morning. See §7 for the sheet-by-sheet view.
 
 ---
@@ -378,16 +378,30 @@ Two layers of "is this trustworthy?":
 
 ### Portfolio level (Summary sheet)
 
+The honest headline is the **price-engine** accuracy — the price/badge curve
+that *actually sets prices*, measured on held-out data WITHOUT the lag /
+momentum features:
+
 ```
-Out-of-sample R²:               0.84   ← model explains 84% of test variance
-Aggregated (3-ppt-bin) MAPE:    24%
-Aggregated R²(units):           0.93   ← model explains 93% of unit variance at the curve grain
-Train R² (in-distribution):     0.89
-Accuracy tier:                  STRONG (R² ≥ 0.70 AND MAPE ≤ 25%)
+Price-engine held-out R²:       ~0.87   ← the number that governs recommendations
+Price-engine avg error (bin):   ~26%
+Accuracy tier:                  MODERATE (bin MAPE just over the 25% "Strong" bar)
+
+(context only — NOT what sets prices:)
+Full statistical model R²:      ~0.88   ← also uses recent-sales momentum/seasonality,
+                                          so it scores higher, but that extra fit does
+                                          not drive a single price decision
 ```
 
-The tier formula is editable in the Excel cell — change `0.70` to `0.60`
-and it recomputes live.
+Why two numbers: the full regression includes lag features that predict
+today's units largely from *recent* units (autocorrelation), inflating R².
+Stage 5 throws those away and prices off the elasticity curve alone — so we
+quote the curve's accuracy. The tier formula is editable in the Excel cell.
+For the standalone audit see
+[scripts/diagnostics/model_credibility_report.py](../scripts/diagnostics/model_credibility_report.py)
+and the forward-validation receipts in
+[scripts/diagnostics/proof_loop.py](../scripts/diagnostics/proof_loop.py)
+(also surfaced as the **Track Record** sheet in the weekly Excel).
 
 ### Per-city level (By Product sheet)
 
@@ -396,7 +410,7 @@ Each row in the city table carries 3 confidence signals:
 | Signal | What it is | Read it as |
 |---|---|---|
 | **Conf** | Stage 5 verdict (High / Medium / Low / Needs Test) | Categorical — easy to scan |
-| **Cell R²** | Model's fit on this cell's 3-ppt-bin grain | Numerical — proof of accuracy |
+| **Cell R²** | The model's **in-sample** fit on this cell's 3-ppt-bin grain (NOT held-out) | Numerical — how well price/qty is captured for this city; treat as a fit signal, not out-of-sample proof |
 | **Obs** | Number of training days for this cell | Sample size |
 
 ### Why Cell R² is measured at the 3-ppt-bin grain (not daily)
@@ -429,7 +443,7 @@ test in that city before acting.
 
 ## 7. How to read the Excel report
 
-7 sheets, in reading order:
+8 sheets, in reading order:
 
 ### Sheet 1 — Summary
 
@@ -452,10 +466,10 @@ Cut (raise price)        8     −Rs. 44,881        −10
 Reinvest (drop price)    1     +Rs. 40,005        +217
 
 Model accuracy
-Out-of-sample R²    0.84
-Avg error (MAPE)    24.0%
-Training fit R²     0.89
-Overall tier        STRONG
+Price-engine R² (held-out)   0.87   ← what actually sets prices
+Avg error (MAPE)             25.8%
+Full statistical model R²    0.88   ← context only (uses momentum too)
+Overall tier                 MODERATE
 ```
 
 Every number on this sheet is a **live formula** referencing the
@@ -477,7 +491,26 @@ Cycle  Label   Wt Disc%   Spend/mo      Cum Savings   Gap
 12     Week 12 22.40      Rs.17.91 L    Rs.46,911     13.40  ← plan complete
 ```
 
-### Sheet 3 — By Product (the workhorse)
+### Sheet 3 — Track Record (the receipts)
+
+The proof the engine works, in two parts:
+
+- **A. Out-of-time backtest** — the model is trained on data up to a cutoff,
+  then graded on the weeks *after* it (a window it never saw). Shows forward
+  forecast accuracy and, crucially, the **discount-move validation**: when
+  price actually moved, did volume respond as predicted? Current verdict:
+  *direction correct and conservative* — raising price lost less volume than
+  the model warned, so the volume risk behind a cut is, if anything, overstated.
+  (Observational — these were the brand's own past price moves, not a
+  controlled/randomised test; a live price test or Part B closes that gap.)
+- **B. Live results** — predicted vs. actual ₹ saved per city, which
+  populate once you act on a recommendation and a fresh week of data arrives.
+
+Powered by [track_record.py](../stage8_output/track_record.py); the same
+logic runs standalone via
+[proof_loop.py](../scripts/diagnostics/proof_loop.py).
+
+### Sheet 4 — By Product (the workhorse)
 
 For each of the 4 SKUs:
 
@@ -500,14 +533,14 @@ Bangalore   Low     0.75     109  71.8    71.8    HOLD          —      71.8   
 Frozen panes keep City + Conf + Cell R² + Obs + Cur + Tgt + Action +
 Save visible when scrolling right through W1..W12.
 
-### Sheets 4, 5, 6 — Price Lifts / Price Drops / Needs Test
+### Sheets 5, 6, 7 — Price Lifts / Price Drops / Needs Test
 
 Standalone lists for bulk-loading into Blinkit:
 - **Price Lifts** — all cuts, sorted by ₹ wasted/mo
 - **Price Drops** — strategic reinvestments
 - **Needs Test** — Low-confidence cells that should get a pilot first
 
-### Sheet 7 — Data (hidden)
+### Sheet 8 — Data (hidden)
 
 The single source of truth. 16 columns × 33 cells. Format ▸ Sheet ▸
 Unhide to peek. All other sheets reference this via formulas.

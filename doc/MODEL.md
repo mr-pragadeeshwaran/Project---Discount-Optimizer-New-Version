@@ -1,6 +1,8 @@
 # Stage 4 — Elasticity Model Deep Dive
 
 > "Why is the model built this way?" — every design choice in `stage4_model/elasticity.py` explained, with the data evidence that drove it.
+>
+> **For the May 2026 robustness deep-dive** (lag/DOW features, per-cell confidence score, the 7-experiment matrix that selected this design over LightGBM/GBM/hierarchical alternatives) see [MODEL_EXPERIMENTS.md](MODEL_EXPERIMENTS.md). This doc covers the steady-state Stage 4 design.
 
 ---
 
@@ -17,11 +19,18 @@ log(units) = α_cell        ← cell fixed effects (33 dummies)
            + rpi                    ← relative price vs competitor
            + is_weekend
            + month_2 … month_12     ← seasonality
+           + dow_1 … dow_6          ← day-of-week (May 2026)
+           + lag1_log_units, lag7_log_units,             ← demand momentum
+             rolling_mean_7d_log_units,                  ← (May 2026)
+             rolling_mean_14d_log_units,
+             lag1_log_price, lag1_discount
 ```
 
 Per-cell elasticity = within-cell raw OLS slope, **shrunk toward the
 category MEDIAN** of per-cell raw slopes (a more robust prior than a pooled
 coefficient), then clipped to `[-4, -0.3]`.
+
+**Plus** — a per-cell **confidence score** (May 2026) is attached to every row of the elasticities output. It combines 5 sub-signals (density, variation, in-sample fit, plausibility, CI tightness) into a 0–100 composite that determines whether Stage 7 is allowed to act on the cell. See [§ Per-cell confidence score](#per-cell-confidence-score-may-2026) below.
 
 ---
 
@@ -157,6 +166,28 @@ TRAIN_LOOKBACK_DAYS = 180  # None = full history (the old behavior)
 Combined with `OUTLIER_Z_THRESHOLD = 2.0` (tightened from 3.0) — these
 two settings together moved the model into the "Strong" accuracy tier.
 
+### 7c. Why **lag / momentum / day-of-week features** were added in May 2026
+
+After the lookback + outlier tuning, the pooled R² looked great (0.84) but a
+diagnostic breakdown (`scripts/diagnostics/baseline_breakdown.py`) found
+that the median **within-cell** test R² was −0.43 and 75% of cells had
+negative within-cell R². The pooled metric was being inflated by the cell
+fixed effects — once you sat inside a cell, the model was barely better
+than predicting the cell's own mean.
+
+A 7-experiment matrix (see [MODEL_EXPERIMENTS.md](MODEL_EXPERIMENTS.md))
+proved that **adding lag, momentum, and day-of-week features** to the OLS
+was the single best fix; every richer model class (LightGBM, hybrid OLS+GBM,
+per-cell GBM, hierarchical ridge) was *worse* because there are only ~75
+train rows per cell and complex models overfit at that scale.
+
+| Metric | Without lag/DOW | **With lag/DOW (current)** |
+|---|---:|---:|
+| Test log-R² (pooled) | 0.844 | **0.875** |
+| Aggregated R²(units) at 3pp bin | 0.928 | **0.970** |
+| MAPE at 3pp bin | 24.0% | **17.4%** |
+| Median within-cell test R² | −0.43 | **−0.09** |
+
 ### 7b. Why **time_trend was tried then removed**
 
 Moong Dal demand grew **16×** over the data window (4 → 70 units/day, Jan
@@ -218,18 +249,19 @@ The `elasticities` DataFrame has one row per cell with these key columns:
 Stage 4 prints (and stores in `diagnostics`) both **daily** and **aggregated** metrics:
 
 ```
-Train log-R²: 0.887  (primary trust signal — in-distribution fit)
-Test  log-R²: 0.844  (out-of-distribution — last 20% by date)
-Test  log-MAE: 0.386
-Raw-unit MAPE: 40.1%
-Aggregated (3pp bin) MAPE: 24.0%
-Aggregated R²(units):       0.928
+Train log-R²: 0.895  (primary trust signal — in-distribution fit)
+Test  log-R²: 0.875  (out-of-distribution — last 20% by date)
+Test  log-MAE: 0.341
+Raw-unit MAPE: 35.6%
+Aggregated (3pp bin) MAPE: 17.4%
+Aggregated R²(units):       0.970
 ```
 
 The **aggregated** metric is what really matters for this system. Stage 5
 consumes *mean* units per discount level (the saturation curve), not daily
 predictions. Daily-level noise is irreducible for CPG SKU × city data
 (weather, supply hiccups, neighbouring SKU effects we don't observe).
+This is also why the per-cell **daily** R² can never reach 0.70 on this kind of data — see [MODEL_EXPERIMENTS.md](MODEL_EXPERIMENTS.md) for the proof across 7 model classes.
 
 ### Accuracy tier (shown in the Excel report)
 
@@ -257,8 +289,65 @@ Current production hits **Strong** (R² 0.84, MAPE 24%).
 | All cells in a category have < 200 train rows | Whole category model is skipped; cells fall back to the global default elasticity (−1.5) |
 
 These fallbacks all eventually surface in Stage 5 as `"Needs Experiment"`
-or `"Low"` confidence — visible in the report so the brand team knows not
+or `"Low"` curve-confidence AND in the May 2026 **per-cell model confidence**
+as `LOW` or `DO_NOT_ACT` — visible in the report so the brand team knows not
 to act blindly.
+
+---
+
+## Per-cell confidence score (May 2026)
+
+Implemented in `_add_cell_confidence` at the bottom of `stage4_model/elasticity.py`. The composite is computed per cell after the elasticity is finalised, written into `elasticity_estimates.csv`, and flows through Stages 5–7 where it acts as the **hard gate** on automatic actions.
+
+### Formula
+
+```
+score = ( 0.25 × density_score
+        + 0.20 × variation_score
+        + 0.20 × fit_score
+        + 0.15 × plausibility_score
+        + 0.20 × tightness_score
+        ) × 100        # rounded to 1 decimal
+```
+
+Each sub-score is a 0–1 number:
+
+| Sub-score | Formula | Full credit at | Captures |
+|---|---|---|---|
+| `density_score` | `clip(n_train / 120, 0, 1)` | ≥ 120 train rows | "do we have enough days?" |
+| `variation_score` | `clip(n_discount_levels / 15, 0, 1)` | ≥ 15 distinct prices | "did the discount actually move?" |
+| `fit_score` | `clip(cell_train_r2 / 0.50, 0, 1)` | in-sample R² ≥ 0.50 | "does the model even fit this cell's data?" |
+| `plausibility_score` | `1 if elasticity ∈ [−4, −0.3] else 0` | binary | "is the elasticity in a sane CPG range?" |
+| `tightness_score` | `clip(\|elasticity\| / SE / 4, 0, 1)` | t-stat ≥ 4 | "is the elasticity well-pinned down?" |
+
+### Tiers
+
+| Tier | Score | What Stage 7 does |
+|---|---|---|
+| `HIGH` | ≥ 70 | Normal tiering; all actions available |
+| `MEDIUM` | 50–70 | Normal tiering; smaller throttled steps recommended |
+| `LOW` | 30–50 | **Cannot become Strong Cut.** Capped at Trade-off. Manager review before move. |
+| `DO_NOT_ACT` | < 30 | **Forced to "Do Not Act"** regardless of savings. Run an A/B price test. |
+
+### Why these specific weights
+
+The weights were chosen to spread evidence across complementary signals without letting any single one dominate. A cell with massive data but constant discount (variation = 0) would still fail the gate. A cell with strong variation but only 20 training days would fail the gate. A cell with everything except a plausible elasticity (outside [−4, −0.3]) would fail the gate. This makes the score robust to the failure mode that matters: a single weak signal can't be masked by other strong signals.
+
+### What the brand team sees
+
+The Excel report shows the curve-based `confidence` column the brand team has always seen ("High / Medium / Low / Needs Experiment"). The new `confidence_score` and `confidence_tier` columns are in `elasticity_estimates.csv` and `recommendations.csv` for audit. A Strong Cut row in the brand-team Excel is guaranteed (by Stage 7) to have model-confidence ∈ {HIGH, MEDIUM} — they don't need to read the score directly, but they can if they want to know "why was THIS cell allowed?".
+
+### Reading the failure modes
+
+If a cell ends up `LOW` or `DO_NOT_ACT`, inspect the five sub-score columns:
+
+| Pattern | Likely cause | Fix |
+|---|---|---|
+| Low `conf_density`, everything else OK | New SKU or new city | Wait for more days; or run a 4-week price test for accelerated signal |
+| Low `conf_variation`, high `conf_density` | Discount has been flat for months | Vary the discount in a structured 4-week test — this is the cell's bottleneck |
+| Low `conf_fit`, everything else OK | Demand shock during training window (launch ramp, supply issue) | Tighten outlier z-threshold, or shorten lookback window |
+| `conf_plausibility == 0` (elasticity at clip bound) | Confounding or thin variation | Run a price test; the model is at a corner solution |
+| Low `conf_tightness`, others OK | Wide CI — usually correlates with `conf_density` or `conf_variation` | Same fixes — more days or more variation |
 
 ---
 

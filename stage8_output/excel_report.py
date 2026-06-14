@@ -74,6 +74,7 @@ def write_excel(summary, waste_main, reinvest_main, needs_test, df, run_dir):
     ws_sum   = wb.active
     ws_sum.title = "Summary"
     ws_glide = wb.create_sheet("Glide Path")
+    ws_track = wb.create_sheet("Track Record")
     ws_prod  = wb.create_sheet("By Product")
     ws_cut   = wb.create_sheet("Price Lifts")
     ws_inv   = wb.create_sheet("Price Drops")
@@ -88,6 +89,9 @@ def write_excel(summary, waste_main, reinvest_main, needs_test, df, run_dir):
 
     # 2b. Multi-cycle roadmap — week-by-week projection
     _build_glide_path_sheet(ws_glide, summary)
+
+    # 2c. Track Record — the receipts (out-of-time backtest + live results)
+    _build_track_record_sheet(ws_track, summary)
 
     # 3. Per-product breakdown — city-by-city, with full weekly glide
     _build_per_product_sheet(ws_prod, summary, df, waste_main, reinvest_main)
@@ -424,23 +428,29 @@ def _build_summary_sheet(ws, summary, df):
              border=b(top=BOLD_RULE, bottom=RULE))
 
     if acc.get("available"):
-        cell(M_R2,    1, "Out-of-sample R² (test set)", font=f(10), align=al("left"))
-        cell(M_R2,    2, acc["test_r2_log"], fmt="0.00", align=al("right"))
-        cell(M_R2,    3, "Fraction of week-to-week variation in unit sales the model "
-                          "explains on held-out data. 1.0 = perfect, 0 = useless.",
+        cell(M_R2,    1, "Price-engine accuracy — held-out R²", font=f(10), align=al("left"))
+        cell(M_R2,    2, acc.get("decision_r2_bin", acc.get("test_r2_agg", 0)),
+             fmt="0.00", align=al("right"))
+        cell(M_R2,    3, "Accuracy of the actual price/volume curve that sets every "
+                          "recommendation (price effect only — no momentum shortcuts), on "
+                          "data the model never saw. This is the number that governs the "
+                          "plan. 1.0 = perfect, 0 = useless.",
              font=f(9, color=MUTED), align=al("left", wrap=True))
 
-        cell(M_MAPE,  1, "Avg error at discount-bin grain", font=f(10), align=al("left"))
-        cell(M_MAPE,  2, acc["test_mape_agg"], fmt='0.0"%"', align=al("right"))
-        cell(M_MAPE,  3, "Average % error when comparing predicted vs actual mean units "
-                          "in each 3-ppt discount band. This is the grain the saturation "
-                          "curve uses.",
+        cell(M_MAPE,  1, "Price-engine avg error (held-out, bin grain)", font=f(10), align=al("left"))
+        cell(M_MAPE,  2, acc.get("decision_mape_bin", acc.get("test_mape_agg", 0)),
+             fmt='0.0"%"', align=al("right"))
+        cell(M_MAPE,  3, "Average % error of the price engine when comparing predicted vs "
+                          "actual mean units in each 3-ppt discount band — the grain the "
+                          "recommendation uses.",
              font=f(9, color=MUTED), align=al("left", wrap=True))
 
-        cell(M_TRAIN, 1, "Training-data fit (in-distribution R²)", font=f(10), align=al("left"))
-        cell(M_TRAIN, 2, acc["train_r2_log"], fmt="0.00", align=al("right"))
-        cell(M_TRAIN, 3, "How well the model fits the data it was trained on. High value "
-                          "means the price/quantity relationship is well captured.",
+        cell(M_TRAIN, 1, "Full statistical model — held-out R² (context)", font=f(10), align=al("left"))
+        cell(M_TRAIN, 2, acc["test_r2_log"], fmt="0.00", align=al("right"))
+        cell(M_TRAIN, 3, "The broader model also uses recent-sales momentum & seasonality, "
+                          "so its R² is higher — but that extra fit does NOT set prices. "
+                          "Shown for context; the price-engine number above is the honest "
+                          "one to quote.",
              font=f(9, color=MUTED), align=al("left", wrap=True))
 
         # Set tall row heights so wrapped text breathes
@@ -677,6 +687,134 @@ def _build_glide_path_sheet(ws, summary):
     ws.freeze_panes = f"A{T_HEAD + 1}"
 
 
+def _build_track_record_sheet(ws, summary):
+    """
+    Track Record — the receipts. Two parts:
+      A. Out-of-time backtest: train as-of N weeks ago, grade forecasts on the
+         weeks the model never saw. Proves it works before a brand acts.
+      B. Live results: predicted vs realised once a brand acts (populates over
+         time; shows a clear placeholder until then).
+
+    Purely discount/volume based — no COGS or margin assumptions.
+    """
+    tr = summary.get("track_record") or {}
+    bt = tr.get("backtest") or {}
+    live = tr.get("live") or {}
+
+    for col, w in {"A": 30, "B": 12, "C": 14, "D": 14, "E": 14, "F": 14, "G": 12}.items():
+        ws.column_dimensions[col].width = w
+    ws.sheet_view.showGridLines = False
+
+    def cell(r, c, val, font=None, align=None, fmt=None, border=None, fill=None):
+        x = ws.cell(row=r, column=c, value=val)
+        x.font = font or f(10)
+        if align: x.alignment = align
+        if fmt: x.number_format = fmt
+        if border: x.border = border
+        if fill: x.fill = fill
+        return x
+
+    cell(1, 1, "DISCOUNT OPTIMISATION  ·  TRACK RECORD (proof the engine works)",
+         font=f(9, color=MUTED), align=al("left"))
+    cell(3, 1, "Track Record", font=f(20, bold=True, color=INK))
+
+    if not bt.get("available"):
+        cell(5, 1, "Backtest not available for this run — "
+                   f"{bt.get('reason', 'insufficient data')}. "
+                   "Run scripts/diagnostics/proof_loop.py once more data is in.",
+             font=f(10, italic=True, color=MUTED), align=al("left", wrap=True))
+        ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=7)
+        return
+
+    cell(4, 1, f"The engine was trained only on data up to {bt['cutoff']}, then asked to "
+               f"predict the {bt['weeks']} weeks after (through {bt['max_date']}) — a window "
+               f"it never saw. This is the honest test of whether following the tool "
+               f"actually plays out. All figures are discount/volume only.",
+         font=f(10, color=BODY), align=al("left", wrap=True))
+    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=7)
+    ws.row_dimensions[4].height = 42
+
+    # ── A. Forecast accuracy ──────────────────────────────────────────
+    r = 7
+    cell(r, 1, "A.  Out-of-time forecast accuracy", font=f(13, bold=True, color=INK))
+    r += 1
+    for j, h in enumerate(["Grain", "R²", "Avg error (MAPE)"], 1):
+        cell(r, j, h, font=f(10, bold=True, color=INK),
+             align=al("right" if j > 1 else "left"), border=b(top=BOLD_RULE, bottom=RULE))
+    r += 1
+    cell(r, 1, "Daily", align=al("left")); cell(r, 2, bt["daily_r2"], fmt="0.00", align=al("right"))
+    cell(r, 3, bt["daily_mape"], fmt='0.0"%"', align=al("right")); r += 1
+    if bt.get("bin_r2") is not None:
+        cell(r, 1, "3-ppt discount bin", align=al("left"))
+        cell(r, 2, bt["bin_r2"], fmt="0.00", align=al("right"))
+        cell(r, 3, bt["bin_mape"], fmt='0.0"%"', align=al("right")); r += 1
+    cell(r, 1, "A low forward R² is expected and OK — it means the engine doesn't predict the "
+               "absolute future sales level (trend & seasonality dominate that). It is a "
+               "price-RESPONSE model, not a demand forecaster. The real test is Part A2 below.",
+         font=f(9, italic=True, color=MUTED), align=al("left", wrap=True))
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
+    ws.row_dimensions[r].height = 40
+    r += 2
+
+    # ── A2. Discount-move validation ──────────────────────────────────
+    cell(r, 1, "A2.  Did volume move as predicted when price moved?",
+         font=f(13, bold=True, color=INK)); r += 1
+    for j, h in enumerate(["Forward discount move", "Cells", "Predicted vol Δ", "Actual vol Δ"], 1):
+        cell(r, j, h, font=f(10, bold=True, color=INK),
+             align=al("right" if j > 1 else "left"), border=b(top=BOLD_RULE, bottom=RULE))
+    r += 1
+    for row in bt.get("move_table", []):
+        cell(r, 1, row["move"], align=al("left"))
+        cell(r, 2, row["cells"], align=al("right"))
+        cell(r, 3, row["pred"] / 100.0, fmt='+0.0%;-0.0%', align=al("right"))
+        cell(r, 4, row["actual"] / 100.0, fmt='+0.0%;-0.0%', align=al("right"))
+        r += 1
+    r += 1
+
+    # ── Verdict box ───────────────────────────────────────────────────
+    vcolor = {"directional_conservative": POS, "directional_aggressive": ACCENT,
+              "weak": NEG}.get(bt.get("verdict"), MUTED)
+    n_cut = (bt.get("cut") or {}).get("cells")
+    cut_sfx = f" · {n_cut} cells, 1 window" if n_cut else ""
+    cell(r, 1, "Verdict", font=f(11, bold=True, color=INK), align=al("left"),
+         border=b(top=RULE))
+    cell(r, 2, {"directional_conservative": f"Conservative (directional{cut_sfx})",
+                "directional_aggressive": f"Optimistic — quote savings low{cut_sfx}",
+                "weak": "Inconclusive — too few clean moves"}.get(bt.get("verdict"), "—"),
+         font=f(11, bold=True, color=vcolor), align=al("left"), border=b(top=RULE))
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=7)
+    r += 1
+    cell(r, 1, bt.get("verdict_text", ""), font=f(10, color=BODY), align=al("left", wrap=True))
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
+    ws.row_dimensions[r].height = 56
+    r += 2
+
+    # ── B. Live results ───────────────────────────────────────────────
+    cell(r, 1, "B.  Live results (predicted vs. actual, once you act)",
+         font=f(13, bold=True, color=INK)); r += 1
+    if live.get("available"):
+        saved = live.get("realised_saving")
+        saved_txt = f"  ·  realised saving: Rs.{saved:,.0f}/mo" if saved else ""
+        cell(r, 1, f"Prior run compared: {live.get('prior_run','—')}  ·  "
+                   f"cells matched: {live.get('n_cells_matched',0)}  ·  "
+                   f"cells acted: {live.get('n_cells_acted',0)}{saved_txt}",
+             font=f(10, color=BODY), align=al("left")); r += 1
+    cell(r, 1, live.get("note", ""), font=f(10, italic=True, color=MUTED),
+         align=al("left", wrap=True))
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
+    ws.row_dimensions[r].height = 48
+    r += 2
+
+    cell(r, 1, "What this proves — and doesn't", font=f(11, bold=True, color=INK)); r += 1
+    cell(r, 1, "Proves: the engine was graded on data it never saw, and its price→volume "
+               "direction holds out-of-sample. Doesn't prove: a controlled causal effect — "
+               "the forward moves were the brand's own, not a randomised test. A live price "
+               "test (or Part B accumulating) closes that last gap.",
+         font=f(9, italic=True, color=MUTED), align=al("left", wrap=True))
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
+    ws.row_dimensions[r].height = 48
+
+
 def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
     """
     Per-product sheet: each product gets a 1-line summary + a city-by-city
@@ -799,21 +937,21 @@ def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):
                  font=f(9, color=MUTED), align=al("right"))
             cell(cur_row, 2, acc.get("tier", "—"),
                  font=f(10, bold=True, color=tier_color), align=al("left"))
-            cell(cur_row, 3, "Test R²:",
+            cell(cur_row, 3, "Price-engine R²:",
                  font=f(9, color=MUTED), align=al("right"))
-            cell(cur_row, 4, acc.get("test_r2_log", 0),
+            cell(cur_row, 4, acc.get("decision_r2_bin", acc.get("test_r2_agg", 0)),
                  font=f(10, bold=True), align=al("left"), fmt="0.00")
             cell(cur_row, 5, "MAPE:",
                  font=f(9, color=MUTED), align=al("right"))
-            cell(cur_row, 6, acc.get("test_mape_agg", 0),
+            cell(cur_row, 6, acc.get("decision_mape_bin", acc.get("test_mape_agg", 0)),
                  font=f(10, bold=True), align=al("left"), fmt='0.0"%"')
             cur_row += 2  # 1 accuracy row + 1 blank
 
         # ── City × week table headers (selling-price view) ─────────────
         # Each row carries 3 confidence signals:
         #   Conf       — High/Medium/Low/Needs Experiment (Stage 5 tier)
-        #   Cell R²    — model's fit on THIS cell's own training data
-        #                (numerical proof of accuracy at city level)
+        #   Cell R²    — model's IN-SAMPLE fit on THIS cell's own training data
+        #                (a per-city fit signal, NOT out-of-sample validation)
         #   Obs        — number of training rows backing the estimate
         headers = ["City", "Conf", "Cell R²", "Obs",
                    "Current Rs.", "Target Rs.",

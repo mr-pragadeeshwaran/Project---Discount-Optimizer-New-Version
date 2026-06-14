@@ -120,7 +120,10 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
 
     # ── Time-based train/test split (last 20% of dates) ─────────────
     dates_sorted = sorted(regular[COL["date"]].unique())
-    split_idx    = int(len(dates_sorted) * (1 - cfg.TEST_SPLIT_PCT))
+    # Clamp so dates_sorted[split_idx] can never go out of bounds (e.g. if
+    # TEST_SPLIT_PCT is ever set to 0).
+    split_idx    = min(int(len(dates_sorted) * (1 - cfg.TEST_SPLIT_PCT)),
+                       max(len(dates_sorted) - 1, 0))
     split_date   = dates_sorted[split_idx]
     train = regular[regular[COL["date"]] <= split_date].copy()
     test  = regular[regular[COL["date"]] >  split_date].copy()
@@ -253,6 +256,18 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
     # ── Diagnostics (daily + aggregated) ─────────────────────────────
     diagnostics = _compute_diagnostics(models, train, test_eval, cat_metrics)
     diagnostics["model_type"] = "PerCategory_CellFE_Huber"
+
+    # ── Decision-model held-out accuracy (the HONEST headline) ──────
+    # The numbers above come from the full regression, which includes lag /
+    # momentum features that predict today's units largely from recent units
+    # — inflating R². But Stage 5 sets prices using ONLY the price/badge
+    # curve. These keys measure that curve on held-out data, so the report
+    # can quote the accuracy of the engine that actually moves prices.
+    # See scripts/diagnostics/model_credibility_report.py for the standalone
+    # audit that derives the same numbers.
+    diagnostics.update(
+        _compute_decision_diagnostics(elasticities, train, test_eval, has_grammage)
+    )
 
     # ── Summary print ────────────────────────────────────────────────
     pe  = elasticities["price_elasticity"]
@@ -684,7 +699,9 @@ def _add_cell_confidence(elasticities: pd.DataFrame, raw_price_slopes: dict) -> 
     # ── sub-score components ──────────────────────────────────────
     density  = np.clip(e["n_train"]            / 120.0, 0, 1)
     variation= np.clip(e["n_discount_levels"]  / 15.0,  0, 1)
-    fit      = np.clip((e.get("cell_train_r2", 0).astype(float)) / 0.50, 0, 1)
+    # Series default so .astype works even if the column is ever absent
+    _ctr2    = e["cell_train_r2"] if "cell_train_r2" in e.columns else pd.Series(0.0, index=e.index)
+    fit      = np.clip(_ctr2.astype(float) / 0.50, 0, 1)
 
     pe = e["price_elasticity"].astype(float)
     plausibility = ((pe >= -4.0) & (pe <= -0.3)).astype(float)
@@ -807,6 +824,96 @@ def _compute_diagnostics(models: dict, train: pd.DataFrame,
         "price_coef_global":      round(next(iter(cat_elast_map.values()), -1.5), 3) if cat_elast_map else -1.5,
         "discount_coefficient":   round(next(iter(cat_badge_map.values()), 0.01), 4) if cat_badge_map else 0.01,
     }
+
+
+def _simple_r2(a, p) -> float:
+    a = np.asarray(a, dtype=float); p = np.asarray(p, dtype=float)
+    m = np.isfinite(a) & np.isfinite(p)
+    if m.sum() < 2:
+        return 0.0
+    ss_res = ((a[m] - p[m]) ** 2).sum()
+    ss_tot = ((a[m] - a[m].mean()) ** 2).sum()
+    return max(1.0 - ss_res / ss_tot, -9.99) if ss_tot > 0 else 0.0
+
+
+def _compute_decision_diagnostics(elasticities: pd.DataFrame, train: pd.DataFrame,
+                                  test: pd.DataFrame, has_grammage: bool) -> dict:
+    """
+    Held-out accuracy of the DECISION model — the Stage-5 price/badge curve
+    that actually sets recommendations (elasticity + badge only, NO lag /
+    momentum terms), using TRAIN-window base values (no leakage):
+
+        units = base_units · (price/base_price)^elasticity
+                           · exp(badge · (discount − base_discount))
+
+    This is the honest "if you change the price, will volume move as
+    predicted?" number — distinct from the full lag-laden regression R²,
+    which is inflated by autocorrelation. Returns daily + 3ppt-bin R²/MAPE.
+    """
+    COL = cfg.COL
+    qty = COL["offtake_qty"]
+    out = {
+        "decision_test_r2":      0.0,  "decision_test_mape":      99.9,
+        "decision_test_r2_bin":  0.0,  "decision_test_mape_bin":  99.9,
+    }
+    if (test is None or test.empty or elasticities is None or elasticities.empty
+            or "selling_price" not in test.columns or "discount_pct" not in test.columns):
+        return out
+
+    def _cid(df):
+        if has_grammage and COL["grammage"] in df.columns:
+            return (df[COL["product_id"]].astype(str) + "_"
+                    + df[COL["grammage"]].astype(str) + "_"
+                    + df[COL["city"]].astype(str))
+        return df[COL["product_id"]].astype(str) + "_" + df[COL["city"]].astype(str)
+
+    coef = elasticities.set_index("cell_id")[
+        ["price_elasticity", "badge_sensitivity"]].to_dict("index")
+    tr = train.copy(); tr["cell_id"] = _cid(tr)
+    base = tr.groupby("cell_id").agg(
+        base_units=(qty, "mean"),
+        base_price=("selling_price", "mean"),
+        base_disc=("discount_pct", "mean"),
+    ).to_dict("index")
+    te = test.copy(); te["cell_id"] = _cid(te)
+
+    rows = []
+    for _, row in te.iterrows():
+        cid = row["cell_id"]
+        if cid not in coef or cid not in base:
+            continue
+        b = base[cid]; bp = b["base_price"]
+        if not bp or bp <= 0:
+            continue
+        elast = float(coef[cid]["price_elasticity"])
+        badge = float(coef[cid]["badge_sensitivity"])
+        price = float(row["selling_price"]); disc = float(row["discount_pct"])
+        if price <= 0 or b["base_units"] <= 0:
+            continue
+        # Clip predicted log-units to [-3, 10] — same band the full-model
+        # diagnostics use — so a deep-promo row (price << base) can't explode
+        # the metric. (Was: (price/bp)**elast unclipped → up to ~39x on elast=-4.)
+        log_units = (np.log(b["base_units"]) + elast * np.log(price / bp)
+                     + badge * (disc - b["base_disc"]))
+        pred = float(np.exp(np.clip(log_units, -3, 10)))
+        rows.append({"cid": cid, "bin": int(disc // 3 * 3),
+                     "actual": float(row[qty]), "pred": pred})
+
+    if len(rows) < 5:
+        return out
+    rdf = pd.DataFrame(rows)
+    a = rdf["actual"].values; p = rdf["pred"].values
+    out["decision_test_r2"]   = round(_simple_r2(a, p), 3)
+    out["decision_test_mape"] = round(float(np.mean(np.abs((a - p) / np.maximum(a, 0.5))) * 100), 1)
+
+    g = rdf.groupby(["cid", "bin"]).agg(
+        n=("actual", "size"), av=("actual", "mean"), pv=("pred", "mean")).reset_index()
+    g = g[g["n"] >= 3]
+    if len(g) >= 3:
+        out["decision_test_r2_bin"]   = round(_simple_r2(g["av"].values, g["pv"].values), 3)
+        out["decision_test_mape_bin"] = round(
+            float((np.abs(g["av"] - g["pv"]) / np.maximum(g["av"], 0.5)).mean() * 100), 1)
+    return out
 
 
 def predict_units(model, features_dict: dict) -> float:

@@ -191,6 +191,16 @@ def _assign_tier(row) -> str:
     # Gap to elbow (positive = need to REDUCE discount overall)
     gap = current_disc - elbow_disc
 
+    # ── HARD GATE: per-cell model confidence (added May 2026) ─────
+    # The model-based confidence score (Stage 4) catches data-thin or
+    # high-uncertainty cells the curve-based confidence might miss.
+    # Any cell flagged DO_NOT_ACT here is locked out of price moves —
+    # the system requires a structured A/B price test to gather signal
+    # before acting. This is the scale-up safety rail.
+    model_tier = str(row.get("confidence_tier", "")).upper()
+    if model_tier == "DO_NOT_ACT":
+        return "Do Not Act"
+
     # Do Not Act: insufficient data
     if confidence == "Needs Experiment":
         return "Do Not Act"
@@ -208,10 +218,13 @@ def _assign_tier(row) -> str:
     # Strong Cut = "fast-track approve" — clear net economic win with bounded
     # risk this week. Calibrated for the post-tuning elasticity range (-1 to -4):
     #   savings ≥ ₹5K/month  AND  this-cycle vol drop ≤ 8%
-    # AND high/medium confidence (Low cells need pilot first)
+    # AND curve-confidence high/medium AND model-confidence HIGH/MEDIUM
+    # (the model-confidence gate is the May 2026 scale-up safety rail —
+    # see MODEL_EXPERIMENTS.md for the multi-factor score derivation).
     if (rec_savings >= 5000 and
             abs(rec_vol_drop) <= 8.0 and
-            confidence in ("High", "Medium")):
+            confidence in ("High", "Medium") and
+            model_tier in ("HIGH", "MEDIUM", "")):
         return "Strong Cut"
 
     # Trade-off = "review individually" — positive savings, larger volume risk,
