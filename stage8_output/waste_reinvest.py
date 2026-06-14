@@ -44,6 +44,35 @@ def generate_waste_reinvest_report(rec_df, feat_df, model_output, run_dir):
         df["confidence"] = "Low"
     df["confidence"] = df["confidence"].fillna("Low")
 
+    # ── Leakage decomposition (real vs borrowed vs stolen units) ──────
+    # Volume-based; nets out pull-forward (φ) + cannibalization (κ). Used to
+    # haircut the reinvest volume lift so "growth" that's really borrowed/
+    # stolen doesn't qualify a cell for deeper discount.
+    try:
+        from stage8_output.leakage import decompose_leakage
+        lk = decompose_leakage(feat_df)
+        df = df.merge(
+            lk[["cell_id", "pull_forward", "cannibalization",
+                "true_incremental_frac", "leakage_confidence"]],
+            on="cell_id", how="left")
+        df["pull_forward"] = df["pull_forward"].fillna(0.0)
+        df["cannibalization"] = df["cannibalization"].fillna(0.0)
+        df["true_incremental_frac"] = df["true_incremental_frac"].fillna(1.0)
+        df["leakage_confidence"] = df["leakage_confidence"].fillna("no_promo")
+    except Exception as e:
+        print(f"  [Stage 8] Leakage decomposition skipped: {type(e).__name__}: {e}")
+        df["pull_forward"] = 0.0; df["cannibalization"] = 0.0
+        df["true_incremental_frac"] = 1.0; df["leakage_confidence"] = "n/a"
+
+    # ── "Is it even worth discounting?" gate ──────────────────────────
+    # |elasticity| ≤ 1 ⇒ inelastic ⇒ a price cut is very unlikely to pay
+    # (revenue falls or barely moves while costs rise); these are prime
+    # price-HOLD/RAISE cells, not discount-deeper cells.
+    inelastic_thr = float(getattr(cfg, "INELASTIC_ELASTICITY_THRESHOLD", 1.0))
+    _elast = df.get("price_elasticity", df.get("elasticity", pd.Series(-1.5, index=df.index)))
+    df["abs_elasticity"] = _elast.astype(float).abs()
+    df["is_inelastic"] = df["abs_elasticity"] <= inelastic_thr
+
     # Split into waste (Q1) and reinvest (Q2)
     waste_all = _build_waste_table(df)
     reinvest_all = _build_reinvest_table(df, waste_all)
@@ -76,6 +105,8 @@ def generate_waste_reinvest_report(rec_df, feat_df, model_output, run_dir):
         print(f"  [Stage 8] Track Record skipped: {type(e).__name__}: {e}")
         summary["track_record"] = {"backtest": {"available": False},
                                    "live": {"available": False}}
+    # Leakage & discount-worthiness view (real vs borrowed vs stolen + ε gate)
+    summary["leakage"] = _build_leakage_summary(df)
 
     # Print summary — business-style
     biz = summary["business"]
@@ -394,6 +425,13 @@ def _build_reinvest_table(df, waste_df):
         if confidence not in ("High", "Medium"):
             continue
 
+        # Independent inelastic floor: |ε| ≤ 1 cells are very unlikely to profit
+        # from a deeper cut. Subsumed by the |ε| ≥ 2 filter below at default
+        # config, but kept so the gate still holds if REINVEST_MIN_ELASTICITY
+        # is lowered.
+        if bool(row.get("is_inelastic", False)):
+            continue
+
         elast = abs(float(row.get("price_elasticity", row.get("elasticity", 0))))
         if elast < cfg.REINVEST_MIN_ELASTICITY:
             continue
@@ -408,7 +446,13 @@ def _build_reinvest_table(df, waste_df):
         if sim is None:
             continue
 
-        if sim["vol_lift_pct"] < cfg.REINVEST_MIN_VOL_LIFT_PCT:
+        # Leakage haircut: only REAL new demand counts toward the lift gate.
+        # A cell whose "growth" is mostly borrowed (pull-forward) or stolen from
+        # sibling packs (cannibalization) should not qualify for deeper discount.
+        real_frac = float(row.get("true_incremental_frac", 1.0))
+        gross_lift = float(sim["vol_lift_pct"])
+        net_lift = gross_lift * real_frac
+        if net_lift < cfg.REINVEST_MIN_VOL_LIFT_PCT:
             continue
         if sim["margin_sacrifice_pct"] > cfg.REINVEST_MAX_MARGIN_SAC_PCT:
             continue
@@ -428,12 +472,17 @@ def _build_reinvest_table(df, waste_df):
             "price_drop_inr":                    round(cur_price_val - new_price_val, 1),
             "budget_needed_inr_per_month":       round(sim["extra_disc_cost_monthly"], 0),
             "expected_margin_lift_inr_per_month":round(sim["net_contribution_change_monthly"], 0),
-            "volume_lift_pct":                   round(sim["vol_lift_pct"], 1),
+            # Headline lift/units are NET of leakage (the value the gate enforced) —
+            # so the brand isn't shown a "growth" number that's mostly borrowed/
+            # stolen. Gross is kept alongside for transparency.
+            "volume_lift_pct":                   round(net_lift, 1),
+            "gross_volume_lift_pct":             round(gross_lift, 1),
+            "net_volume_lift_pct":               round(net_lift, 1),
             "margin_sacrifice_pct":              round(sim["margin_sacrifice_pct"], 1),
-            "extra_volume_units_per_month":      round(sim["extra_units_monthly"], 0),
+            "extra_volume_units_per_month":      round(sim["extra_units_monthly"] * real_frac, 0),
             "reinvestment_efficiency":           round(
-                sim["extra_units_monthly"] / max(sim["extra_disc_cost_monthly"], 1.0) * 100, 2
-            ),  # units gained per ₹100 of budget
+                sim["extra_units_monthly"] * real_frac / max(sim["extra_disc_cost_monthly"], 1.0) * 100, 2
+            ),  # NET units gained per ₹100 of budget
             "marginal_roi_at_current":           round(sim["marginal_roi_now"], 2),
         })
         candidates.append(cand)
@@ -1224,6 +1273,49 @@ def _compute_glide_path(df, waste_main, reinvest_main):
         keep_to = min(keep_to + 0, len(out))
         out = out.iloc[:keep_to].reset_index(drop=True)
     return out
+
+
+def _build_leakage_summary(df: pd.DataFrame) -> dict:
+    """
+    Per-cell 'real vs borrowed vs stolen' + inelastic flag, for the Leakage
+    sheet. Surfaces the cells where promo uplift is least real (highest leakage)
+    and the cells where discounting can't pay (inelastic).
+    """
+    if df is None or df.empty or "true_incremental_frac" not in df.columns:
+        return {"available": False}
+
+    rows = []
+    for _, r in df.iterrows():
+        title = str(r.get("title", r.get("cell_id", "")))[:26]
+        city = r.get("city", "")
+        rows.append({
+            "label": f"{title} · {city}" if city else title,
+            "pull_forward": float(r.get("pull_forward", 0.0)),
+            "cannibalization": float(r.get("cannibalization", 0.0)),
+            "true_incremental_frac": float(r.get("true_incremental_frac", 1.0)),
+            "is_inelastic": bool(r.get("is_inelastic", False)),
+            "abs_elasticity": float(r.get("abs_elasticity", 0.0)),
+            "leakage_confidence": str(r.get("leakage_confidence", "n/a")),
+        })
+    rows.sort(key=lambda x: x["pull_forward"] + x["cannibalization"], reverse=True)
+
+    # Only cells whose leakage was ACTUALLY measured count toward the headline —
+    # 'no_promo', 'always_promo', 'no_variation', failed ('n/a') etc. were not.
+    not_measured = {"no_promo", "always_promo", "no_variation", "n/a", "unavailable"}
+    promo = [x for x in rows if x["leakage_confidence"] not in not_measured]
+    n_inelastic = sum(1 for x in rows if x["is_inelastic"])
+    n_high_leak = sum(1 for x in promo if (x["pull_forward"] + x["cannibalization"]) >= 0.20)
+    med_true = (float(np.median([x["true_incremental_frac"] for x in promo]))
+                if promo else 1.0)
+    return {
+        "available": True,
+        "cells": rows,
+        "n_cells": len(rows),
+        "n_with_promo": len(promo),
+        "n_inelastic": n_inelastic,
+        "n_high_leakage": n_high_leak,
+        "median_true_incremental": round(med_true, 3),
+    }
 
 
 def _compute_model_accuracy(model_output: dict) -> dict:

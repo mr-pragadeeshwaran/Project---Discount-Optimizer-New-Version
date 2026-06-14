@@ -75,6 +75,7 @@ def write_excel(summary, waste_main, reinvest_main, needs_test, df, run_dir):
     ws_sum.title = "Summary"
     ws_glide = wb.create_sheet("Glide Path")
     ws_track = wb.create_sheet("Track Record")
+    ws_leak  = wb.create_sheet("Leakage")
     ws_prod  = wb.create_sheet("By Product")
     ws_cut   = wb.create_sheet("Price Lifts")
     ws_inv   = wb.create_sheet("Price Drops")
@@ -92,6 +93,9 @@ def write_excel(summary, waste_main, reinvest_main, needs_test, df, run_dir):
 
     # 2c. Track Record — the receipts (out-of-time backtest + live results)
     _build_track_record_sheet(ws_track, summary)
+
+    # 2d. Leakage — real vs borrowed vs stolen + the "worth discounting?" gate
+    _build_leakage_sheet(ws_leak, summary)
 
     # 3. Per-product breakdown — city-by-city, with full weekly glide
     _build_per_product_sheet(ws_prod, summary, df, waste_main, reinvest_main)
@@ -833,6 +837,82 @@ def _build_track_record_sheet(ws, summary):
          font=f(9, italic=True, color=MUTED), align=al("left", wrap=True))
     ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
     ws.row_dimensions[r].height = 48
+
+
+def _build_leakage_sheet(ws, summary):
+    """
+    Leakage sheet — 'real vs borrowed vs stolen' uplift + the inelastic gate.
+    All unit-based; no COGS/margin. Tells the brand which discounts are worth
+    less than they look (high pull-forward / cannibalization) and which cells
+    can't profit from discounting at all (inelastic).
+    """
+    lk = summary.get("leakage") or {}
+    ws.sheet_view.showGridLines = False
+    for col, w in {"A": 34, "B": 13, "C": 14, "D": 16, "E": 12, "F": 14}.items():
+        ws.column_dimensions[col].width = w
+
+    def cell(r, c, val, font=None, align=None, fmt=None, border=None):
+        x = ws.cell(row=r, column=c, value=val)
+        x.font = font or f(10)
+        if align: x.alignment = align
+        if fmt: x.number_format = fmt
+        if border: x.border = border
+        return x
+
+    cell(1, 1, "DISCOUNT OPTIMISATION  ·  LEAKAGE & DISCOUNT-WORTHINESS",
+         font=f(9, color=MUTED), align=al("left"))
+    cell(3, 1, "Real vs. Borrowed vs. Stolen", font=f(20, bold=True, color=INK))
+    if not lk.get("available"):
+        cell(5, 1, "Leakage analysis unavailable for this run.",
+             font=f(10, italic=True, color=MUTED), align=al("left"))
+        return
+    cell(4, 1, "When a discount makes units jump, not all of it is new demand. "
+               "BORROWED ≈ the dip below baseline in the weeks AFTER a promo (a sign of "
+               "stock-up). STOLEN ≈ the dip in your own sibling packs DURING the promo. The "
+               "rest is treated as REAL. These are estimated from observed dips — directional "
+               "signals, not proven cause-and-effect. All unit-based, no margins.",
+         font=f(10, color=BODY), align=al("left", wrap=True))
+    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=6)
+    ws.row_dimensions[4].height = 42
+
+    # headline counts
+    cell(6, 1, f"Cells with promo history: {lk.get('n_with_promo',0)}/{lk.get('n_cells',0)}   ·   "
+               f"typical real-demand share: {lk.get('median_true_incremental',1.0)*100:.0f}%   ·   "
+               f"high-leakage cells (≥20% lost): {lk.get('n_high_leakage',0)}   ·   "
+               f"inelastic cells (|ε|≤1, discount unlikely to pay): {lk.get('n_inelastic',0)}",
+         font=f(10, bold=True, color=ACCENT), align=al("left"))
+    ws.merge_cells(start_row=6, start_column=1, end_row=6, end_column=6)
+
+    r = 8
+    hdr = ["Product · City", "Borrowed (φ)", "Stolen (κ)", "Real demand",
+           "|Elasticity|", "Worth discounting?"]
+    for j, h in enumerate(hdr, 1):
+        cell(r, j, h, font=f(10, bold=True, color=INK),
+             align=al("right" if 1 < j < 6 else "left"),
+             border=b(top=BOLD_RULE, bottom=RULE))
+    r += 1
+    # show the most-leaky / inelastic cells first; cap at 40 rows
+    for c in lk.get("cells", [])[:40]:
+        cell(r, 1, c["label"], align=al("left"))
+        cell(r, 2, c["pull_forward"], fmt="0%", align=al("right"))
+        cell(r, 3, c["cannibalization"], fmt="0%", align=al("right"))
+        cell(r, 4, c["true_incremental_frac"], fmt="0%", align=al("right"))
+        cell(r, 5, c["abs_elasticity"], fmt="0.00", align=al("right"))
+        verdict = "Unlikely — inelastic, hold/raise" if c["is_inelastic"] else (
+                  "weak — mostly leakage" if c["true_incremental_frac"] < 0.6 else "elastic — can work")
+        vcolor = NEG if (c["is_inelastic"] or c["true_incremental_frac"] < 0.6) else POS
+        cell(r, 6, verdict, font=f(9, bold=True, color=vcolor), align=al("left"))
+        r += 1
+
+    r += 1
+    cell(r, 1, "How to use it: cells flagged 'inelastic' (|ε|≤1) are unlikely to profit from "
+               "a discount — hold or raise price there. Cells with high Borrowed/Stolen % "
+               "tend to give back most of the bump later or pull from your own packs — "
+               "discount them shallower. These leakage haircuts are already applied to the "
+               "(net) volume lift on the Price Drops list.",
+         font=f(9, italic=True, color=MUTED), align=al("left", wrap=True))
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=6)
+    ws.row_dimensions[r].height = 44
 
 
 def _build_per_product_sheet(ws, summary, df, waste_main, reinvest_main):

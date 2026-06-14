@@ -204,6 +204,12 @@ TARGET_WEIGHTED_DISCOUNT_PCT = 9.0
 REINVEST_MIN_VOL_LIFT_PCT  = 5.0
 REINVEST_MAX_MARGIN_SAC_PCT = 10.0
 REINVEST_MIN_ELASTICITY    = 2.0  # |elast| must be at least this
+
+# ── "Is it even worth discounting?" gate ──
+# Cells with |elasticity| <= this are INELASTIC: a price cut mathematically
+# cannot pay (the lift can't cover the subsidy), so they are flagged
+# hold/raise and excluded from reinvestment. 1.0 is the theorem boundary.
+INELASTIC_ELASTICITY_THRESHOLD = 1.0
 BRAND_NAME = "24 Mantra Organic"
 # Brand name patterns to filter own-brand SKUs (case-insensitive match)
 # All other brands are treated as competitors
