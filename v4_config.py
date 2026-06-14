@@ -38,7 +38,18 @@ COL = {
     "rpi":          "Relative Price Index",
 }
 
-# Category detection from product title keywords
+# ── Category detection (DYNAMIC by default — works for any brand) ──
+# CATEGORY_MODE:
+#   "auto"     → derive the category from each product title automatically
+#                (strip the brand name + pack/size tokens, keep the core product
+#                type, e.g. "…Jaggery Powder 500G" → "Jaggery Powder"). No
+#                hardcoding needed — this is the right default for a new client.
+#   "keywords" → use the explicit CATEGORY_KEYWORDS map below (operator override,
+#                e.g. to merge/rename categories for a specific brand).
+CATEGORY_MODE = "auto"
+
+# Only used when CATEGORY_MODE == "keywords". A category is assigned when ALL of
+# its keywords appear in the (lower-cased) product title.
 CATEGORY_KEYWORDS = {
     "Jaggery":       ["jaggery"],
     "Moong Dal":     ["moong", "dal"],
@@ -210,8 +221,29 @@ REINVEST_MIN_ELASTICITY    = 2.0  # |elast| must be at least this
 # cannot pay (the lift can't cover the subsidy), so they are flagged
 # hold/raise and excluded from reinvestment. 1.0 is the theorem boundary.
 INELASTIC_ELASTICITY_THRESHOLD = 1.0
+
+# ── Per-client brand identity (the ONE thing to set when onboarding) ──
+# BRAND_NAME is the client's own brand. Own-brand rows are matched by
+# case-insensitive SUBSTRING against OWN_BRAND_PATTERNS; everything else is a
+# competitor (used only for the RPI feature). Leave OWN_BRAND_PATTERNS empty to
+# auto-derive it from BRAND_NAME — so onboarding a new client is usually a
+# one-line change (set BRAND_NAME). The pipeline FAILS LOUD if no rows match.
 BRAND_NAME = "24 Mantra Organic"
-# Brand name patterns to filter own-brand SKUs (case-insensitive match)
-# All other brands are treated as competitors
-OWN_BRAND_PATTERNS = ["24 Mantra Organic", "24 Mantra"]
+OWN_BRAND_PATTERNS = ["24 Mantra Organic", "24 Mantra"]   # [] ⇒ derive from BRAND_NAME
 PLATFORM_NAME = "Blinkit"
+
+# Fail loud if the own-brand substring patterns match MORE THAN ONE distinct
+# brand value in the data (guards against a short/generic BRAND_NAME like "Sun"
+# silently absorbing competitors such as "Sunfeast"/"Sundrop"). Set to False
+# only when you genuinely own multiple distinct brand strings.
+STRICT_OWN_BRAND_MATCH = True
+
+# Extra words to strip when auto-deriving a category from a title (on top of
+# the built-in generic/variant list). Use to merge variants for a client, e.g.
+# ["refined", "gold", "sona", "masuri"]. Only used when CATEGORY_MODE == "auto".
+CATEGORY_EXTRA_STOPWORDS = []
+
+# Warn (in Stage 1) when this share of cells would fall back to the GLOBAL
+# default elasticity because their category is too thin to model. High share ⇒
+# auto-categorisation fragmented; switch to CATEGORY_MODE="keywords".
+CATEGORY_DEFAULT_FALLBACK_WARN_SHARE = 0.30

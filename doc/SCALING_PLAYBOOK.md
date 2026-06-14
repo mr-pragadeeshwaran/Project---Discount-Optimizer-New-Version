@@ -22,17 +22,20 @@ What you need from them:
 
 ## Phase 1 — Week 1: Data Readiness
 
-### Setup (≈ 30 minutes)
+### Setup (≈ 15 minutes — mostly just the brand name)
 
-1. Drop the brand's Excel files into `input_data/`.
-2. Edit `v4_config.py`:
+1. Align the brand's export to the expected columns (see `v4_config.COL`) and drop the `.xlsx` files into `input_data/`. The pipeline **fails loud** with an actionable message if a required column is missing or the data is unusable (`stage1_ingestion/validate.py`).
+2. Edit `v4_config.py` — usually a **one-line change**:
    ```python
    BRAND_NAME = "Acme Foods"
-   OWN_BRAND_PATTERNS = ["Acme", "Acme Foods"]
+   # OWN_BRAND_PATTERNS = []   # leave empty → auto-derived from BRAND_NAME
    SALES_DATA_DIR = r"path/to/input_data"
    ```
+   - **Categories auto-derive** from product titles (`CATEGORY_MODE="auto"`) — no keyword list to hand-write. Stage 1 prints the detected categories; if it flags THIN/fragmented categories or a dominant "Other" bucket, set `CATEGORY_MODE="keywords"` + `CATEGORY_KEYWORDS` (or add `CATEGORY_EXTRA_STOPWORDS`) to merge them.
+   - **Brand matching is guarded.** A short/generic `BRAND_NAME` that would absorb a competitor (e.g. `"Sun"` → `Sunfeast`), or an own-brand spelling that wouldn't match, **fails loud** (`STRICT_OWN_BRAND_MATCH=True`). Read the "Distinct brands KEPT" line Stage 1 prints to confirm.
 3. (Optional) Add their festival dates / event windows to `FESTIVAL_DATES` and `PLATFORM_EVENT_WINDOWS`.
 4. (Optional) Update `DEFAULT_COGS_PCT`, `DEFAULT_COMMISSION_PCT`, `DEFAULT_FULFILLMENT_FEE` if they shared cost figures.
+5. Sanity-check the engine before the first client run: `python -m pytest -m "not slow"` (≈5s) — 24 fast tests covering brand/category detection, validation, and leakage.
 
 ### Run (≈ 1–2 minutes)
 
