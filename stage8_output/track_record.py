@@ -158,10 +158,14 @@ def run_backtest(feat_df, weeks=DEFAULT_WEEKS):
         n=("actual", "size"), a=("actual", "mean"), p=("pred", "mean"))
     binned = binned[binned["n"] >= 3]
 
-    # (b) discount-move validation (the money claim)
-    fwd_cell = forward.groupby("cell_id").agg(
-        fwd_disc=("discount_pct", "mean"), fwd_price=("selling_price", "mean"),
-        fwd_units=(qty, "mean")).reset_index()
+    # (b) discount-move validation (the money claim) + per-cell detail
+    agg_kwargs = dict(fwd_disc=("discount_pct", "mean"),
+                      fwd_price=("selling_price", "mean"), fwd_units=(qty, "mean"))
+    if COL["city"] in forward.columns:
+        agg_kwargs["city"] = (COL["city"], "first")
+    if COL["title"] in forward.columns:
+        agg_kwargs["title"] = (COL["title"], "first")
+    fwd_cell = forward.groupby("cell_id").agg(**agg_kwargs).reset_index()
     mv = []
     for _, r in fwd_cell.iterrows():
         b = base[r["cell_id"]]
@@ -171,9 +175,20 @@ def run_backtest(feat_df, weeks=DEFAULT_WEEKS):
                             b["disc"], b["elast"], b["badge"])
         if not np.isfinite(pu):
             continue
-        mv.append({"disc_move_ppt": r["fwd_disc"] - b["disc"],
-                   "pred": (pu / b["units"] - 1) * 100,
-                   "actual": (r["fwd_units"] / b["units"] - 1) * 100})
+        label = str(r.get("title", r["cell_id"]))[:22]
+        if "city" in r and r.get("city"):
+            label = f"{label} · {r['city']}"
+        mv.append({
+            "cell_id": r["cell_id"], "label": label,
+            "disc_move_ppt": r["fwd_disc"] - b["disc"],
+            "base_price": round(float(b["price"]), 1),
+            "achieved_price": round(float(r["fwd_price"]), 1),
+            "base_units": round(float(b["units"]), 1),
+            "pred_units": round(float(pu), 1),
+            "actual_units": round(float(r["fwd_units"]), 1),
+            "pred": (pu / b["units"] - 1) * 100,
+            "actual": (r["fwd_units"] / b["units"] - 1) * 100,
+        })
     mvdf = pd.DataFrame(mv)
 
     def _move(x):
@@ -234,6 +249,23 @@ def run_backtest(feat_df, weeks=DEFAULT_WEEKS):
         "verdict": verdict,
         "verdict_text": verdict_text,
     })
+
+    # Illustrative per-cell sample for the "live" Section B: the cells whose
+    # price actually moved most in the holdout, scored as if recommended.
+    sample = []
+    if not mvdf.empty:
+        moved = mvdf[mvdf["disc_move_ppt"].abs() >= 1.0].copy()
+        moved["amove"] = moved["disc_move_ppt"].abs()
+        moved = moved.sort_values("amove", ascending=False).head(8)
+        for _, r in moved.iterrows():
+            sample.append({
+                "label": r["label"],
+                "base_price": r["base_price"], "achieved_price": r["achieved_price"],
+                "pred_units": r["pred_units"], "actual_units": r["actual_units"],
+                "pred_vol": round(float(r["pred"]), 1),
+                "actual_vol": round(float(r["actual"]), 1),
+            })
+    out["live_sample"] = sample
     return out
 
 
@@ -336,11 +368,29 @@ def build_track_record(feat_df, current_run_dir, weeks=DEFAULT_WEEKS):
         prior_note = (f" A prior run ({prior_run}) is on file and will be the first "
                       f"baseline scored once new post-recommendation data arrives.")
 
-    live = {
-        "available": False,
-        "note": ("Live tracking begins after your first acted cycle. Once you set the "
-                 "recommended prices and a fresh week of sales is added to the input "
-                 "data, this section shows predicted vs. actual ₹ saved per city. The "
-                 "scoring engine (score_live) is built and ready." + prior_note),
-    }
+    # Illustrative back-cast: the brand's OWN historical price moves in the
+    # holdout, scored as if the tool had recommended them, against REAL actual
+    # units. Demonstrates exactly what the live scorecard will show. Clearly
+    # labelled as illustrative — it is NOT a real acted result.
+    sample = (backtest or {}).get("live_sample") or []
+    if sample:
+        live = {
+            "available": True,
+            "illustrative": True,
+            "cells": sample,
+            "note": ("ILLUSTRATIVE back-cast — these are the brand's OWN historical price "
+                     "moves over the holdout window, scored as if the tool had recommended "
+                     "them, against the REAL units that occurred. It shows exactly what your "
+                     "weekly live scorecard will look like. It is NOT a real acted result "
+                     "(these moves weren't tool-driven); genuine receipts begin once you act "
+                     "on a recommendation and a fresh week of data arrives." + prior_note),
+        }
+    else:
+        live = {
+            "available": False,
+            "note": ("Live tracking begins after your first acted cycle. Once you set the "
+                     "recommended prices and a fresh week of sales is added, this section "
+                     "shows predicted vs. actual per city. The scoring engine (score_live) "
+                     "is built and ready." + prior_note),
+        }
     return {"backtest": backtest, "live": live}

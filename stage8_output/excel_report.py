@@ -790,20 +790,34 @@ def _build_track_record_sheet(ws, summary):
     r += 2
 
     # ── B. Live results ───────────────────────────────────────────────
-    cell(r, 1, "B.  Live results (predicted vs. actual, once you act)",
+    cell(r, 1, "B.  Live results — predicted vs. actual, per city",
          font=f(13, bold=True, color=INK)); r += 1
-    if live.get("available"):
-        saved = live.get("realised_saving")
-        saved_txt = f"  ·  realised saving: Rs.{saved:,.0f}/mo" if saved else ""
-        cell(r, 1, f"Prior run compared: {live.get('prior_run','—')}  ·  "
-                   f"cells matched: {live.get('n_cells_matched',0)}  ·  "
-                   f"cells acted: {live.get('n_cells_acted',0)}{saved_txt}",
-             font=f(10, color=BODY), align=al("left")); r += 1
-    cell(r, 1, live.get("note", ""), font=f(10, italic=True, color=MUTED),
+    # Honest banner first
+    cell(r, 1, live.get("note", ""), font=f(9, italic=True, color=MUTED),
          align=al("left", wrap=True))
     ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
-    ws.row_dimensions[r].height = 48
-    r += 2
+    ws.row_dimensions[r].height = 56
+    r += 1
+    if live.get("available") and live.get("cells"):
+        if live.get("illustrative"):
+            cell(r, 1, "↓ Illustrative (back-cast on the holdout — not a real acted cycle)",
+                 font=f(9, bold=True, color=ACCENT), align=al("left")); r += 1
+        hdr = ["Product · City", "Price was", "Price became",
+               "Predicted units", "Actual units", "Predicted vol Δ", "Actual vol Δ"]
+        for j, h in enumerate(hdr, 1):
+            cell(r, j, h, font=f(9, bold=True, color=INK),
+                 align=al("right" if j > 1 else "left"), border=b(top=BOLD_RULE, bottom=RULE))
+        r += 1
+        for c in live["cells"]:
+            cell(r, 1, c.get("label", ""), align=al("left"))
+            cell(r, 2, c.get("base_price"), fmt='"Rs."#,##0', align=al("right"))
+            cell(r, 3, c.get("achieved_price"), fmt='"Rs."#,##0', align=al("right"))
+            cell(r, 4, c.get("pred_units"), fmt="#,##0", align=al("right"))
+            cell(r, 5, c.get("actual_units"), fmt="#,##0", align=al("right"))
+            cell(r, 6, (c.get("pred_vol") or 0) / 100.0, fmt='+0.0%;-0.0%', align=al("right"))
+            cell(r, 7, (c.get("actual_vol") or 0) / 100.0, fmt='+0.0%;-0.0%', align=al("right"))
+            r += 1
+        r += 1
 
     cell(r, 1, "What this proves — and doesn't", font=f(11, bold=True, color=INK)); r += 1
     cell(r, 1, "Proves: the engine was graded on data it never saw, and its price→volume "
