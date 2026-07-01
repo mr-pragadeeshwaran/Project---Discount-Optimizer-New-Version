@@ -43,9 +43,10 @@ predicted-vs-actual results. Month 3 renewal is based on this sheet, not my word
 
 ## Minute 8–10 · Leakage (the thing nobody else shows)
 
-Open **Sheet 4 — Leakage**. Pick the Sunflower Oil row:
+Open **Sheet 4 — Leakage**. Pick the top Borrowed-% row (currently Sunflower
+Oil, ~12–18% in the worst cities — **read the live number off the sheet**):
 
-> "This product's promo bumps look great — but 13–18% of that bump is customers
+> "This product's promo bumps look great — but [read %] of that bump is customers
 > *stockpiling*: sales borrowed from next month, not new demand. And these cells
 > here are *inelastic* — discounting them mathematically can't pay, so we say
 > 'hold or raise', not 'spend more'. Most agencies count every promo unit as a win.
@@ -53,12 +54,16 @@ Open **Sheet 4 — Leakage**. Pick the Sunflower Oil row:
 
 ## Minute 10–12 · By Product (what your team actually uses)
 
-Open **Sheet 5 — By Product**. One row, e.g. Delhi:
+Open **Sheet 6 — Price Lifts** and take the TOP row (the biggest ₹/month), then
+show the same city on **Sheet 5 — By Product** for its week-by-week prices.
+**Read the live numbers off the sheet — never quote from memory; the data moves
+weekly and a stale number in this meeting kills the credibility story.**
 
-> "Current price ₹70.6 → target ₹79 over 4 weeks: ₹73.3, ₹76, ₹78.7, ₹79.
-> That single row is worth ≈₹42k/month. Your ops team executes this row on
-> Monday; that's the whole workflow. Cells the model isn't sure about say
-> 'Needs Test' — it refuses to guess."
+> "Current price ₹__ → target ₹__ over __ weeks — the exact weekly steps are
+> right here. This single row is worth ₹__/month; across the portfolio the
+> report currently identifies ≈₹1.76L/month recoverable. Your ops team executes
+> these rows on Monday; that's the whole workflow. Cells the model isn't sure
+> about say 'Needs Test' — it refuses to guess."
 
 ## Minute 12–14 · The skeptic's pack (only if their analyst is present)
 
