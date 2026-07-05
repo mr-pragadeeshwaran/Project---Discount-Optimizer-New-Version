@@ -134,15 +134,31 @@ def main():
     R["C7"] = (np.isfinite(oos) and oos >= OOS_R2_BAR,
                c7 + [f"out-of-sample R²={oos} ({S.get('oos_cats_pass','?')}/{S.get('oos_cats_total','?')} cats ≥0.75)"])
 
+    # ── C8: every banked cut category confirmed reliably-waste by Double ML ──
+    dml_path = os.path.join(pdir, "dml_results.json")
+    c8 = []
+    if os.path.exists(dml_path):
+        dml = {r["cat"]: r for r in json.load(open(dml_path))}
+        cut_cats = cut["category"].unique()
+        notconf = [c for c in cut_cats if c in dml and not dml[c]["waste"]]
+        missing = [c for c in cut_cats if c not in dml]
+        if notconf: c8.append(f"{len(notconf)} cut categories NOT confirmed waste by DML: {notconf}")
+        if missing: c8.append(f"{len(missing)} cut categories missing a DML estimate: {missing}")
+        c8ok = not c8
+        c8.append(f"DML-confirmed cut categories: {sum(1 for c in cut_cats if dml.get(c,{}).get('waste'))}/{len(cut_cats)}")
+    else:
+        c8ok = False; c8 = ["dml_results.json missing — run dml_estimate.py"]
+    R["C8"] = (c8ok, c8)
+
     allpass = True
-    for k in ["C1", "C2", "C3", "C4", "C5", "C6", "C7"]:
+    for k in ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"]:
         ok, rows = R[k]; allpass &= ok
         print(f"\n  {k}: {'PASS' if ok else 'FAIL'}")
         for r in rows[:12]: print(f"      - {r}")
     print("\n" + "-" * 76)
     print(f"  ACHIEVABLE (high-conf bucket-c): Rs.{ach:,.0f}/mo | all-conf Rs.{S['achievable_savings_mo_allconf']:,.0f}")
     print(f"  out-of-sample R² = {oos} (bar {OOS_R2_BAR}) | buckets: {S['bucket_counts']}")
-    print(f"  C1-C7: {'ALL PASS' if allpass else 'FAIL — see above'}")
+    print(f"  C1-C8: {'ALL PASS' if allpass else 'FAIL — see above'}")
     return 0 if allpass else 1
 
 
