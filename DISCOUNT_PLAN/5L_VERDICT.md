@@ -29,11 +29,25 @@ because the receipts don't support banking it as a certainty today.
 - Two risk factors stacked on the one category that decides ₹5L. That's a **test-first**, not a
   bank-first, opportunity.
 
-## What the data can and cannot prove
+## Confirmed three independent ways — ₹5L is not lockable from this data
 
-Observational data (even 6 months, even with reverse-causality controls) has taken Dal as far as it
-can. The residual uncertainty is **irreducible without an in-market test** — no extra modeling fixes
-it; more model tweaking would just be overfitting.
+After the first pass I pushed the method further (as the goal demands). All three agree:
+
+1. **Week block-bootstrap:** Dal stays "waste" in only **73%** of resamples (vs 97–100% for Rice/Millet/Spices).
+2. **Cluster-robust standard errors** (the proper panel tool, clustered by cell): Dal's marginal
+   discount effect CI is [+0.0026 ± 0.011] → **upper bound +0.0133, which sits ABOVE the break-even
+   threshold 0.0128.** Under correct inference we cannot rule out that Dal discount *works*.
+   The other categories clear it → cluster-robust locked savings = **₹2.91 L/mo** (matches the bootstrap).
+3. **Raw Dal data** — mean weekly units by discount band: 0–5% → 38 units, 10–15% → 102, 20–25% → 119,
+   25%+ → 195. **Volume rises ~5× with discount.** Cutting 22%→2% lands where observed volume is ~70%
+   lower. The model blames confounders for most of that, but "most" ≠ "all", and the CI agrees it's uncertain.
+
+**This is a genuine information limit, not a modeling shortfall.** More model tweaking would be
+overfitting. Only two things can lock the Dal ₹4.17 L: (a) an **in-market test** (cut 3ppt on half
+the Dal cells, watch 2–3 weeks), or (b) **new data that resolves the confounding** — the
+100%-empty `Competitor Price` column and a promo-calendar/deal-type flag are the specific fields
+that would let the model separate "Dal sells because it's discounted" from "Dal is discounted when
+it's already selling."
 
 ## The honest path to ₹5L
 
