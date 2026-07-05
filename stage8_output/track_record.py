@@ -345,20 +345,26 @@ def score_live(prior_recs_csv, feat_df, since_date=None):
 
 
 # ── assemble both for the Excel sheet / CLI ───────────────────────────
-def build_track_record(feat_df, current_run_dir, weeks=DEFAULT_WEEKS):
+def build_track_record(feat_df, current_run_dir, weeks=None):
     """
     Returns {'backtest': {...}, 'live': {...}} for the Track Record sheet.
 
-    The BACKTEST (Section A) is the real, working out-of-time validation —
-    it runs every time and is the engine's receipts today.
+    The BACKTEST (Section A) is the out-of-time validation. The holdout window
+    is capped at ~1/3 of the data span so a short (e.g. 90-day) export still
+    leaves enough training history — an 8-week holdout on 90 days would starve
+    the model.
 
-    LIVE results require a genuine "after the recommendation" period — a week
-    of fresh sales appended to the input data once prices have actually been
-    set. With a single static dataset there is no such period, so we show an
-    honest placeholder rather than a spurious number. The scoring function
-    `score_live()` is built and tested; it activates the moment the dataset
-    extends past a prior run's recommendation date in real weekly operation.
+    LIVE results require a genuine "after the recommendation" period. With a
+    single static dataset there is none, so we show an honest placeholder;
+    score_live() activates once the dataset extends past a prior run's date.
     """
+    if weeks is None:
+        try:
+            span = int((pd.to_datetime(feat_df[cfg.COL["date"]]).max()
+                        - pd.to_datetime(feat_df[cfg.COL["date"]]).min()).days) + 1
+        except Exception:
+            span = 365
+        weeks = min(DEFAULT_WEEKS, max(3, (span // 7) // 3))  # holdout ≤ ~1/3 of span
     backtest = run_backtest(feat_df, weeks=weeks)
 
     prior = find_prior_recommendations(current_run_dir)

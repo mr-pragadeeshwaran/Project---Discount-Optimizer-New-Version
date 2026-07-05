@@ -38,6 +38,17 @@ def generate_saturation_curves(elasticities_df: pd.DataFrame,
     C = cfg.COL
     print(f"  [Stage 5] Generating saturation curves for {len(elasticities_df)} cells...")
 
+    # Confidence thresholds scaled to the actual data window (a 90-day export
+    # shouldn't be force-capped at 'Low' by bars tuned for a full year).
+    try:
+        _span = int((pd.to_datetime(feat_df[C["date"]]).max()
+                     - pd.to_datetime(feat_df[C["date"]]).min()).days) + 1
+    except Exception:
+        _span = 365
+    _thr = _window_thresholds(_span)
+    print(f"  [Stage 5] Data window: {_span} days -> confidence bars "
+          f"High>={_thr['n_high']} obs, Medium>={_thr['n_med']} obs")
+
     curves = []
     for _, cell in elasticities_df.iterrows():
         pid            = cell["product_id"]
@@ -124,7 +135,7 @@ def generate_saturation_curves(elasticities_df: pd.DataFrame,
         )
 
         # ── Confidence assessment + reason ───────────────────────────
-        confidence, quality_note = _assess_confidence_with_reason(cell, cell_data)
+        confidence, quality_note = _assess_confidence_with_reason(cell, cell_data, _thr)
 
         # Observed price range info
         obs_disc_min = round(float(max(0, (stable_mrp - obs_price_max) / stable_mrp * 100)), 1)
@@ -203,7 +214,21 @@ def _fit_4pl(x, y):
         return None
 
 
-def _assess_confidence_with_reason(cell_row, cell_data):
+def _window_thresholds(span_days):
+    """
+    Confidence sample-size / price-level thresholds scaled to the analysis
+    window, so a dense 90-day export isn't force-capped at 'Low' by bars that
+    were tuned for a full year. Preserves the original bars at ~365 days.
+    """
+    scale = min(max(float(span_days) / 365.0, 0.25), 1.0)
+    return {
+        "n_high": max(45, int(200 * scale)), "n_med": max(28, int(100 * scale)),
+        "n_low": max(12, int(50 * scale)),
+        "lvl_high": max(6, int(10 * scale)), "lvl_med": max(3, int(5 * scale)),
+    }
+
+
+def _assess_confidence_with_reason(cell_row, cell_data, thr=None):
     """
     Returns (confidence, quality_note).
 
@@ -252,12 +277,14 @@ def _assess_confidence_with_reason(cell_row, cell_data):
         except Exception:
             pass
 
-    # Base tier from sample-size + price variation
-    if n >= 200 and n_disc >= 10 and disc_std >= 3.0:
+    # Base tier from sample-size + price variation (thresholds window-scaled)
+    if thr is None:
+        thr = _window_thresholds(365)
+    if n >= thr["n_high"] and n_disc >= thr["lvl_high"] and disc_std >= 3.0:
         base = "High"
-    elif n >= 100 and n_disc >= 5 and disc_std >= 2.0:
+    elif n >= thr["n_med"] and n_disc >= thr["lvl_med"] and disc_std >= 2.0:
         base = "Medium"
-    elif n >= 50 and disc_std >= 1.0:
+    elif n >= thr["n_low"] and disc_std >= 1.0:
         base = "Low"
     else:
         return "Needs Experiment", "Insufficient discount variation in history"

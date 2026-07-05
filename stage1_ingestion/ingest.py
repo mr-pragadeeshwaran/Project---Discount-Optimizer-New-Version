@@ -18,22 +18,67 @@ import numpy as np
 import v4_config as cfg
 
 
-def ingest_all_sales() -> pd.DataFrame:
-    """Load all Excel files from SALES_DATA_DIR into one combined DataFrame."""
-    pattern = os.path.join(cfg.SALES_DATA_DIR, "*.xlsx")
-    files = [f for f in glob.glob(pattern) if not os.path.basename(f).startswith("~")]
+# Map a platform "RCA"-style export (CSV) to the canonical raw column names the
+# pipeline expects. Unlisted columns pass through unchanged, so the older .xlsx
+# format (whose columns already match cfg.COL) still loads without a rename.
+RCA_RENAME = {
+    "Product ID": "PRODUCT_ID", "Platform": "GC_PLATFORM", "Date": "DATE",
+    "Product Title": "TITLE", "City": "GC_CITY", "Brand": "BRAND",
+    "Grammage": "GRAMMAGE",
+    "Offtake (MRP)": "OFFTAKE_MRP", "Offtake (Qty)": "OFFTAKE_QTY",
+    "Selling Price": "PRICE", "Wt. OSA %": "WT_AVAILABILITY_PCT",
+    "Wt. Discount %": "WT_DISCOUNT_PCT", "Est. Category Share": "MONTHLY_CAT_SHARE_MRP",
+    "Overall SOV": "MONTHLY_OVERALL_SOV", "Organic SOV": "MONTHLY_ORGANIC_SOV",
+    "Ad SOV": "MONTHLY_AD_SOV", "Wt. PPU": "WT_AVG_PPU_X100",
+    # "Grammage" and "MRP" already match cfg.COL, "Category" is kept as-is.
+}
 
+
+def _read_source_own(fpath, own_patterns, keep_cols):
+    """
+    Read one source file (.csv or .xlsx), map to canonical columns, and keep
+    only own-brand rows + recognised columns. CSVs (which can be very large,
+    all-brand exports) are read and filtered in chunks to stay memory-light.
+    """
+    brand = cfg.COL["brand"]
+
+    def _prep(df):
+        df = df.rename(columns=RCA_RENAME)
+        if own_patterns and brand in df.columns:
+            b = df[brand].astype(str).str.strip().str.lower()
+            df = df[b.apply(lambda x: _brand_matches(x, own_patterns))]
+        return df[[c for c in keep_cols if c in df.columns]].copy()
+
+    if fpath.lower().endswith(".csv"):
+        parts = [_prep(ch) for ch in
+                 pd.read_csv(fpath, dtype=str, chunksize=200000, low_memory=False)]
+        return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
+    return _prep(pd.read_excel(fpath))
+
+
+def ingest_all_sales() -> pd.DataFrame:
+    """Load all source files (.csv or .xlsx) from SALES_DATA_DIR into one df."""
+    files = []
+    for pat in ("*.csv", "*.xlsx"):
+        for f in glob.glob(os.path.join(cfg.SALES_DATA_DIR, pat)):
+            base = os.path.basename(f).lower()
+            if base.startswith("~") or "my sku" in base or "sku list" in base:
+                continue  # skip lock files and the SKU-master metadata file
+            files.append(f)
+    files = sorted(set(files))
     if not files:
-        raise FileNotFoundError(f"No .xlsx files found in {cfg.SALES_DATA_DIR}")
+        raise FileNotFoundError(f"No .csv/.xlsx sales files found in {cfg.SALES_DATA_DIR}")
 
     print(f"  [Stage 1] Found {len(files)} data files")
     frames = []
     pid = cfg.COL["product_id"]
+    own_patterns = resolve_own_brand_patterns()
+    keep_cols = set(cfg.COL.values()) | {"Category"}
     for fpath in sorted(files):
         fname = os.path.basename(fpath)
-        df = pd.read_excel(fpath)
+        df = _read_source_own(fpath, own_patterns, keep_cols)
         n_sku = df[pid].nunique() if pid in df.columns else "?"
-        print(f"    {fname}: {len(df):,} rows, {n_sku} SKUs")
+        print(f"    {fname}: {len(df):,} own-brand rows, {n_sku} SKUs")
         frames.append(df)
 
     combined = pd.concat(frames, ignore_index=True)
@@ -47,6 +92,12 @@ def ingest_all_sales() -> pd.DataFrame:
     # the friendly validate_quality check fires instead of a cryptic crash)
     C = cfg.COL
     combined[C["date"]] = pd.to_datetime(combined[C["date"]], errors="coerce")
+
+    # Optional columns some exports omit (e.g. RCA has no competitor price) —
+    # add as empty so downstream features degrade gracefully (RPI defaults to 1).
+    for opt in (C["competitor_price"], C["price"], C["offtake_mrp"]):
+        if opt not in combined.columns:
+            combined[opt] = np.nan
 
     numeric_cols = [C["offtake_mrp"], C["offtake_qty"], C["price"], C["mrp"],
                     C["availability"], C["discount_pct"], C["ad_sov"],
@@ -65,10 +116,19 @@ def ingest_all_sales() -> pd.DataFrame:
     else:
         print(f"  [Stage 1] ⚠ No GRAMMAGE column — grammage not used in cell identity")
 
-    # Detect category from title (dynamic: auto-derived unless keywords set)
-    own_patterns = resolve_own_brand_patterns()
-    combined["category"] = combined[C["title"]].apply(
-        lambda t: _detect_category(t, own_patterns))
+    # Category: prefer the platform-provided column when configured (best for a
+    # large catalogue); else auto-derive from titles / keyword map.
+    mode = getattr(cfg, "CATEGORY_MODE", "auto")
+    src = getattr(cfg, "CATEGORY_SOURCE_COLUMN", "Category")
+    if mode == "column" and src in combined.columns:
+        combined["category"] = (combined[src].astype(str).str.strip()
+                                .replace({"": "Other", "nan": "Other", "None": "Other"})
+                                .fillna("Other"))
+        print(f"  [Stage 1] Category source: platform column '{src}' "
+              f"-> {combined['category'].nunique()} categories")
+    else:
+        combined["category"] = combined[C["title"]].apply(
+            lambda t: _detect_category(t, own_patterns))
 
     # Deduplicate: keep last row per (SKU, Grammage, City, Date)
     # Grammage is included so 500g and 1kg variants are NEVER merged.

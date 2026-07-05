@@ -46,7 +46,12 @@ COL = {
 #                hardcoding needed — this is the right default for a new client.
 #   "keywords" → use the explicit CATEGORY_KEYWORDS map below (operator override,
 #                e.g. to merge/rename categories for a specific brand).
-CATEGORY_MODE = "auto"
+#   "column"   → use a category column already in the export (best for a large
+#                catalogue with a clean platform taxonomy). See CATEGORY_SOURCE_COLUMN.
+CATEGORY_MODE = "column"
+
+# When CATEGORY_MODE == "column", the raw column to read the category from.
+CATEGORY_SOURCE_COLUMN = "Category"
 
 # Only used when CATEGORY_MODE == "keywords". A category is assigned when ALL of
 # its keywords appear in the (lower-cased) product title.
