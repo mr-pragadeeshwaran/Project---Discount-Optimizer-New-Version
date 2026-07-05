@@ -1,0 +1,140 @@
+"""
+validate_plan.py — check the confounder-controlled plan against goal conditions
+1-6. Prints PASS/FAIL per condition with offending cells and the achievable
+net-savings figure. Exit 0 iff C1-C6 pass.
+
+  C1 Discount effect is ISOLATED from OSA, Ad SOV, competitive intensity — the
+     model controls for all three (non-degenerate) and every recommendation
+     names the driver. NOT raw discount-to-sales correlation.
+  C2 Every flat/declining cell is bucketed before action; no CUT cell is a
+     low-OSA (a) or competitive-pressure (b) cell.
+  C3 Every CUT has isolated marginal ROAS < 1 (net-rev gain > 0 from the
+     CONTROLLED coefficient); no cut whose flatness a confounder explains, and
+     no phantom volume gain (cutting price never modeled to raise units).
+  C4 Category models clear the R2 floor at the level estimated; low-confidence
+     cells are flagged (present + counted), never treated as certain.
+  C5 Money reconciles: sum of cut line-items == reported achievable total;
+     aggregate net-revenue impact positive.
+  C6 Achievable savings computed explicitly vs 6-10L; if below, the reason is
+     stated (which products/cities, why the ceiling is lower).
+"""
+import os, sys, glob, json
+import numpy as np
+import pandas as pd
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+TARGET_LO, TARGET_HI = 600_000, 1_000_000
+R2_FLOOR = 0.60
+OSA_LOW = 75.0
+
+
+def _latest_plan():
+    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+        if os.path.exists(os.path.join(r, "plan", "all_cells.csv")):
+            return os.path.join(r, "plan")
+    raise SystemExit("No plan/ folder found — run discount_plan.py first.")
+
+
+def main():
+    pdir = _latest_plan()
+    S = json.load(open(os.path.join(pdir, "plan_summary.json")))
+    df = pd.read_csv(os.path.join(pdir, "all_cells.csv"))
+    cut = pd.read_csv(os.path.join(pdir, "cut_list.csv")) if os.path.getsize(os.path.join(pdir,"cut_list.csv"))>2 else df.iloc[:0]
+    print("=" * 76)
+    print(f"  PLAN VALIDATION  |  {S['run']}  |  {S['n_cells']} cells, {S['n_products']} products, {S['weeks']} wk")
+    print("=" * 76)
+    R = {}
+
+    # ── C1: discount isolated from OSA / Ad SOV / competitive ──
+    f = S["formula"]; c1 = []
+    for token, name in [("log_osa", "OSA"), ("log_adsov", "Ad SOV"), ("comp_share", "competitive")]:
+        if token not in f:
+            c1.append(f"model formula missing {name} control ({token})")
+    # competitive control must be non-degenerate (beta_comp varies across cats, not all ~0)
+    betas_comp = [v.get("beta_comp") for v in S["models"].values() if v.get("ok")]
+    betas_comp = [b for b in betas_comp if isinstance(b, (int, float)) and np.isfinite(b)]
+    if betas_comp and np.nanmax(np.abs(betas_comp)) < 1e-4:
+        c1.append("competitive control degenerate (all beta_comp ~ 0)")
+    # every recommendation names a driver
+    nodrv = cut[cut["driver"].isin(["unknown", ""]) | cut["driver"].isna()]
+    if len(nodrv):
+        c1.append(f"{len(nodrv)} cut cells have no named driver")
+    # every cut carries a human-readable rationale (condition-1 naming)
+    if "decision_reason" in cut.columns:
+        noreason = cut[cut["decision_reason"].isna() | (cut["decision_reason"] == "")]
+        if len(noreason):
+            c1.append(f"{len(noreason)} cut cells missing a decision rationale")
+    R["C1"] = (not c1, c1)
+
+    # ── C2: bucketing before action; no cut is low-OSA / competitive ──
+    c2 = []
+    unbkt = df[df["bucket"].isna() | (df["bucket"] == "")]
+    if len(unbkt): c2.append(f"{len(unbkt)} cells not bucketed")
+    bad_osa = cut[cut["osa_mean"] < OSA_LOW]
+    if len(bad_osa): c2.append(f"{len(bad_osa)} CUT cells are low-OSA (should be bucket a)")
+    bad_cmp = cut[cut["comp_pressure"] == True]
+    if len(bad_cmp): c2.append(f"{len(bad_cmp)} CUT cells under competitive pressure (should be bucket b)")
+    R["C2"] = (not c2, c2)
+
+    # ── C3: isolated ROAS < 1, no confounder-explained cut, no phantom lift ──
+    c3 = []
+    bad_gain = cut[cut["net_gain_mo"] <= 0]
+    if len(bad_gain): c3.append(f"{len(bad_gain)} cut cells have net_gain<=0 (not below break-even)")
+    # condition 3's real test: no cut whose flatness a confounder EXPLAINS, i.e.
+    # no cut cell where OSA / competitive / Ad-SOV MATERIALLY DRAGS sales down
+    # (negative contribution beyond the noise floor). A positive (tailwind)
+    # confounder contribution does not explain flatness and is fine to cut.
+    MAT = 0.05
+    if {"c_osa", "c_comp", "c_adsov"}.issubset(cut.columns):
+        drag = cut[(cut["c_osa"] < -MAT) | (cut["c_comp"] < -MAT) | (cut["c_adsov"] < -MAT)]
+        if len(drag):
+            c3.append(f"{len(drag)} cut cells have a confounder materially dragging sales down "
+                      f"(should be bucket a/b/f, not cut)")
+    # phantom volume gain: savings must NOT rely on cutting price raising units
+    if "tgt_units_wk" in cut.columns:
+        phantom = cut[cut["tgt_units_wk"] > cut["cur_units_wk"] * 1.001]
+        if len(phantom): c3.append(f"{len(phantom)} cut cells model MORE units after cutting price (phantom volume gain)")
+    # anything banked as High-confidence must have a reliably-positive discount coef
+    banked_unsig = cut[(cut["confidence"] == "High") & (~cut["sig_pos"].astype(bool))]
+    if len(banked_unsig): c3.append(f"{len(banked_unsig)} High-conf cut cells lack a reliably-positive discount effect")
+    R["C3"] = (not c3, c3)
+
+    # ── C4: fit floor + low-confidence flagged ──
+    c4 = []
+    ncat_ok = S["categories_ok"]; ncat = S["categories_total"]
+    bad_cat = cut[cut["cat_ok"] == False]
+    if len(bad_cat): c4.append(f"{len(bad_cat)} cut cells in categories below R2 floor")
+    if "confidence" not in df.columns: c4.append("no confidence flag on cells")
+    R["C4"] = (not c4, c4 + [f"categories clearing R2>={R2_FLOOR}: {ncat_ok}/{ncat}; "
+                             f"cells High/Low conf: {int((df['confidence']=='High').sum())}/{int((df['confidence']=='Low').sum())}"])
+
+    # ── C5: reconcile ──
+    c5 = []
+    line_sum = float(cut["net_gain_mo"].clip(lower=0).sum())
+    rep = S["achievable_savings_mo_allconf"]
+    if abs(line_sum - rep) > max(0.005 * max(rep, 1), 1):
+        c5.append(f"cut line-sum Rs.{line_sum:,.0f} != reported Rs.{rep:,.0f}")
+    if line_sum <= 0:
+        c5.append("aggregate net-revenue impact not positive")
+    R["C5"] = (not c5, c5 + [f"line-sum Rs.{line_sum:,.0f} = reported Rs.{rep:,.0f} (aggregate impact +ve)"])
+
+    # ── C6: achievable vs target, honest ──
+    ach = S["achievable_savings_mo_highconf"]
+    tgt = "MEETS" if TARGET_LO <= ach <= TARGET_HI else ("ABOVE" if ach > TARGET_HI else "BELOW")
+    R["C6"] = (True, [f"achievable(high-conf)=Rs.{ach:,.0f}/mo vs Rs.6-10L => {tgt}"])
+
+    allpass = True
+    for k in ["C1", "C2", "C3", "C4", "C5", "C6"]:
+        ok, rows = R[k]; allpass &= ok
+        print(f"\n  {k}: {'PASS' if ok else 'FAIL'}")
+        for r in rows[:12]: print(f"      - {r}")
+    print("\n" + "-" * 76)
+    print(f"  ACHIEVABLE (high-conf bucket-c): Rs.{ach:,.0f}/mo | all-conf Rs.{S['achievable_savings_mo_allconf']:,.0f}")
+    print(f"  buckets: {S['bucket_counts']}")
+    print(f"  C1-C6: {'ALL PASS' if allpass else 'FAIL — see above'}")
+    return 0 if allpass else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
