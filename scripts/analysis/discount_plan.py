@@ -105,6 +105,7 @@ def build_panel(fact_path):
     p["log_osa"]   = np.log(p["osa"].clip(lower=1.0))
     p["log_adsov"] = np.log1p(p["ad_sov"].clip(lower=0))
     p["comp_share"] = np.log1p(p["cat_share"].clip(lower=0))   # higher = we dominate
+    p["disc_sq"]   = p["disc"] ** 2                             # nonlinear (saturating) discount response
     p["is_weekend"] = 0
     return p
 
@@ -113,8 +114,7 @@ def build_panel(fact_path):
 def fit_models(panel):
     """One Huber-robust OLS per category: cell FE + isolated discount + controls."""
     months = sorted(panel["month"].unique())
-    month_terms = " + ".join([f"C(month)"]) if len(months) > 1 else ""
-    base = "np.log1p(units) ~ C(cell_id) + disc + log_osa + log_adsov + comp_share"
+    base = "np.log1p(units) ~ C(cell_id) + disc + disc_sq + log_osa + log_adsov + comp_share"
     formula = base + (" + C(month)" if len(months) > 1 else "")
 
     out = {}
@@ -146,9 +146,10 @@ def fit_models(panel):
         r2_within = 1 - ssr_w / sst_w if sst_w > 0 else np.nan
         beta_disc = float(m.params.get("disc", np.nan))
         se_disc   = float(m.bse.get("disc", np.nan))
+        beta_disc2 = float(m.params.get("disc_sq", 0.0))
         out[cat] = {
             "ok": r2_full >= CAT_R2_FLOOR, "reason": "",
-            "beta_disc": beta_disc, "se_disc": se_disc,
+            "beta_disc": beta_disc, "se_disc": se_disc, "beta_disc2": beta_disc2,
             "beta_osa": float(m.params.get("log_osa", np.nan)),
             "beta_adsov": float(m.params.get("log_adsov", np.nan)),
             "beta_comp": float(m.params.get("comp_share", np.nan)),
@@ -159,13 +160,21 @@ def fit_models(panel):
 
 
 # ── 3. per-cell diagnosis, attribution, bucketing ───────────────────────────
-def _breakeven_disc(beta_disc):
-    """Discount level (ppt) that maximizes net revenue for a semi-log response.
-       N(d) = MRP(1-d/100)*U0*exp(beta*d).  dN/dd=0 -> d* = 100(1 - 1/(100 beta))."""
-    if not np.isfinite(beta_disc) or beta_disc <= 0:
+def _units_factor(d, b1, b2):
+    """Relative units at discount d vs d=0 for the (quadratic) semi-log response."""
+    return np.exp(b1 * d + b2 * d * d)
+
+
+def _breakeven_disc(b1, b2, d_max=60.0):
+    """Net-revenue-maximizing discount for a QUADRATIC semi-log response:
+       N(d) ∝ (1 - d/100) * exp(b1 d + b2 d^2).  Grid-search the interior optimum
+       over [0, d_max] — handles saturation (b2<0) with a real interior peak, and
+       falls back to the corner when discount only destroys net revenue."""
+    if not np.isfinite(b1):
         return 0.0
-    d = 100.0 * (1.0 - 1.0 / (100.0 * beta_disc))
-    return float(np.clip(d, 0.0, 90.0))
+    grid = np.arange(0.0, d_max + 0.5, 0.5)
+    nr = (1.0 - grid / 100.0) * _units_factor(grid, b1, b2 if np.isfinite(b2) else 0.0)
+    return float(grid[int(np.argmax(nr))])
 
 
 def diagnose(panel, models):
@@ -194,18 +203,17 @@ def diagnose(panel, models):
         cs_drop = (e_cs - r_cs) / e_cs if e_cs > 0 else 0.0
         comp_pressure = cs_drop > COMP_DROP_PCT
 
-        beta = mm.get("beta_disc", np.nan)
-        se   = mm.get("se_disc", np.nan)
+        beta  = mm.get("beta_disc", np.nan)
+        se    = mm.get("se_disc", np.nan)
+        beta2 = mm.get("beta_disc2", 0.0) if np.isfinite(mm.get("beta_disc2", 0.0)) else 0.0
         # discount effect is reliably POSITIVE only if beta - 1.96*se > 0
         sig_pos = bool(mm.get("ok") and np.isfinite(beta) and np.isfinite(se) and (beta - 1.96*se > 0))
-        # counterfactual volume response is clamped >=0: cutting price can never
-        # be modeled to RAISE units (kills reverse-causality phantom gains).
-        beta_eff = max(beta, 0.0) if np.isfinite(beta) else 0.0
         # attribution: contribution of each factor to the recent-vs-early log-units delta
         def dmean(col): return recent[col].mean() - early[col].mean()
+        d_r, d_e = recent["disc"].mean(), early["disc"].mean()
         contrib = {"discount": 0.0, "osa": 0.0, "ad_sov": 0.0, "competitive": 0.0}
         if mm.get("ok"):
-            contrib["discount"]    = beta                 * dmean("disc")
+            contrib["discount"]    = (beta*d_r + beta2*d_r*d_r) - (beta*d_e + beta2*d_e*d_e)
             contrib["osa"]         = mm["beta_osa"]        * (np.log(max(recent['osa'].mean(),1)) - np.log(max(early['osa'].mean(),1)))
             contrib["ad_sov"]      = mm["beta_adsov"]      * (np.log1p(recent['ad_sov'].mean()) - np.log1p(early['ad_sov'].mean()))
             contrib["competitive"] = mm["beta_comp"]       * (np.log1p(recent['cat_share'].mean()) - np.log1p(early['cat_share'].mean()))
@@ -217,13 +225,15 @@ def diagnose(panel, models):
         else:
             driver = "unknown"
 
-        # isolated break-even & net-rev gain of cutting to break-even
-        be_disc = _breakeven_disc(beta)
+        # isolated break-even (interior optimum of the quadratic response)
+        be_disc = _breakeven_disc(beta, beta2)
         tgt_disc = min(cur_disc, be_disc)              # never raise discount
-        # units at target discount via the CLAMPED coefficient (no phantom lift)
+        # units at target discount via the model, CLAMPED so cutting price can
+        # never be modeled to RAISE units (kills reverse-causality phantom gains).
         if mm.get("ok"):
             tgt_price = mrp * (1 - tgt_disc / 100.0)
-            tgt_units = cur_units_wk * np.exp(beta_eff * (tgt_disc - cur_disc))
+            ratio = _units_factor(tgt_disc, beta, beta2) / max(_units_factor(cur_disc, beta, beta2), 1e-9)
+            tgt_units = cur_units_wk * min(ratio, 1.0)
         else:
             tgt_price, tgt_units = cur_price, cur_units_wk
         cur_nr = cur_units_wk * cur_price
