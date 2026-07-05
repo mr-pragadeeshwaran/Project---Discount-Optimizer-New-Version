@@ -131,7 +131,32 @@ def apply_guardrails_and_tier(economics_df: pd.DataFrame) -> pd.DataFrame:
         ((df["rec_revenue_day"] - df["current_revenue_day"]) / df["current_revenue_day"] * 100).round(1),
         0
     )
-    df["rec_monthly_savings"] = ((df["current_discount_pct"] - df["rec_discount_pct"]) / 100 * df["mrp"] * df["current_units_day"] * 30).round(0)
+    # ── Net-revenue gate: what is a cut ACTUALLY worth? ─────────────
+    # "Savings" must be the change in NET REVENUE (units x selling price) once
+    # at the proven-floor target — NOT the raw discount reduction, which
+    # ignores the sales you lose. On an elastic cell, cutting discount loses
+    # more revenue than the discount it saves -> negative gain -> that discount
+    # is WORKING, so the cell is NOT waste (tiered Hold below). This is the fix
+    # for the case where cutting looked like a "saving" but destroyed revenue.
+    _floor = pd.to_numeric(df.get("historical_floor_disc"), errors="coerce").fillna(
+        df["current_discount_pct"])
+    _tgt = np.minimum(_floor.astype(float), df["current_discount_pct"].astype(float))
+    _el  = pd.to_numeric(df.get("price_elasticity", df.get("elasticity")),
+                         errors="coerce").fillna(-1.5)
+    _bg  = pd.to_numeric(df.get("badge_sensitivity", df.get("discount_sensitivity")),
+                         errors="coerce").fillna(0.0)
+    _cd  = df["current_discount_pct"].astype(float)
+    _mrp = df["mrp"].astype(float)
+    _cu  = df["current_units_day"].astype(float)
+    _cp  = (_mrp * (1 - _cd / 100)).clip(lower=1.0)
+    _tp  = (_mrp * (1 - _tgt / 100)).clip(lower=1.0)
+    _tu  = _cu * (_tp / _cp) ** _el * np.exp(_bg * (_tgt - _cd))
+    _cur_nr = _cu * _cp
+    df["net_rev_gain_mo"]  = (((_tu * _tp) - _cur_nr) * 30).round(0)
+    df["net_rev_gain_pct"] = np.where(_cur_nr > 0,
+                                      ((_tu * _tp - _cur_nr) / _cur_nr * 100), 0).round(1)
+    # Honest headline "savings" = the net-revenue gain (was discount-spend saved).
+    df["rec_monthly_savings"] = df["net_rev_gain_mo"]
     # Price-led summary (what customers actually see on Blinkit)
     df["price_change_inr"] = (df["rec_price"] - df["current_price"]).round(1)
     df["price_change_pct"] = np.where(
@@ -213,29 +238,25 @@ def _assign_tier(row) -> str:
     if abs(gap) <= 2:
         return "Hold"
 
-    # Over-discounting: classify by THIS-CYCLE economic outcome
+    # Over-discounting: only GENUINE waste is actionable.
     #
-    # Strong Cut = "fast-track approve" — clear net economic win with bounded
-    # risk this week. Calibrated for the post-tuning elasticity range (-1 to -4):
-    #   savings ≥ ₹5K/month  AND  this-cycle vol drop ≤ 8%
-    # AND curve-confidence high/medium AND model-confidence HIGH/MEDIUM
-    # (the model-confidence gate is the May 2026 scale-up safety rail —
-    # see MODEL_EXPERIMENTS.md for the multi-factor score derivation).
-    if (rec_savings >= 5000 and
-            abs(rec_vol_drop) <= 8.0 and
+    # Genuine waste = pulling the discount back to the proven floor RAISES net
+    # revenue (units x selling price). If it LOWERS net revenue, the discount is
+    # working (elastic cell) and must be left alone -> Hold. This replaces the
+    # old rule that treated any discount reduction as a "saving" while ignoring
+    # the volume it destroyed.
+    net_gain_pct = float(row.get("net_rev_gain_pct", 0.0))
+    if net_gain_pct < 0.2:
+        return "Hold"      # cutting adds no net revenue -> discount is working
+
+    # Strong Cut = clear, high-confidence net-revenue win.
+    if (net_gain_pct >= 1.0 and
             confidence in ("High", "Medium") and
             model_tier in ("HIGH", "MEDIUM", "")):
         return "Strong Cut"
 
-    # Trade-off = "review individually" — positive savings, larger volume risk,
-    # or thinner data. The brand team should sanity-check these before acting.
-    if (rec_savings > 0 and
-            abs(rec_vol_drop) <= 20.0 and
-            confidence in ("High", "Medium", "Low")):
-        return "Trade-off"
-
-    if rec_savings > 0:
-        return "Trade-off"
+    # Trade-off = positive but smaller gain, or thinner data — review first.
+    return "Trade-off"
 
     return "Hold"
 

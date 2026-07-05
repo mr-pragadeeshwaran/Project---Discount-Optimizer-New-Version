@@ -359,8 +359,13 @@ def _build_waste_table(df):
     need a price test before any cut, so they belong in 'Needs Price Test'
     rather than as a savings line item.
     """
+    # TRUE WASTE = pulling the discount back RAISES net revenue (units x selling
+    # price). Cells where cutting would lower net revenue are elastic — the
+    # discount is working there — so they are excluded, not counted as savings.
+    ngain = df.get("net_rev_gain_mo")
     waste_mask = (
-        (df["current_discount_pct"] > df["elbow_discount_pct"]) &
+        ((ngain > 0) if ngain is not None
+         else (df["current_discount_pct"] > df["elbow_discount_pct"])) &
         (df["confidence"] != "Needs Experiment")
     )
     waste = df[waste_mask].copy()
@@ -369,9 +374,14 @@ def _build_waste_table(df):
         return _empty_waste_df()
 
     waste["wasted_discount_pct"] = waste["current_discount_pct"] - waste["elbow_discount_pct"]
-    waste["wasted_inr_per_month"] = (
-        waste["wasted_discount_pct"] / 100 * waste["mrp"] * waste["monthly_units"]
-    ).round(0)
+    # Honest headline: the recoverable amount is the NET-REVENUE gain, not the
+    # raw discount reduction (which ignored the sales lost).
+    if "net_rev_gain_mo" in waste.columns:
+        waste["wasted_inr_per_month"] = waste["net_rev_gain_mo"].round(0)
+    else:
+        waste["wasted_inr_per_month"] = (
+            waste["wasted_discount_pct"] / 100 * waste["mrp"] * waste["monthly_units"]
+        ).round(0)
     # Price-led view (what customers actually see on Blinkit)
     waste["current_price"]      = (waste["mrp"] * (1 - waste["current_discount_pct"] / 100)).round(1)
     waste["eventual_price"]     = (waste["mrp"] * (1 - waste["elbow_discount_pct"]   / 100)).round(1)
