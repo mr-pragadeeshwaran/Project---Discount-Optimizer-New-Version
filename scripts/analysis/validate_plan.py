@@ -24,8 +24,9 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-TARGET_LO, TARGET_HI = 600_000, 1_000_000
+TARGET_LO, TARGET_HI = 500_000, 1_000_000   # goal: save ₹5L
 R2_FLOOR = 0.60
+OOS_R2_BAR = 0.75                            # goal: model accuracy R² ≥ 0.75 (out-of-sample)
 OSA_LOW = 75.0
 
 
@@ -95,9 +96,11 @@ def main():
     if "tgt_units_wk" in cut.columns:
         phantom = cut[cut["tgt_units_wk"] > cut["cur_units_wk"] * 1.001]
         if len(phantom): c3.append(f"{len(phantom)} cut cells model MORE units after cutting price (phantom volume gain)")
-    # anything banked as High-confidence must have a reliably-positive discount coef
-    banked_unsig = cut[(cut["confidence"] == "High") & (~cut["sig_pos"].astype(bool))]
-    if len(banked_unsig): c3.append(f"{len(banked_unsig)} High-conf cut cells lack a reliably-positive discount effect")
+    # every cut must be CI-backed below break-even: even the optimistic edge of
+    # the discount effect (marg_beta + 1.96 se) fails to pay for itself
+    if "reliably_waste" in cut.columns:
+        notrel = cut[~cut["reliably_waste"].astype(bool)]
+        if len(notrel): c3.append(f"{len(notrel)} cut cells are NOT reliably below break-even (CI overlaps pay-threshold)")
     R["C3"] = (not c3, c3)
 
     # ── C4: fit floor + low-confidence flagged ──
@@ -119,20 +122,27 @@ def main():
         c5.append("aggregate net-revenue impact not positive")
     R["C5"] = (not c5, c5 + [f"line-sum Rs.{line_sum:,.0f} = reported Rs.{rep:,.0f} (aggregate impact +ve)"])
 
-    # ── C6: achievable vs target, honest ──
+    # ── C6: achievable vs ₹5L target ──
     ach = S["achievable_savings_mo_highconf"]
-    tgt = "MEETS" if TARGET_LO <= ach <= TARGET_HI else ("ABOVE" if ach > TARGET_HI else "BELOW")
-    R["C6"] = (True, [f"achievable(high-conf)=Rs.{ach:,.0f}/mo vs Rs.6-10L => {tgt}"])
+    c6 = [] if ach >= TARGET_LO else [f"high-conf achievable Rs.{ach:,.0f}/mo is BELOW the Rs.5L target"]
+    R["C6"] = (ach >= TARGET_LO, c6 + [f"achievable(high-conf)=Rs.{ach:,.0f}/mo vs Rs.5L target => "
+                                       f"{'MEETS' if ach>=TARGET_LO else 'BELOW'}"])
+
+    # ── C7: model accuracy — out-of-sample R² ≥ 0.75 ──
+    oos = S.get("oos_r2", np.nan)
+    c7 = [] if (np.isfinite(oos) and oos >= OOS_R2_BAR) else [f"out-of-sample R²={oos} below {OOS_R2_BAR} bar"]
+    R["C7"] = (np.isfinite(oos) and oos >= OOS_R2_BAR,
+               c7 + [f"out-of-sample R²={oos} ({S.get('oos_cats_pass','?')}/{S.get('oos_cats_total','?')} cats ≥0.75)"])
 
     allpass = True
-    for k in ["C1", "C2", "C3", "C4", "C5", "C6"]:
+    for k in ["C1", "C2", "C3", "C4", "C5", "C6", "C7"]:
         ok, rows = R[k]; allpass &= ok
         print(f"\n  {k}: {'PASS' if ok else 'FAIL'}")
         for r in rows[:12]: print(f"      - {r}")
     print("\n" + "-" * 76)
     print(f"  ACHIEVABLE (high-conf bucket-c): Rs.{ach:,.0f}/mo | all-conf Rs.{S['achievable_savings_mo_allconf']:,.0f}")
-    print(f"  buckets: {S['bucket_counts']}")
-    print(f"  C1-C6: {'ALL PASS' if allpass else 'FAIL — see above'}")
+    print(f"  out-of-sample R² = {oos} (bar {OOS_R2_BAR}) | buckets: {S['bucket_counts']}")
+    print(f"  C1-C7: {'ALL PASS' if allpass else 'FAIL — see above'}")
     return 0 if allpass else 1
 
 
