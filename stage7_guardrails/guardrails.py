@@ -238,6 +238,14 @@ def _assign_tier(row) -> str:
     if abs(gap) <= 2:
         return "Hold"
 
+    # R² TRUST FLOOR: only act where the SKU-group response model is trustworthy
+    # (R² >= 0.80 for that product's pooled cities). Below the floor we don't
+    # trust the elasticity enough to act -> route to a price test.
+    sku_r2 = row.get("sku_group_r2", np.nan)
+    sku_r2 = float(sku_r2) if pd.notna(sku_r2) else 0.0
+    if sku_r2 < 0.80:
+        return "Do Not Act"
+
     # Over-discounting: only GENUINE waste is actionable.
     #
     # Genuine waste = pulling the discount back to the proven floor RAISES net

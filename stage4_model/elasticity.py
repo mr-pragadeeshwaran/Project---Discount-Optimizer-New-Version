@@ -245,6 +245,15 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
     else:
         elasticities["cell_test_r2"] = np.nan
 
+    # ── Per-SKU-group R² (the response-model trust floor) ──────────
+    # A single cell's daily units are too noisy to fit well, but the SKU as a
+    # whole (its cities pooled, at the 3ppt-discount grain the decision uses)
+    # is the right grain to judge whether the response model is trustworthy.
+    # Cuts are only acted on where this clears the R² floor (Stage 7 gate).
+    _all = pd.concat([train, test_eval], ignore_index=True) if len(test_eval) else train
+    sku_r2 = _compute_sku_group_r2(elasticities, _all, has_grammage)
+    elasticities["sku_group_r2"] = elasticities["product_id"].map(sku_r2).round(3)
+
     # ── Per-cell confidence score (0-100) and tier ─────────────────
     # Combines: data density, price variation, in-sample fit,
     # elasticity sign correctness, elasticity plausibility, and CI
@@ -477,10 +486,23 @@ def _build_elasticity_table(
 
         stable_mrp = float(gdf["stable_mrp"].median()) if "stable_mrp" in gdf.columns \
                      else float(gdf[COL["mrp"]].median())
-        avg_price  = float(gdf["selling_price"].mean()) if "selling_price" in gdf.columns \
-                     else float(gdf[COL["price"]].mean())
         avg_units  = float(gdf[COL["offtake_qty"]].mean())
-        avg_disc   = float(gdf["discount_pct"].mean()) if "discount_pct" in gdf.columns else 0.0
+        # VOLUME-WEIGHTED current state so portfolio totals reconcile exactly to
+        # source: avg units x avg_price == mean(units x price), and the discount
+        # spend matches mean(units x discount). Simple means don't reconcile
+        # because units and discount correlate on promo days.
+        _u = pd.to_numeric(gdf[COL["offtake_qty"]], errors="coerce").fillna(0.0)
+        _usum = float(_u.sum())
+        if "selling_price" in gdf.columns and _usum > 0:
+            avg_price = float((_u * pd.to_numeric(gdf["selling_price"], errors="coerce")).sum() / _usum)
+        else:
+            avg_price = float(gdf.get("selling_price", gdf[COL["price"]]).mean())
+        if "discount_pct" in gdf.columns and _usum > 0:
+            avg_disc = float((_u * pd.to_numeric(gdf["discount_pct"], errors="coerce")).sum() / _usum)
+        elif "discount_pct" in gdf.columns:
+            avg_disc = float(gdf["discount_pct"].mean())
+        else:
+            avg_disc = 0.0
         disc_std   = float(gdf["discount_pct"].std())   if "discount_pct" in gdf.columns else 0.0
         n_disc_lvl = int(gdf["discount_pct"].round(0).nunique()) if "discount_pct" in gdf.columns else 0
 
@@ -834,6 +856,58 @@ def _simple_r2(a, p) -> float:
     ss_res = ((a[m] - p[m]) ** 2).sum()
     ss_tot = ((a[m] - a[m].mean()) ** 2).sum()
     return max(1.0 - ss_res / ss_tot, -9.99) if ss_tot > 0 else 0.0
+
+
+def _compute_sku_group_r2(elasticities: pd.DataFrame, data: pd.DataFrame,
+                          has_grammage: bool) -> dict:
+    """
+    R² of the DECISION response model per SKU/platform group (product_id), pooling
+    that SKU's cities at the 3ppt-discount-bin grain — the trust floor for acting.
+    A single cell is too noisy to fit; the SKU pooled is the right grain.
+    Returns {product_id: r2}.
+    """
+    COL = cfg.COL
+    qty = COL["offtake_qty"]
+    if elasticities is None or elasticities.empty or data is None or data.empty:
+        return {}
+    if "selling_price" not in data.columns or "discount_pct" not in data.columns:
+        return {}
+
+    def _cid(df):
+        if has_grammage and COL["grammage"] in df.columns:
+            return (df[COL["product_id"]].astype(str) + "_" + df[COL["grammage"]].astype(str)
+                    + "_" + df[COL["city"]].astype(str))
+        return df[COL["product_id"]].astype(str) + "_" + df[COL["city"]].astype(str)
+
+    base = elasticities.set_index("cell_id")[
+        ["price_elasticity", "avg_units", "avg_selling_price", "avg_discount_pct",
+         "badge_sensitivity", "product_id"]].to_dict("index")
+    d = data.copy()
+    d["cell_id"] = _cid(d)
+    rows = []
+    for _, r in d.iterrows():
+        b = base.get(r["cell_id"])
+        if not b or b["avg_selling_price"] <= 0 or b["avg_units"] <= 0:
+            continue
+        price = float(r["selling_price"]); disc = float(r["discount_pct"])
+        if price <= 0:
+            continue
+        lu = (np.log(b["avg_units"]) + float(b["price_elasticity"]) * np.log(price / b["avg_selling_price"])
+              + float(b["badge_sensitivity"]) * (disc - b["avg_discount_pct"]))
+        rows.append({"pid": b["product_id"], "cell_id": r["cell_id"],
+                     "bin": int(disc // 3 * 3), "actual": float(r[qty]),
+                     "pred": float(np.exp(np.clip(lu, -3, 10)))})
+    if not rows:
+        return {}
+    rdf = pd.DataFrame(rows)
+    out = {}
+    for pid, g in rdf.groupby("pid"):
+        gg = g.groupby(["cell_id", "bin"]).agg(n=("actual", "size"),
+                                               a=("actual", "mean"), p=("pred", "mean")).reset_index()
+        gg = gg[gg["n"] >= 3]
+        if len(gg) >= 3:
+            out[pid] = _simple_r2(gg["a"].values, gg["p"].values)
+    return out
 
 
 def _compute_decision_diagnostics(elasticities: pd.DataFrame, train: pd.DataFrame,

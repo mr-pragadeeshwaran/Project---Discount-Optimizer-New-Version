@@ -180,12 +180,11 @@ def _enrich_with_recent_data(df, feat_df):
         if grammage and C["grammage"] in recent.columns:
             mask = mask & (recent[C["grammage"]] == grammage)
 
-        cell_recent = recent[mask]
-        if not cell_recent.empty:
-            df.at[idx, "current_discount_pct"] = round(float(cell_recent["discount_pct"].mean()), 1)
-            df.at[idx, "monthly_units"] = round(float(cell_recent[C["offtake_qty"]].mean() * 30), 0)
-        else:
-            df.at[idx, "monthly_units"] = round(float(row.get("current_units_day", 0)) * 30, 0)
+        # Keep the volume-weighted full-window current state from Stage 4 (do NOT
+        # overwrite current_discount_pct with a last-30 simple mean — that mixed
+        # windows and broke reconciliation with source). monthly_units is just
+        # the daily current units annualised, so the totals sum from source.
+        df.at[idx, "monthly_units"] = round(float(row.get("current_units_day", 0)) * 30, 0)
 
     return df
 
