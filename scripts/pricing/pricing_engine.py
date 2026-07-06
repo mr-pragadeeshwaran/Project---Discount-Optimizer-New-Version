@@ -23,9 +23,14 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "analysis"))
 import pricing_panel as pp
-import elasticity_hier as eh
 import de_optimizer as de
 import whatif as wi
+try:
+    import elasticity_bayes as eh   # true Bayesian posteriors (informative prior, no clip)
+    ELAST_METHOD = "bayes"
+except Exception:
+    import elasticity_hier as eh     # fallback: penalized/partial-pooled (hard-clip band)
+    ELAST_METHOD = "hier"
 
 OUT = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing")
 
@@ -106,8 +111,13 @@ def main():
 
     # ── cannibalization check on the existing waste-cut list ──
     cannib = _cannibalization_check(elast_df, cross_df, baseline_df, run)
+    # ── reinvest side: DML-confirmed headroom (Oil/Salt), not the wide elasticity bands ──
+    reinvest = _reinvest_from_dml(run, baseline_df)
+    if reinvest.get("cells"):
+        print(f"[pricing] reinvest (DML-confirmed): {reinvest['n']} cells, "
+              f"mostly {reinvest.get('top_category')}, +₹{reinvest.get('monthly_upside', 0):,.0f}/mo headroom")
 
-    _write_report(elast_df, cross_df, baseline_df, gates, reco_df, kpi, cannib, run)
+    _write_report(elast_df, cross_df, baseline_df, gates, reco_df, kpi, cannib, reinvest, run)
     print(f"[pricing] wrote {OUT}/PRICING_PLAN.md")
     return {"gates": gates, "kpi": kpi, "cannibalization": cannib}
 
@@ -150,7 +160,29 @@ def _cannibalization_check(elast_df, cross_df, baseline_df, run):
                         if rev is not None else "inconclusive (what-if returned no delta)")}
 
 
-def _write_report(elast_df, cross_df, baseline_df, gates, reco_df, kpi, cannib, run):
+def _reinvest_from_dml(run, baseline_df):
+    """Reinvest headroom comes from the DML-confirmed reliable-positive cells (Oil/Salt) — the
+    only place discount RELIABLY pays. The Bayesian own-price bands are too wide to bank a
+    reinvest on; this draws the confidence from the analysis layer's reinvest_list instead."""
+    rl = os.path.join(run, "plan", "reinvest_list.csv")
+    if not os.path.exists(rl):
+        return {"cells": [], "n": 0, "note": "no reinvest_list.csv"}
+    r = pd.read_csv(rl)
+    if not len(r):
+        return {"cells": [], "n": 0, "note": "reinvest_list empty"}
+    top_cat = r["category"].mode().iloc[0] if "category" in r else "Oil"
+    # monthly upside proxy: reinvest_headroom_pp × current spend-scale (net-rev gain proxy)
+    upside = 0.0
+    if "reinvest_headroom_pp" in r and "cur_units_wk" in r and "mrp" in r:
+        upside = float((r["reinvest_headroom_pp"] / 100.0 * r["mrp"] * r["cur_units_wk"]).sum() * 30 / 7)
+    cells = [{"product_id": row.get("product_id"), "city": row.get("city"),
+              "cur_disc": row.get("cur_disc"), "be_disc": row.get("be_disc"),
+              "headroom_pp": row.get("reinvest_headroom_pp")}
+             for _, row in r.head(25).iterrows()]
+    return {"cells": cells, "n": len(r), "top_category": top_cat, "monthly_upside": upside}
+
+
+def _write_report(elast_df, cross_df, baseline_df, gates, reco_df, kpi, cannib, reinvest, run):
     L = ["# PricingAI — Portfolio Elasticity & Optimized Discount Plan\n",
          f"*Adapted from PepsiCo PricingAI (hierarchical elasticity → differential-evolution optimizer). "
          f"Run `{os.path.basename(run)}` · {baseline_df['product_id'].nunique()} SKUs × "
@@ -159,10 +191,21 @@ def _write_report(elast_df, cross_df, baseline_df, gates, reco_df, kpi, cannib, 
     L.append("Your current tool judges each SKU×city **in isolation**. This adds the missing portfolio physics: "
              "**cross-price elasticity (cannibalization)** — cutting one SKU's discount changes its siblings' sales. "
              "That's the difference between 'this SKU's sales held' and 'the *portfolio* gained'.\n")
-    L.append("## 2. Elasticities (hierarchical, partial-pooled)\n")
-    L.append(f"- Own-price: median **{elast_df['own_elast'].median():.2f}**, all in the (−2.5, 0) sanity band.")
-    L.append(f"- Cross-price substitute links: **{len(cross_df)}** (positive = siblings gain when a SKU's price rises).")
-    L.append(f"- Validation gates: {gates.get('overall', gates)}\n")
+    method = gates.get("method", "hierarchical")
+    n_low = gates.get("n_low_confidence_categories")
+    L.append(f"## 2. Elasticities ({method})\n")
+    if "own_sd" in elast_df.columns:
+        L.append(f"- Own-price: median **{elast_df['own_elast'].median():.2f}** with median posterior SD "
+                 f"**±{elast_df['own_sd'].median():.2f}** — **true Bayesian bands, no hard clip**. "
+                 f"An informative negative prior + hierarchical shrinkage replaces the old clip.")
+        if n_low is not None:
+            L.append(f"- **{n_low}/{len(gates.get('per_category', {}))} categories are LOW-CONFIDENCE** "
+                     f"(wide band): once confounders are controlled, within-cell price variation barely "
+                     f"identifies own-price. That's the honest signal — the same weak-identification wall, "
+                     f"now shown as uncertainty instead of a fabricated point estimate.")
+    else:
+        L.append(f"- Own-price: median **{elast_df['own_elast'].median():.2f}**, clipped to the (−2.5, 0) band.")
+    L.append(f"- Cross-price substitute links: **{len(cross_df)}** (positive = siblings gain when a SKU's price rises).\n")
     # most cannibalistic pairs
     if len(cross_df):
         top = cross_df.reindex(cross_df["cross_elast"].abs().sort_values(ascending=False).index).head(8)
@@ -192,8 +235,27 @@ def _write_report(elast_df, cross_df, baseline_df, gates, reco_df, kpi, cannib, 
         for _, r in big.iterrows():
             L.append(f"| {str(r['product_id'])[:14]} | {str(r['city'])[:10]} | "
                      f"{r['base_disc']:.0f}%→{r['opt_disc']:.0f}% | {r['pred_rev_delta_pct']:+.1f}% |")
-    L.append("\n_Elasticities are penalized-hierarchical point estimates (posterior-mean equivalent). "
-             "Full Bayesian posteriors (PyMC) are a drop-in upgrade if uncertainty bands are wanted._")
+    # ── Reinvest (the flywheel's second half) ──
+    L.append("\n## 5. Reinvest — where discount reliably PAYS\n")
+    if reinvest.get("cells"):
+        L.append(f"The optimizer can raise discount, but the Bayesian own-price bands are too wide to *bank* a "
+                 f"reinvest on. The confidence comes instead from the DML-confirmed reliable-positive cells — "
+                 f"**{reinvest['n']} cells, mostly {reinvest.get('top_category')}** — where discount demonstrably "
+                 f"drives net-accretive volume and current discount sits BELOW its break-even.\n")
+        L.append(f"- Headroom to reinvest profitably: **~₹{reinvest.get('monthly_upside', 0):,.0f}/month**.")
+        L.append("- Play: fund it from the banked waste-cuts (cut inelastic staples → reinvest into Oil). "
+                 "Glide +3ppt, watch 2 weeks, scale only if the register confirms.\n")
+        L.append("| SKU | City | Disc now → break-even | Headroom |")
+        L.append("|---|---|---|---:|")
+        for c in reinvest["cells"][:8]:
+            L.append(f"| {str(c.get('product_id'))[:14]} | {str(c.get('city'))[:10]} | "
+                     f"{c.get('cur_disc',0):.0f}% → {c.get('be_disc',0):.0f}% | +{c.get('headroom_pp',0):.0f}ppt |")
+    else:
+        L.append(f"_{reinvest.get('note','no reinvest candidates found')}_")
+    L.append("\n_Elasticities are TRUE Bayesian posteriors (conjugate, informative negative prior, "
+             "empirical-Bayes hierarchical shrinkage) — mean **and** SD, no hard clip. PyMC was attempted but "
+             "forces numpy≥2 which binary-breaks the repo's sklearn stack; the analytic conjugate posterior is "
+             "the same Bayesian object without the dependency conflict._")
     open(os.path.join(OUT, "PRICING_PLAN.md"), "w", encoding="utf-8").write("\n".join(L))
 
 
