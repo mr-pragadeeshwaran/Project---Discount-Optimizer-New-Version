@@ -1,0 +1,130 @@
+{
+  "pooled_r2": 0.892,
+  "pooled_r2_pass": true,
+  "wmape": 0.255,
+  "wmape_pass": true,
+  "abs_bias": 0.066,
+  "bias_pass": true,
+  "own_in_band": true,
+  "cross_nonneg_subs": true,
+  "frac_pos_cross": 0.775,
+  "n_cells": 526,
+  "n_cross_pairs": 472,
+  "coverage": {
+    "Besan & Gram Flour": {
+      "n_rows": 199,
+      "r2": 0.716,
+      "own": -0.8339,
+      "cross": -0.8339
+    },
+    "Dal & Pulses": {
+      "n_rows": 2352,
+      "r2": 0.79,
+      "own": -0.9022,
+      "cross": 0.0509
+    },
+    "Honey": {
+      "n_rows": 128,
+      "r2": 0.665,
+      "own": 3.8388,
+      "cross": 3.8388
+    },
+    "Indian Sweets": {
+      "n_rows": 137,
+      "r2": 0.739,
+      "own": -6.2915,
+      "cross": 8.0556
+    },
+    "Jaggery": {
+      "n_rows": 431,
+      "r2": 0.908,
+      "own": -3.1708,
+      "cross": 0.5184
+    },
+    "Millet & Other Atta": {
+      "n_rows": 974,
+      "r2": 0.813,
+      "own": 1.0141,
+      "cross": 1.259
+    },
+    "Millets": {
+      "n_rows": 96,
+      "r2": 0.899,
+      "own": 0.897,
+      "cross": 2.6483
+    },
+    "Oil": {
+      "n_rows": 565,
+      "r2": 0.756,
+      "own": -2.1434,
+      "cross": 0.5013
+    },
+    "Plain Peanuts": {
+      "n_rows": 482,
+      "r2": 0.855,
+      "own": -2.1227,
+      "cross": -0.0861
+    },
+    "Poha": {
+      "n_rows": 516,
+      "r2": 0.823,
+      "own": 1.1943,
+      "cross": 0.2999
+    },
+    "Rice & Rice Products": {
+      "n_rows": 1764,
+      "r2": 0.91,
+      "own": -1.6645,
+      "cross": -0.4117
+    },
+    "Salt": {
+      "n_rows": 211,
+      "r2": 0.64,
+      "own": -4.8748,
+      "cross": 2.1362
+    },
+    "Seeds": {
+      "n_rows": 296,
+      "r2": 0.819,
+      "own": 1.3895,
+      "cross": -0.1997
+    },
+    "Single Spice Powder": {
+      "n_rows": 1131,
+      "r2": 0.768,
+      "own": 0.5274,
+      "cross": 0.7927
+    },
+    "Sooji": {
+      "n_rows": 214,
+      "r2": 0.892,
+      "own": 4.9925,
+      "cross": 0.9827
+    },
+    "Sugar": {
+      "n_rows": 485,
+      "r2": 0.784,
+      "own": -2.5323,
+      "cross": 0.3462
+    },
+    "Wheat Atta": {
+      "n_rows": 880,
+      "r2": 0.856,
+      "own": -1.5703,
+      "cross": -0.016
+    },
+    "Wheat, Daliya & More": {
+      "n_rows": 278,
+      "r2": 0.838,
+      "own": -1.3045,
+      "cross": -1.3045
+    },
+    "Whole Spices": {
+      "n_rows": 930,
+      "r2": 0.861,
+      "own": 0.0554,
+      "cross": 0.7215
+    }
+  },
+  "all_pass": true
+}

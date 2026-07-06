@@ -40,6 +40,39 @@ CONFIG = {
 }
 
 
+def optimize_decomposed(elast_df, cross_df, baseline_df, config):
+    """Cross-price only links SKUs in the SAME category+city, so each (category,city)
+    is an INDEPENDENT subproblem — optimize them separately (largest ~18 SKUs) instead
+    of one intractable 526-dim DE. Exact (no cross-group coupling exists), and fast."""
+    recos, tot = [], {"base_rev": 0.0, "opt_rev": 0.0, "base_vol": 0.0, "opt_vol": 0.0,
+                      "n_up": 0, "n_down": 0, "groups": 0, "failed": 0}
+    for (cat, city), gb in baseline_df.groupby(["category", "city"]):
+        prods = set(gb["product_id"])
+        se = elast_df[(elast_df["product_id"].isin(prods)) & (elast_df["city"] == city)]
+        sc = cross_df[cross_df["product_i"].isin(prods) & cross_df["product_j"].isin(prods)] \
+            if len(cross_df) else cross_df
+        try:
+            reco, kpi = de.optimize(se, sc, gb, config)
+            recos.append(reco)
+            b, o = kpi["baseline"], kpi["optimized"]
+            tot["base_rev"] += b.get("revenue", 0); tot["opt_rev"] += o.get("revenue", 0)
+            tot["base_vol"] += b.get("volume", 0);  tot["opt_vol"] += o.get("volume", 0)
+            tot["n_up"] += kpi.get("n_cells_up", 0); tot["n_down"] += kpi.get("n_cells_down", 0)
+            tot["groups"] += 1
+        except Exception:
+            tot["failed"] += 1
+    reco_df = pd.concat(recos, ignore_index=True) if recos else pd.DataFrame()
+    def _d(o, b): return (o - b) / b * 100.0 if b else 0.0
+    kpi_summary = {
+        "revenue_delta_pct": _d(tot["opt_rev"], tot["base_rev"]),
+        "volume_delta_pct":  _d(tot["opt_vol"], tot["base_vol"]),
+        "nrw_delta_pct":     _d(tot["opt_rev"], tot["base_rev"]) - _d(tot["opt_vol"], tot["base_vol"]),
+        "n_cells_up": tot["n_up"], "n_cells_down": tot["n_down"],
+        "groups_optimized": tot["groups"], "groups_failed": tot["failed"],
+    }
+    return reco_df, kpi_summary
+
+
 def _latest_fact_table():
     for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
         f = os.path.join(r, "fact_table.csv")
@@ -65,11 +98,11 @@ def main():
           f"(range {elast_df['own_elast'].min():.2f}..{elast_df['own_elast'].max():.2f}) | "
           f"{len(cross_df)} cross-price substitute links | gates: {gates.get('overall', gates)}")
 
-    reco_df, kpi = de.optimize(elast_df, cross_df, baseline_df, CONFIG)
+    reco_df, kpi = optimize_decomposed(elast_df, cross_df, baseline_df, CONFIG)
     reco_df.to_csv(os.path.join(OUT, "pricing_reco.csv"), index=False)
-    print(f"[pricing] optimizer ({CONFIG['kpi']}): revenue {kpi.get('revenue_delta_pct', 0):+.1f}% | "
-          f"volume {kpi.get('volume_delta_pct', 0):+.1f}% | {kpi.get('n_cells_up', 0)} up / "
-          f"{kpi.get('n_cells_down', 0)} down")
+    print(f"[pricing] optimizer ({CONFIG['kpi']}, {kpi.get('groups_optimized',0)} category×city groups): "
+          f"revenue {kpi.get('revenue_delta_pct', 0):+.1f}% | volume {kpi.get('volume_delta_pct', 0):+.1f}% | "
+          f"{kpi.get('n_cells_up', 0)} up / {kpi.get('n_cells_down', 0)} down")
 
     # ── cannibalization check on the existing waste-cut list ──
     cannib = _cannibalization_check(elast_df, cross_df, baseline_df, run)
