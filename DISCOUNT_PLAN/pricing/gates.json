@@ -1,7 +1,7 @@
 {
   "method": "conjugate_bayes_empirical_hierarchical",
-  "global_own (mu_g)": -1.006,
-  "own_mean_median": -1.011,
+  "global_own (mu_g)": -1.005,
+  "own_mean_median": -1.009,
   "own_in_band": true,
   "frac_pos_cross": 0.947,
   "cross_nonneg_subs": true,
@@ -29,97 +29,97 @@
   ],
   "per_category": {
     "Besan & Gram Flour": {
-      "own": -1.031,
+      "own": -1.03,
       "own_sd": 0.795,
       "cross": 0.15
     },
     "Dal & Pulses": {
-      "own": -0.954,
+      "own": -0.953,
       "own_sd": 0.742,
       "cross": 0.135
     },
     "Honey": {
-      "own": -1.007,
+      "own": -1.006,
       "own_sd": 0.799,
       "cross": 0.15
     },
     "Indian Sweets": {
       "own": -0.925,
       "own_sd": 0.796,
-      "cross": 0.196
+      "cross": 0.186
     },
     "Jaggery": {
-      "own": -1.26,
+      "own": -1.244,
       "own_sd": 0.73,
-      "cross": 0.189
+      "cross": 0.155
     },
     "Millet & Other Atta": {
-      "own": -0.837,
+      "own": -0.836,
       "own_sd": 0.76,
-      "cross": 0.195
+      "cross": 0.197
     },
     "Millets": {
-      "own": -1.01,
-      "own_sd": 0.798,
-      "cross": 0.16
+      "own": -1.009,
+      "own_sd": 0.797,
+      "cross": 0.162
     },
     "Oil": {
-      "own": -1.04,
+      "own": -1.039,
       "own_sd": 0.783,
-      "cross": 0.157
+      "cross": 0.158
     },
     "Plain Peanuts": {
-      "own": -0.997,
+      "own": -0.995,
       "own_sd": 0.779,
-      "cross": 0.188
+      "cross": 0.205
     },
     "Poha": {
-      "own": -1.075,
+      "own": -1.074,
       "own_sd": 0.775,
-      "cross": 0.1
+      "cross": 0.104
     },
     "Rice & Rice Products": {
-      "own": -1.077,
+      "own": -1.076,
       "own_sd": 0.719,
       "cross": -0.111
     },
     "Salt": {
-      "own": -1.014,
+      "own": -1.013,
       "own_sd": 0.798,
       "cross": 0.149
     },
     "Seeds": {
-      "own": -1.007,
+      "own": -1.006,
       "own_sd": 0.799,
-      "cross": 0.136
+      "cross": 0.148
     },
     "Single Spice Powder": {
-      "own": -0.83,
+      "own": -0.829,
       "own_sd": 0.777,
       "cross": 0.247
     },
     "Sooji": {
-      "own": -0.858,
+      "own": -0.857,
       "own_sd": 0.782,
       "cross": 0.15
     },
     "Sugar": {
-      "own": -1.011,
+      "own": -1.009,
       "own_sd": 0.759,
-      "cross": 0.135
+      "cross": 0.156
     },
     "Wheat Atta": {
-      "own": -1.172,
+      "own": -1.171,
       "own_sd": 0.74,
-      "cross": 0.105
+      "cross": 0.112
     },
     "Wheat, Daliya & More": {
-      "own": -1.031,
+      "own": -1.03,
       "own_sd": 0.791,
       "cross": 0.15
     },
     "Whole Spices": {
-      "own": -1.028,
+      "own": -1.027,
       "own_sd": 0.761,
       "cross": 0.279
     }

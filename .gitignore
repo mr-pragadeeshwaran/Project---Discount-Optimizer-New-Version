@@ -17,3 +17,6 @@ experiment_results*.csv
 
 # scratch run logs
 scratch_*.log
+
+# run-stamped pricing snapshots (local audit trail)
+DISCOUNT_PLAN/pricing/history/
