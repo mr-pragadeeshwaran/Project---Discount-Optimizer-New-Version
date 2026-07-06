@@ -28,12 +28,23 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
+sys.path.insert(0, ROOT)   # for v4_config (STRATEGIC_SKUS etc.)
+sys.path.insert(0, os.path.join(ROOT, "scripts", "analysis"))
 import guardrail as gr
 import scorecard as sc
 import seasonality as se
 import workbook as wb
+import actuals as ac        # GAP 1 — freeze baselines + backfill actuals
+import killswitch as ks     # GAP 2 — strikes / revert / drift brake
+
+try:
+    import v4_config as _cfg
+except Exception:
+    _cfg = None
 
 HISTORY = os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv")
+EXEC_LOG = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log.csv")
+BASELINES = os.path.join(ROOT, "DISCOUNT_PLAN", "baselines.json")
 OUT_XLSX = os.path.join(ROOT, "DISCOUNT_PLAN", "WEEKLY_TRACKER.xlsx")
 OUT_READOUT = os.path.join(ROOT, "DISCOUNT_PLAN", "WEEKLY_READOUT.md")
 MAX_STEP_PPT = 3.0
@@ -48,6 +59,24 @@ def _latest_plan_csv():
     raise SystemExit("No all_cells.csv — run scripts/analysis/discount_plan.py first.")
 
 
+def _latest_fact_table():
+    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+        f = os.path.join(r, "fact_table.csv")
+        if os.path.exists(f):
+            return f
+    raise SystemExit("No fact_table.csv — run pipeline.py first.")
+
+
+def _load_or_freeze_baselines(hist, model_panel):
+    """Freeze each cell's pre-action baseline ONCE, persist it, and reuse forever
+    (re-freezing a mean-reverting cell would fake wins/losses). GAP 1."""
+    if os.path.exists(BASELINES):
+        return json.load(open(BASELINES))
+    baselines = ac.freeze_baselines(hist, model_panel) if hist is not None else {}
+    json.dump(baselines, open(BASELINES, "w"), default=lambda x: None)
+    return baselines
+
+
 def build_plan_df(csv_path):
     """Map the model's all_cells.csv onto the shared tracker contract."""
     d = pd.read_csv(csv_path)
@@ -56,7 +85,13 @@ def build_plan_df(csv_path):
     # are HELD — never cut a cell whose flatness a confounder explains. Reinvest
     # (e) is surfaced as a test opportunity, not an automatic weekly spend increase.
     cur_disc = d["cur_disc"].astype(float)
-    is_cut = d["bucket"] == "c_waste_cut"
+    # STRATEGIC_SKUS are never auto-cut regardless of the math (hero/flagship items).
+    try:
+        import v4_config as _cfg
+        strategic = set(getattr(_cfg, "STRATEGIC_SKUS", []) or [])
+    except Exception:
+        strategic = set()
+    is_cut = (d["bucket"] == "c_waste_cut") & (~d["product_id"].isin(strategic))
     suggested = cur_disc.copy()
     suggested[is_cut] = d.loc[is_cut, "tgt_disc"].astype(float)
     pred_units = d["cur_units_wk"].astype(float).copy()
@@ -88,19 +123,23 @@ def _baseline_budget_pct(plan_df):
 
 
 def append_history(plan_df, week_label, week_date):
-    """Log this week's PREDICTIONS. Actuals are filled when a later export arrives."""
+    """Log this week's PREDICTIONS (actuals fill later, from a fresh export)."""
     cols = ["week", "week_date", "cell_id", "confidence", "scored",
-            "pred_net_rev_delta", "actual_net_rev_delta", "pred_units", "actual_units"]
+            "pred_net_rev_delta", "actual_net_rev_delta", "pred_units", "actual_units", "applied"]
     hist = pd.read_csv(HISTORY) if os.path.exists(HISTORY) else pd.DataFrame(columns=cols)
-    # actuals for a prior week could be back-filled here by matching a fresh export;
-    # on a first run there is nothing to fill.
+    # Only cut/reinvest cells are "actions" to score; holds are logged but applied=False.
+    acted = plan_df.get("week_action", pd.Series(["hold"] * len(plan_df))).isin(["cut", "reinvest"])
     new = pd.DataFrame({
         "week": week_label, "week_date": week_date, "cell_id": plan_df["cell_id"],
         "confidence": plan_df["confidence"], "scored": plan_df.get("scored", True),
         "pred_net_rev_delta": plan_df["week_saving_inr"] if "week_saving_inr" in plan_df else plan_df["pred_net_rev_delta_wk"],
         "actual_net_rev_delta": np.nan, "pred_units": plan_df.get("pred_units_wk"),
         "actual_units": np.nan,
+        # applied: filled from an execution log later (GAP 3). Default False = not yet confirmed.
+        "applied": False,
     })
+    # store the week's action so the readout/exec-log can reference it
+    new["week_action"] = plan_df.get("week_action", "hold").values if "week_action" in plan_df else "hold"
     if not ((hist["week"] == week_label).any() if len(hist) else False):
         hist = pd.concat([hist, new], ignore_index=True)
     os.makedirs(os.path.dirname(HISTORY), exist_ok=True)
@@ -108,10 +147,42 @@ def append_history(plan_df, week_label, week_date):
     return hist
 
 
-def write_readout(plan_df, gsum, score, season, week_label):
+def apply_execution_log(hist):
+    """GAP 3 — mark which recommendations were actually applied on the portal.
+    Reads DISCOUNT_PLAN/execution_log.csv (columns: week, cell_id, applied[Y/N]).
+    Only applied cells are scored; the rest are reported as 'not executed' (an ops
+    metric, not a model miss). Absent log => nothing is scored yet (honest)."""
+    if not os.path.exists(EXEC_LOG):
+        return hist
+    ex = pd.read_csv(EXEC_LOG)
+    ex["applied_flag"] = ex["applied"].astype(str).str.strip().str.upper().isin(["Y", "YES", "TRUE", "1"])
+    key = ex.set_index([ex["week"].astype(str), ex["cell_id"].astype(str)])["applied_flag"].to_dict()
+    hist["applied"] = [key.get((str(w), str(c)), a) for w, c, a in
+                       zip(hist["week"], hist["cell_id"], hist.get("applied", False))]
+    return hist
+
+
+def write_readout(plan_df, gsum, score, season, week_label, alerts=None):
     cuts = plan_df[plan_df.get("week_action", "") == "cut"].sort_values("week_saving_inr", ascending=False) \
         if "week_action" in plan_df else plan_df.iloc[:0]
     L = [f"# Weekly Discount Readout — {week_label}\n"]
+    # GAP 2 — reverts / alerts FIRST, so the owner sees safety issues before new cuts.
+    alerts = alerts or {}
+    if alerts.get("reverts") or alerts.get("block_new_cuts"):
+        L.append("## ⚠️ REVERT / ALERT — read first\n")
+        if alerts.get("block_new_cuts"):
+            L.append(f"- **Drift brake ON** — recent predictions are missing too often "
+                     f"(hit rate {(alerts.get('hit_rate') or 0)*100:.0f}%). NEW cuts are blocked this week; "
+                     f"existing holds continue. Model needs a retrain.")
+        if alerts.get("reverts"):
+            L.append(f"- **{len(alerts['reverts'])} cells auto-REVERTED** (lost sales 2 weeks running): "
+                     f"put their discount back to the prior level — the model was wrong on these. "
+                     f"Cells: {', '.join(map(str, alerts['reverts'][:12]))}"
+                     + (" …" if len(alerts['reverts']) > 12 else ""))
+        if alerts.get("confounded"):
+            L.append(f"- {len(alerts['confounded'])} weeks were *confounded* (stock-out/visibility drop) — "
+                     f"NOT counted against the model; re-read once availability recovers.")
+        L.append("")
     st = gsum.get("status", "?")
     L.append(f"**Budget: {st}** — discount is {gsum.get('disc_pct',0)*100:.1f}% of sales "
              f"(cap {gsum.get('budget_pct_cap',0)*100:.1f}%), headroom ₹{gsum.get('headroom_inr',0):,.0f}/wk.")
@@ -141,32 +212,74 @@ def write_readout(plan_df, gsum, score, season, week_label):
     open(OUT_READOUT, "w", encoding="utf-8").write("\n".join(L))
 
 
+def _auto_week_label(prev_hist):
+    """GAP 6 — derive the next week label from history instead of a human typing W1/W2."""
+    if prev_hist is None or not len(prev_hist):
+        return "W1"
+    nums = pd.to_numeric(prev_hist["week"].astype(str).str.extract(r"W(\d+)")[0], errors="coerce").dropna()
+    return f"W{int(nums.max()) + 1}" if len(nums) else "W1"
+
+
+def _ks_config():
+    """Kill-switch thresholds, sourced from v4_config (the values nothing read before)."""
+    tol = getattr(_cfg, "VOLUME_DROP_TOLERANCE_PCT", 5.0) / 100.0 if _cfg else 0.05
+    return {"vol_tol_pct": tol, "confounder_pct": 0.10, "strikes_to_revert": 2,
+            "freeze_weeks": 4, "drift_min_cells": 30, "hit_rate_floor": 0.60}
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--week", default="W1")
-    ap.add_argument("--date", default="2026-07-06")
+    ap.add_argument("--week", default=None, help="auto-derived from history if omitted (GAP 6)")
+    ap.add_argument("--date", default=None)
     ap.add_argument("--budget_pct", type=float, default=None,
                     help="discount-spend cap as fraction of gross; default = current baseline")
+    ap.add_argument("--actuals", default=None,
+                    help="path to a fresh export's fact_table.csv; fills last weeks' actuals (GAP 1)")
     a = ap.parse_args()
 
     plan_df = build_plan_df(_latest_plan_csv())
+
+    # ── GAP 1/2 — fill prior weeks' actuals from a fresh export, then run the kill-switch ──
+    prev = pd.read_csv(HISTORY) if os.path.exists(HISTORY) else None
+    alerts = {}
+    if a.actuals and os.path.exists(a.actuals):
+        model_panel = ac.panel_from_fact_table(_latest_fact_table())   # pre-action reference
+        fresh_panel = ac.panel_from_fact_table(a.actuals)
+        baselines = _load_or_freeze_baselines(prev, model_panel)
+        hist0 = ac.backfill_actuals(prev, fresh_panel, baselines) if prev is not None else prev
+        if hist0 is not None:
+            hist0, alerts = ks.evaluate(hist0, _ks_config())
+            hist0.to_csv(HISTORY, index=False)
+            prev = hist0
+
+    week = a.week or _auto_week_label(prev)
+    date = a.date or "2026-07-06"
     cap = a.budget_pct if a.budget_pct is not None else _baseline_budget_pct(plan_df)
+    # GAP 2 — if the portfolio drift brake tripped, block NEW cuts this week
+    if alerts.get("block_new_cuts"):
+        plan_df.loc[plan_df["bucket"] == "c_waste_cut", "suggested_disc"] = plan_df["cur_disc"]
+        print("[tracker] DRIFT BRAKE ON — new cuts blocked this week (hit-rate below floor).")
     config = {"budget_pct_cap": round(cap, 4), "max_step_ppt": MAX_STEP_PPT,
-              "festival_uplift_pct": FESTIVAL_UPLIFT_PCT, "week_date": a.date, "week_label": a.week}
-    print(f"[tracker] {a.week} {a.date} | {len(plan_df)} cells | budget cap {cap*100:.1f}% of gross")
+              "festival_uplift_pct": FESTIVAL_UPLIFT_PCT, "week_date": date, "week_label": week}
+    print(f"[tracker] {week} {date} | {len(plan_df)} cells | budget cap {cap*100:.1f}% of gross")
 
     plan_df, season = se.apply_seasonality(plan_df, config)
     plan_df, gsum = gr.apply_guardrail(plan_df, config)
-    hist = append_history(plan_df, a.week, a.date)
-    scored_hist = hist[hist["actual_net_rev_delta"].notna()] if len(hist) else hist
+    hist = append_history(plan_df, week, date)
+    hist = apply_execution_log(hist)                       # GAP 3 — only applied cells count
+    hist.to_csv(HISTORY, index=False)
+    # score ONLY applied cells with actuals (GAP 3): unapplied = ops metric, not model miss
+    scored_hist = hist[hist["actual_net_rev_delta"].notna() & hist.get("applied", False).astype(bool)] \
+        if len(hist) else hist
     score = sc.score_history(scored_hist)
 
-    wb.build_workbook(plan_df, gsum, score, season, OUT_XLSX, a.week)
-    write_readout(plan_df, gsum, score, season, a.week)
+    wb.build_workbook(plan_df, gsum, score, season, OUT_XLSX, week)
+    write_readout(plan_df, gsum, score, season, week, alerts)
     print(f"[tracker] status {gsum.get('status')} | cut {gsum.get('n_cut')} hold {gsum.get('n_hold')} "
           f"reinvest {gsum.get('n_reinvest')} | proj saving ₹{gsum.get('projected_week_saving_inr',0):,.0f}/wk")
-    print(f"[tracker] wrote {OUT_XLSX}")
-    print(f"[tracker] wrote {OUT_READOUT}")
+    if alerts.get("reverts"):
+        print(f"[tracker] REVERTS: {len(alerts['reverts'])} cells lost sales 2wks — discount restored.")
+    print(f"[tracker] scored cells: {len(scored_hist)} | wrote {OUT_XLSX} + readout")
 
 
 if __name__ == "__main__":

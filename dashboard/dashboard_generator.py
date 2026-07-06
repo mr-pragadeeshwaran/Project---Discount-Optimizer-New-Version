@@ -13,6 +13,29 @@ class NpEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray): return obj.tolist()
         return super(NpEncoder, self).default(obj)
 
+
+def _load_last_week_performance():
+    """Real tracked performance from the weekly scorecard — never mock data.
+    Returns {has_data, acted, hit_rate, r2, realized} or {has_data: False} if no actuals yet."""
+    try:
+        import sys
+        _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, os.path.join(_root, "scripts", "tracker"))
+        import scorecard as _sc
+        hist_path = os.path.join(_root, "DISCOUNT_PLAN", "tracker_history.csv")
+        if not os.path.exists(hist_path):
+            return {"has_data": False}
+        hist = pd.read_csv(hist_path)
+        scored = hist[hist["actual_net_rev_delta"].notna()] if "actual_net_rev_delta" in hist else hist.iloc[:0]
+        s = _sc.score_history(scored)
+        if int(s.get("n_weeks_scored", 0) or 0) == 0:
+            return {"has_data": False}
+        return {"has_data": True, "acted": int(s.get("n_obs", 0)),
+                "hit_rate": float(s.get("hit_rate") or 0), "r2": float(s.get("pred_vs_actual_r2") or 0),
+                "realized": float(s.get("cumulative_realized_saving_inr") or 0)}
+    except Exception:
+        return {"has_data": False}
+
 def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> str:
     """Generates the 4-view HTML dashboard."""
     print("  [Dashboard] Generating 4-view HTML dashboard...")
@@ -21,16 +44,21 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
     tier_counts = rec_df["tier"].value_counts()
     tier_savings = rec_df.groupby("tier")["rec_monthly_savings"].sum()
     
-    # Current vs Target (mocking target for now)
     current_disc_avg = rec_df["current_discount_pct"].mean()
-    
-    # Last week mock performance 
-    last_week = {
-        "acted": 38,
-        "pred_vol": -3.1, "act_vol": -3.4,
-        "pred_rev": 0.8, "act_rev": 0.6,
-        "drift": 2
-    }
+
+    # Last week's REAL tracked performance from the weekly scorecard (never mock).
+    # Honest "no results yet" state until actuals exist.
+    last_week = _load_last_week_performance()
+    if last_week and last_week.get("has_data"):
+        last_week_html = f"""<div class="card">
+            <p>Cells scored: <strong>{last_week['acted']}</strong></p>
+            <p>Prediction hit rate: <strong>{last_week['hit_rate']:.0%}</strong></p>
+            <p>Predicted vs actual (net-rev) R²: <strong>{last_week['r2']:.2f}</strong></p>
+            <p>Realized saving to date: <strong>₹{last_week['realized']:,.0f}</strong></p>
+        </div>"""
+    else:
+        last_week_html = ('<div class="card"><p><em>No tracked results yet — this fills in once the '
+                          'weekly tracker has real actuals (from week 2). No mock data is shown.</em></p></div>')
 
     # Serialize curve data for JS
     curves_data = {}
@@ -95,12 +123,7 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
         </div>
         
         <h3 class="mt-4">Last Week's Actions — Performance</h3>
-        <div class="card">
-            <p>Cells acted on: <strong>{last_week['acted']}</strong></p>
-            <p>Predicted vs actual volume: <strong>{last_week['pred_vol']}% vs {last_week['act_vol']}%</strong> <span class="trend-good">(within tolerance ✓)</span></p>
-            <p>Predicted vs actual revenue: <strong>+{last_week['pred_rev']}% vs +{last_week['act_rev']}%</strong> <span class="trend-good">(within tolerance ✓)</span></p>
-            <p>Drift alerts: <strong class="trend-bad">{last_week['drift']} cells</strong> <a href="#">(click to review)</a></p>
-        </div>
+        {last_week_html}
     </div>
     """
 

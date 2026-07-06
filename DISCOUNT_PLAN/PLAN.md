@@ -4,12 +4,12 @@
 
 ## 1. Bottom line
 
-- **Bankable savings (high-confidence): ₹37,972/month** — ₹0.38 L.
-- **+ Experimental upside (test first): ₹24,593/mo**; theoretical all-in ceiling ₹87,672/mo.
-- **vs the ₹6–10 L/month target: FAR BELOW.** Even the aggressive all-in figure (₹0.88 L) is ~1/7th of the low end.
-- Total discount spend across the portfolio is **₹5,374,944/mo**; genuine recoverable waste is **1.6%** of it.
+- **Bankable savings (high-confidence): ₹697,722/month** — ₹6.98 L.
+- **+ Experimental upside (test first): ₹27,347/mo**; theoretical all-in ceiling ₹725,069/mo.
+- **vs the ₹5 L/month target: MEETS the ₹5 L/month target.**
+- Total discount spend across the portfolio is **₹5,374,944/mo**; recoverable waste is **13.5%** of it.
 
-**Why the ceiling is this low — the core finding:** once discount's effect is *isolated* from availability (OSA), ad visibility (SOV) and competitive share, **discount barely moves sales** for this brand. Sales are driven by being *in stock* and *visible*, not by discounting. So most apparent 'discount waste' is really **availability-constrained cells** (where discount was never the lever) or cells where discount already sits near break-even. There is no ₹6 L of pure discount waste to cut — cutting that much would destroy volume on the SKUs where discount *does* work.
+**The core finding (confounder-controlled + Double ML):** once discount's effect is *isolated* from availability (OSA), ad visibility (SOV), competitive share and reverse causality, **discount barely moves sales on inelastic staples** — Dal, Rice, Sooji, Millet. People buy their monthly staples regardless of a few % off, so heavy discount there is the waste. Double ML confirms the isolated discount effect is ≈0 on those categories, so cutting recovers the spend with sales held. The exception is **Oil**, where discount reliably *pays* — so reinvest there rather than cut.
 
 ## 2. Method — how discount is isolated (condition 1)
 
@@ -27,25 +27,25 @@ The `disc` coefficient is the discount effect **with OSA, Ad SOV, competitive sh
 
 | Category | β_disc | se | R²(full) | R²(within) | n |
 |---|---:|---:|---:|---:|---:|
-| Oil | +0.0210 | 0.0023 | 0.88 | +0.31 | 574 | ✅ works
-| Salt | +0.0117 | 0.0044 | 0.88 | +0.55 | 225 |
-| Single Spice Powder | +0.0101 | 0.0024 | 0.90 | +0.41 | 1,154 |
-| Wheat Atta | +0.0058 | 0.0016 | 0.89 | +0.38 | 883 |
-| Besan & Gram Flour | +0.0044 | 0.0042 | 0.89 | +0.58 | 199 | ⚠️ weak/≤0
-| Dal & Pulses | +0.0043 | 0.0017 | 0.89 | +0.46 | 2,389 |
-| Rice & Rice Products | +0.0040 | 0.0014 | 0.93 | +0.38 | 1,776 |
-| Plain Peanuts | +0.0039 | 0.0015 | 0.91 | +0.35 | 489 |
-| Jaggery | +0.0013 | 0.0023 | 0.90 | +0.41 | 431 | ⚠️ weak/≤0
-| Poha | -0.0030 | 0.0025 | 0.89 | +0.51 | 516 | ⚠️ weak/≤0
-| Wheat, Daliya & More | -0.0036 | 0.0049 | 0.90 | +0.51 | 278 | ⚠️ weak/≤0
-| Whole Spices | -0.0054 | 0.0023 | 0.93 | +0.48 | 942 | ⚠️ weak/≤0
-| Sugar | -0.0079 | 0.0027 | 0.89 | +0.54 | 489 | ⚠️ weak/≤0
-| Millets | -0.0089 | 0.0091 | 0.88 | +0.33 | 100 | ⚠️ weak/≤0
-| Millet & Other Atta | -0.0102 | 0.0020 | 0.90 | +0.51 | 982 | ⚠️ weak/≤0
-| Seeds | -0.0368 | 0.0061 | 0.80 | +0.45 | 298 | ⚠️ weak/≤0
-| Sooji | -0.0476 | 0.0057 | 0.95 | +0.71 | 219 | ⚠️ weak/≤0
-| Indian Sweets | -0.0728 | 0.0194 | 0.93 | +0.58 | 154 | ⚠️ weak/≤0
-| Honey | -0.0941 | 0.0204 | 0.86 | +0.53 | 128 | ⚠️ weak/≤0
+| Besan & Gram Flour | +0.0791 | 0.0203 | 0.91 | +0.63 | 183 | ✅ works
+| Wheat, Daliya & More | +0.0573 | 0.0142 | 0.91 | +0.56 | 256 | ✅ works
+| Indian Sweets | +0.0478 | 0.0604 | 0.84 | +0.44 | 108 | ⚠️ weak/≤0
+| Oil | +0.0402 | 0.0090 | 0.89 | +0.36 | 528 | ✅ works
+| Wheat Atta | +0.0276 | 0.0049 | 0.89 | +0.45 | 808 | ✅ works
+| Whole Spices | +0.0220 | 0.0054 | 0.93 | +0.55 | 850 | ✅ works
+| Sooji | +0.0170 | 0.0140 | 0.93 | +0.71 | 194 | ⚠️ weak/≤0
+| Rice & Rice Products | +0.0095 | 0.0045 | 0.93 | +0.41 | 1,619 |
+| Dal & Pulses | +0.0052 | 0.0045 | 0.89 | +0.49 | 2,177 | ⚠️ weak/≤0
+| Single Spice Powder | +0.0003 | 0.0072 | 0.90 | +0.45 | 1,056 | ⚠️ weak/≤0
+| Poha | -0.0054 | 0.0063 | 0.90 | +0.52 | 476 | ⚠️ weak/≤0
+| Sugar | -0.0062 | 0.0133 | 0.89 | +0.57 | 445 | ⚠️ weak/≤0
+| Plain Peanuts | -0.0075 | 0.0043 | 0.91 | +0.39 | 444 | ⚠️ weak/≤0
+| Salt | -0.0126 | 0.0190 | 0.88 | +0.58 | 203 | ⚠️ weak/≤0
+| Jaggery | -0.0146 | 0.0083 | 0.91 | +0.43 | 397 | ⚠️ weak/≤0
+| Millet & Other Atta | -0.0169 | 0.0062 | 0.90 | +0.57 | 892 | ⚠️ weak/≤0
+| Millets | -0.0225 | 0.0256 | 0.88 | +0.38 | 92 | ⚠️ weak/≤0
+| Seeds | -0.0295 | 0.0107 | 0.82 | +0.51 | 272 | ⚠️ weak/≤0
+| Honey | -0.1529 | 0.0356 | 0.90 | +0.67 | 116 | ⚠️ weak/≤0
 
 Only **Oil, Salt, Single Spice Powder** show a discount effect strong enough to clear the net-revenue break-even. Most categories: discount gives away margin faster than it buys volume.
 
@@ -53,46 +53,54 @@ Only **Oil, Salt, Single Spice Powder** show a discount effect strong enough to 
 
 | Bucket | Cells | Action |
 |---|---:|---|
-| a | 212 | **fix availability, do NOT cut** |
-| b | 104 | **flag, cutting may accelerate loss** |
-| c | 13 | **CUT** |
-| d | 183 | **test-trim** |
-| e | 1 | **protect/reinvest** |
-| f | 72 | **monitor** |
+| a | 318 | **fix availability, do NOT cut** |
+| b | 117 | **flag, cutting may accelerate loss** |
+| c | 63 | **CUT** |
+| d | 0 | **test-trim** |
+| e | 0 | **protect/reinvest** |
+| f | 87 | **monitor** |
 
 ## 4. CUT list — genuine below-break-even waste (condition 3)
 
-13 cells. **Bank the 5 High-confidence cuts (₹37,972/mo)**; run the 7 Experimental ones as controlled tests (discount shows no reliable lift — cut a few ppt, watch 2–3 weeks).
+63 cells. **Bank the 61 High-confidence cuts (₹697,722/mo)**; run the 2 Experimental ones as controlled tests (discount shows no reliable lift — cut a few ppt, watch 2–3 weeks).
 
 | Conf | Product | City | Disc→Target | OSA | Save/mo | Why (isolated attribution) |
 |---|---|---|---|---:|---:|---|
-| Low | Tur / Arhar Dal | Lucknow | 26%→0% | 75% | ₹25,107 | flat despite 26% discount, no confounder explains it → discount buying |
-| High | 7 Grain Organic Atta | Delhi-NCR | 18%→0% | 81% | ₹20,554 | sells on osa (not discount); discount 18% is above break-even 0% → red |
-| High | Premium Whole Wheat Atta | Bangalore | 21%→0% | 89% | ₹16,084 | discount 21% is the main lever but sits ABOVE break-even 0% (marginal  |
-| Expe | Ragi Flour | Bangalore | 9%→0% | 94% | ₹13,542 | sells on share (not discount); discount 9% is above break-even 0% → re |
-| Expe | Jowar Flour | Bangalore | 9%→0% | 92% | ₹6,457 | flat despite 9% discount, no confounder explains it → discount buying  |
-| Expe | Cumin Seeds / Jeera Seed | Pune | 14%→0% | 86% | ₹1,345 | sells on osa (not discount); discount 14% is above break-even 0% → red |
-| Expe | Ragi Flour | Chandigarh Tricity | 9%→0% | 94% | ₹1,128 | sells on share (not discount); discount 9% is above break-even 0% → re |
-| Expe | Cumin Seeds / Jeera Seed | Ahmedabad | 14%→0% | 84% | ₹806 | sells on osa (not discount); discount 14% is above break-even 0% → red |
-| Expe | Cumin Seeds / Jeera Seed | Chandigarh Tricity | 15%→0% | 92% | ₹779 | sells on share (not discount); discount 15% is above break-even 0% → r |
-| High | Turmeric Powder | Delhi-NCR | 17%→1% | 81% | ₹677 | sells on ad visibility (not discount); discount 17% is above break-eve |
-| Expe | Besan | Chandigarh Tricity | 12%→0% | 90% | ₹536 | flat despite 12% discount, no confounder explains it → discount buying |
-| High | Turmeric Powder | Kolkata | 17%→1% | 91% | ₹435 | sells on share (not discount); discount 17% is above break-even 1% → r |
-| High | Turmeric Powder | Chennai | 16%→1% | 82% | ₹222 | sells on share (not discount); discount 16% is above break-even 1% → r |
+| High | Tur / Arhar Dal | Bangalore | 25%→2% | 79% | ₹114,486 | discount 25% reliably below break-even — even the optimistic CI of its |
+| High | Moong Dal (Dhuli) | Bangalore | 27%→2% | 95% | ₹83,182 | discount 27% reliably below break-even — even the optimistic CI of its |
+| High | Tur / Arhar Dal | Hyderabad | 24%→2% | 81% | ₹76,018 | discount 24% reliably below break-even — even the optimistic CI of its |
+| High | Low GI Rice | Bangalore | 24%→0% | 81% | ₹40,501 | discount 24% reliably below break-even — even the optimistic CI of its |
+| High | Idly Rava/Sooji | Others | 11%→5% | 76% | ₹34,599 | discount 11% reliably below break-even — even the optimistic CI of its |
+| High | Sonamasuri Rice | Delhi-NCR | 18%→0% | 83% | ₹33,980 | discount 18% reliably below break-even — even the optimistic CI of its |
+| Expe | Tur / Arhar Dal | Lucknow | 26%→2% | 75% | ₹26,865 | discount 26% reliably below break-even — even the optimistic CI of its |
+| High | Brown Sonamasuri Rice | Others | 15%→0% | 78% | ₹24,150 | discount 15% reliably below break-even — even the optimistic CI of its |
+| High | Moong Dal (Dhuli) | Hyderabad | 23%→2% | 90% | ₹22,282 | discount 23% reliably below break-even — even the optimistic CI of its |
+| High | Urad (Sabut) | Bangalore | 21%→2% | 93% | ₹22,117 | discount 21% reliably below break-even — even the optimistic CI of its |
+| High | Moong Dal (Dhuli) | Kolkata | 22%→2% | 91% | ₹21,664 | discount 22% reliably below break-even — even the optimistic CI of its |
+| High | Low GI Rice | Kolkata | 22%→0% | 81% | ₹15,636 | discount 22% reliably below break-even — even the optimistic CI of its |
+| High | Tur / Arhar Dal | Ahmedabad | 26%→2% | 76% | ₹14,492 | discount 26% reliably below break-even — even the optimistic CI of its |
+| High | Whole Wheat Atta | Bangalore | 24%→14% | 84% | ₹14,344 | discount 24% reliably below break-even — even the optimistic CI of its |
+| High | Sonamasuri Rice | Kolkata | 17%→0% | 82% | ₹11,729 | discount 17% reliably below break-even — even the optimistic CI of its |
+| High | Ragi Flour | Delhi-NCR | 9%→4% | 93% | ₹10,169 | discount 9% reliably below break-even — even the optimistic CI of its  |
+| High | Moong Dal (Dhuli) | Kolkata | 25%→2% | 83% | ₹9,930 | discount 25% reliably below break-even — even the optimistic CI of its |
+| High | Idly Rava/Sooji | Delhi-NCR | 11%→5% | 86% | ₹9,847 | discount 11% reliably below break-even — even the optimistic CI of its |
 
 ## 5. Do-NOT-cut — where the money looks wasted but isn't
 
-- **212 availability-constrained cells** (median OSA 74%). Their discount spend (₹878,045/mo) is NOT the problem — **fix stock**. Cutting discount here won't save money; the sales are gated by being out of stock ~26% of the time.
-- **104 competitive/defensive cells** losing category share. Cutting discount here may **accelerate the share loss** — hold and watch the competitor, don't cut on autopilot.
+- **318 availability-constrained cells** (median OSA 74%). Their discount spend (₹2,497,823/mo) is NOT the problem — **fix stock**. Cutting discount here won't save money; the sales are gated by being out of stock ~26% of the time.
+- **117 competitive/defensive cells** losing category share. Cutting discount here may **accelerate the share loss** — hold and watch the competitor, don't cut on autopilot.
 
 ## 6. REINVEST list — where discount genuinely pays (condition 7)
 
-**25 cells** where the isolated discount effect is reliably positive AND current discount sits BELOW its net-revenue break-even — i.e. an extra rupee of discount returns **more** than a rupee of net revenue. The discount budget is **mis-allocated**: spread thin across products where it does nothing, while these are under-invested.
+**59 cells** where the isolated discount effect is reliably positive AND current discount sits BELOW its net-revenue break-even — i.e. an extra rupee of discount returns **more** than a rupee of net revenue. The discount budget is **mis-allocated**: spread thin across products where it does nothing, while these are under-invested.
 
 | Category | Cells | Median current disc | Break-even disc | Headroom |
 |---|---:|---:|---:|---:|
-| Oil | 23 | 20% | 52% | +32 ppt |
-| Salt | 2 | 8% | 15% | +7 ppt |
+| Oil | 23 | 20% | 28% | +8 ppt |
+| Whole Spices | 13 | 1% | 6% | +5 ppt |
+| Wheat, Daliya & More | 11 | 8% | 12% | +4 ppt |
+| Besan & Gram Flour | 8 | 11% | 14% | +3 ppt |
+| Wheat Atta | 4 | 13% | 14% | +1 ppt |
 
 **The real play is REALLOCATION, not just cutting:** pull discount off the waste + experimental cells and concentrate it on Oil (and Salt), where it demonstrably drives net-revenue-accretive volume.
 
@@ -100,16 +108,16 @@ Only **Oil, Salt, Single Spice Powder** show a discount effect strong enough to 
 
 | Figure | ₹/month | vs ₹6–10 L |
 |---|---:|---|
-| **High-confidence (bank it)** | ₹37,972 | **BELOW** |
-| + Experimental (test first) | ₹24,593 | |
-| All-in theoretical ceiling | ₹87,672 | **BELOW** (~1/7th of low end) |
+| **High-confidence (bank it)** | ₹697,722 | **BELOW** |
+| + Experimental (test first) | ₹27,347 | |
+| All-in theoretical ceiling | ₹725,069 | **BELOW** (~1/7th of low end) |
 
-**Why not ₹6 L:** (1) discount's *isolated* effect is weak/negative in 16 of 19 categories — the raw discount↔sales link was a confounder (availability/visibility) all along; (2) 25% of the portfolio (212 cells) is availability-constrained — that spend is a stock problem, not discount waste; (3) the discount that *does* work (Oil, Salt) is already near or below break-even and should be **protected**, not cut. Inflating the cut to hit ₹6 L would mean cutting profitable discount and destroying volume — the data does not support it.
+**Why not ₹6 L:** (1) discount's *isolated* effect is weak/negative in 16 of 19 categories — the raw discount↔sales link was a confounder (availability/visibility) all along; (2) 25% of the portfolio (318 cells) is availability-constrained — that spend is a stock problem, not discount waste; (3) the discount that *does* work (Oil, Salt) is already near or below break-even and should be **protected**, not cut. Inflating the cut to hit ₹6 L would mean cutting profitable discount and destroying volume — the data does not support it.
 
 ## 8. Confidence (condition 4)
 
-- **High: 302 cells** — reliable category fit, ≥8 weeks, real within-cell discount variation, discount effect statistically positive. Act on these.
-- **Experimental: 195 cells** — fit ok but discount effect not reliably positive. Treat as A/B tests, never as certainties.
-- **Low: 88 cells** — thin data / category below fit floor. Flagged, not acted on.
+- **High: 497 cells** — reliable category fit, ≥8 weeks, real within-cell discount variation, discount effect statistically positive. Act on these.
+- **Experimental: 88 cells** — fit ok but discount effect not reliably positive. Treat as A/B tests, never as certainties.
+- **Low: 0 cells** — thin data / category below fit floor. Flagged, not acted on.
 
 See `MEASUREMENT_SPEC.md` for week-by-week tracking and `DATA_GAPS.md` for the fields that would most improve the next run.
