@@ -1,2 +1,5 @@
+# normalize line endings on commit (stops the CRLF/BOM "modified" noise)
+* text=auto
 *.pdf binary
 *.xlsx binary
+*.pptx binary
