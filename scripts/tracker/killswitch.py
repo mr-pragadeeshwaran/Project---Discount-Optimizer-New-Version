@@ -28,9 +28,20 @@ Two-strikes-and-revert, with confounders excused:
   * strikes >= threshold -> REVERT the cell (put the discount back), then FREEZE it for
     a cooling-off window so we stop poking it every week.
 
+Only ACTED cells are judged:
+  The kill-switch only ever judges cells we actually MOVED this week — rows where
+  applied==True AND week_action in {'cut','reinvest'}. Unacted holds (we recommended
+  'hold', or the cut was never confirmed on the portal) carry no prediction we made a
+  bet on — their pred_net_rev_delta is 0 — so judging them would manufacture phantom
+  strikes/reverts and poison the portfolio-drift denominator with hundreds of no-op
+  holds. Unacted rows are left untouched (cell_status='', strikes=NaN, no strike) and
+  are EXCLUDED from the drift hit_rate / n_scored. If the applied/week_action columns
+  are absent (older history), we fall back to "acted = pred_net_rev_delta != 0" so a
+  zero-pred hold still can't be judged.
+
 Portfolio drift brake:
-  If enough cells have been scored and the overall latest-week hit-rate falls below the
-  floor, the whole engine is drifting — so we raise block_new_cuts to stop rolling out
+  If enough ACTED cells have been scored and the overall latest-week hit-rate falls below
+  the floor, the whole engine is drifting — so we raise block_new_cuts to stop rolling out
   NEW cuts until accuracy recovers (existing reverts still fire).
 
 Public function
@@ -169,6 +180,43 @@ def _sign(x):
     return int(np.sign(float(x)))
 
 
+_ACTED_ACTIONS = frozenset({"cut", "reinvest"})
+
+
+def _acted_mask(df):
+    """Which rows did we ACTUALLY move this week — the only rows the kill-switch judges.
+
+    A row is 'acted' when we placed a real bet on it:
+        applied == True  AND  week_action in {'cut','reinvest'}.
+    Unacted rows are our own 'hold' recommendations, or cuts never confirmed on the
+    portal (applied False). They carry pred_net_rev_delta == 0 — no promise to keep —
+    so judging them would fabricate phantom strikes/reverts and flood the drift
+    denominator with no-op holds.
+
+    Backward-compat: if the applied / week_action columns are BOTH absent (older
+    history that predates execution logging), we cannot read intent, so we fall back to
+    'acted = pred_net_rev_delta != 0'. That still refuses to judge a zero-pred hold
+    (the exact phantom-revert case) while judging every real move as before.
+    """
+    has_applied = "applied" in df.columns
+    has_action = "week_action" in df.columns
+    if has_applied or has_action:
+        mask = pd.Series(True, index=df.index)
+        if has_applied:
+            applied = df["applied"].map(
+                lambda v: str(v).strip().lower() in ("true", "1", "yes", "y", "t")
+                if not isinstance(v, bool) else v
+            )
+            # NaN/blank applied -> not confirmed -> not acted.
+            mask &= applied.fillna(False).astype(bool)
+        if has_action:
+            mask &= df["week_action"].astype(str).str.strip().str.lower().isin(_ACTED_ACTIONS)
+        return mask
+    # Fallback for pre-execution-log history: a non-zero prediction means we moved it.
+    pred = pd.to_numeric(df.get("pred_net_rev_delta", np.nan), errors="coerce")
+    return pred.fillna(0.0) != 0.0
+
+
 def evaluate(history_df, config):
     """Run the safety mechanism over the tracker history.
 
@@ -242,8 +290,15 @@ def evaluate(history_df, config):
         else:
             out[col] = np.nan
 
-    # A row is "scored" once it has an actual net-rev delta. Only scored rows are judged.
-    is_scored = out["actual_net_rev_delta"].notna()
+    # A row is "scored" once it has an actual net-rev delta. But we only JUDGE rows we
+    # actually ACTED on (applied cut/reinvest) — an unacted hold has a zero prediction we
+    # never bet on, so judging it would fabricate phantom strikes/reverts and pollute the
+    # drift denominator. is_judged = has actuals AND was acted. Unacted rows fall through
+    # every branch below: status stays '', strikes stay NaN, and they are dropped from the
+    # drift hit_rate / n_scored.
+    has_actual = out["actual_net_rev_delta"].notna()
+    is_acted = _acted_mask(out)
+    is_scored = has_actual & is_acted
 
     # ------------------------------------------------------------------------------
     # PER-CELL walk, in chronological (week) order.
@@ -604,6 +659,69 @@ if __name__ == "__main__":
     # inflating hit_rate to 1.0. Correct numeric order includes W10's miss.
     assert al5["hit_rate"] is not None
     assert al5["hit_rate"] < 1.0, al5["hit_rate"]  # the W10 miss is counted
+
+    # --- Case 6: ISSUE A — evaluate() judges ONLY acted cells, never unacted holds. -----
+    # This reproduces the real bug: the first week actuals arrive, hundreds of 'hold'
+    # cells (pred_net_rev_delta == 0, week_action='hold', applied=False) get an actual
+    # net-rev delta too. The OLD code judged them, tripping phantom strikes/reverts and
+    # flooding the drift denominator. The FIX: holds are invisible to the kill-switch.
+    def _mk_full(cell_id, week, week_date, pred_u, act_u, rev_delta, pred_rev,
+                 applied, week_action, b_osa=95.0, a_osa=95.0, b_sov=20.0, a_sov=20.0):
+        r = _mk(cell_id, week, week_date, pred_u, act_u, rev_delta, pred_rev,
+                b_osa, a_osa, b_sov, a_sov)
+        r["applied"] = applied
+        r["week_action"] = week_action
+        return r
+
+    issue_a = []
+    # One ACTED cut that is genuinely underwater two weeks -> SHOULD revert & be scored.
+    issue_a += [_mk_full("ACT_CUT", "W1", "2026-07-06", 100, 80, -500, -500, True, "cut"),
+                _mk_full("ACT_CUT", "W2", "2026-07-13", 100, 80, -500, -500, True, "cut")]
+    # 50 UNACTED holds: pred 0, applied False, week_action 'hold', but actuals ARE filled
+    # (a real negative delta on some, to prove even "bad-looking" holds never strike).
+    for i in range(50):
+        issue_a.append(_mk_full(f"HOLD{i}", "W1", "2026-07-06", 0, 0,
+                                rev_delta=(-999 if i % 2 else 999), pred_rev=0,
+                                applied=False, week_action="hold"))
+    # One CONFIRMED cut (applied True) that never fired a strike -> acted & clean.
+    issue_a.append(_mk_full("ACT_OK", "W1", "2026-07-06", 100, 101, 300, 300, True, "cut"))
+    ia_hist = pd.DataFrame(issue_a)
+    out6, al6 = evaluate(ia_hist, cfg)
+    print("\n=== Case 6: ISSUE A — unacted holds are never judged ===")
+    print(f"  n_scored (acted only)={al6['n_scored']}  reverts={al6['reverts']}  "
+          f"block_new_cuts={al6['block_new_cuts']}")
+
+    def _row6(cell):
+        return out6.loc[out6["cell_id"] == cell].iloc[0]
+
+    # Every unacted hold: blank status, NaN strikes, NO strike, NOT reverted.
+    for i in range(50):
+        r = _row6(f"HOLD{i}")
+        assert r["cell_status"] == "", (i, repr(r["cell_status"]))
+        assert pd.isna(r["strikes"]), (i, r["strikes"])
+        assert f"HOLD{i}" not in al6["reverts"], i
+    # The acted underwater cut IS judged and reverts as before.
+    assert "ACT_CUT" in al6["reverts"], al6["reverts"]
+    # Drift denominator counts ONLY the 2 acted cells (ACT_CUT, ACT_OK), NOT the 50 holds.
+    assert al6["n_scored"] == 2, al6["n_scored"]
+    # 50 unacted holds present but the brake ignores them -> no phantom drift block.
+    assert al6["block_new_cuts"] is False, al6["block_new_cuts"]
+
+    # --- Case 6b: backward-compat fallback — no applied/week_action cols, zero-pred holds
+    # still can't be judged (acted = pred_net_rev_delta != 0). Older history path. --------
+    compat = [_mk("BET", "W1", "2026-07-06", 100, 80, -500),        # non-zero pred -> acted
+              _mk("BET", "W2", "2026-07-13", 100, 80, -500)]
+    compat += [_mk(f"Z{i}", "W1", "2026-07-06", 0, 0, rev_delta=-999, pred_rev=0)
+               for i in range(50)]  # zero-pred holds -> NOT acted even without the columns
+    compat_hist = pd.DataFrame(compat)
+    out6b, al6b = evaluate(compat_hist, cfg)
+    for i in range(50):
+        rz = out6b.loc[out6b["cell_id"] == f"Z{i}"].iloc[0]
+        assert rz["cell_status"] == "", repr(rz["cell_status"])
+        assert pd.isna(rz["strikes"]), rz["strikes"]
+    assert "BET" in al6b["reverts"], al6b["reverts"]
+    assert al6b["n_scored"] == 1, al6b["n_scored"]  # only the non-zero-pred cell
+    print(f"  6b fallback n_scored={al6b['n_scored']} (zero-pred holds excluded)")
 
     print("\nAll smoke-test assertions passed.")
     sys.exit(0)

@@ -380,22 +380,28 @@ def optimize(elast_df, cross_df, baseline_df, config):
     disc_hi = float(config["disc_hi"])
     max_ch = float(config.get("max_disc_change_ppt", 100.0))
 
-    # Per-cell box bounds = intersection of [disc_lo, disc_hi] with the glide window
-    # [disc0 - max_ch, disc0 + max_ch]. This makes the glide constraint HARD (DE can never
-    # propose a discount outside the window), so it isn't left to the soft penalty alone.
-    lo_cell = np.maximum(disc_lo, P["disc0"] - max_ch)
-    hi_cell = np.minimum(disc_hi, P["disc0"] + max_ch)
-    # If disc0 sits OUTSIDE [disc_lo, disc_hi], the glide window can invert (lo>hi). The global
-    # box is a hard limit and must win, so first re-clamp both edges into [disc_lo, disc_hi],
-    # then collapse any residual inversion to the nearest in-box edge (moves as far toward the
-    # out-of-range disc0 as the box permits — i.e. disc_hi if disc0 was too high, disc_lo if too
-    # low). This guarantees every returned discount stays within [disc_lo, disc_hi].
-    lo_cell = np.clip(lo_cell, disc_lo, disc_hi)
-    hi_cell = np.clip(hi_cell, disc_lo, disc_hi)
-    inverted = lo_cell > hi_cell
-    mid = 0.5 * (lo_cell + hi_cell)
-    lo_cell = np.where(inverted, mid, lo_cell)
-    hi_cell = np.where(inverted, mid, hi_cell)
+    # Per-cell box bounds. The GLIDE constraint is the hard, always-honored limit: every
+    # returned discount must satisfy |opt_disc - disc0| <= max_ch, even for cells whose disc0
+    # sits OUTSIDE [disc_lo, disc_hi]. So build the glide window FIRST, then intersect it with
+    # the global [disc_lo, disc_hi] only where that intersection is non-empty.
+    disc0 = P["disc0"]
+    glide_lo = disc0 - max_ch
+    glide_hi = disc0 + max_ch
+    # Intersection of the glide window with the global box.
+    lo_cell = np.maximum(glide_lo, disc_lo)
+    hi_cell = np.minimum(glide_hi, disc_hi)
+    # Where the intersection is EMPTY, disc0 is too far outside [disc_lo, disc_hi] to reach the
+    # box in a single glide step. Keep the cell inside its glide window and let it WALK toward
+    # the box by at most max_ch this week (converges over multiple weeks) — never snapping:
+    #   disc0 above disc_hi -> walk DOWN, window [disc0 - max_ch, disc0]
+    #   disc0 below disc_lo -> walk UP,   window [disc0, disc0 + max_ch]
+    empty = lo_cell > hi_cell
+    above = empty & (disc0 > disc_hi)
+    below = empty & (disc0 < disc_lo)
+    lo_cell = np.where(above, glide_lo, lo_cell)
+    hi_cell = np.where(above, disc0, hi_cell)
+    lo_cell = np.where(below, disc0, lo_cell)
+    hi_cell = np.where(below, glide_hi, hi_cell)
     bounds = [(float(lo_cell[i]), float(hi_cell[i])) for i in range(n)]
 
     # Baseline KPIs at current discounts.
@@ -628,6 +634,39 @@ if __name__ == "__main__":
     print(f"\nladder check: RICE1 {rice1_ppg:.4f}/g  RICE5 {rice5_ppg:.4f}/g "
           f"(5kg must be <= 1kg)")
     assert rice5_ppg <= config["ladder_tol"] * rice1_ppg + 1e-6, "ladder violated"
+
+    # --- Out-of-box glide check (ITEM 3) --------------------------------------------------
+    # A cell whose current discount sits OUTSIDE [disc_lo, disc_hi] must still respect the
+    # glide cap: it may WALK toward the box by at most max_disc_change_ppt this week, never
+    # snapping to the box edge in one step.
+    print("\n=== out-of-box glide check ===")
+    oob_baseline = pd.DataFrame(
+        [
+            # DAL1 starts at disc0=40, far ABOVE disc_hi=30 -> must step down by <= max_ch only.
+            ["RICE1", "BLR", "Staples", "Sonamasuri Rice", 1000.0, 120.0, 110.0, 130.0, 15.4],
+            ["DAL1",  "BLR", "Staples", "Toor Dal",        1000.0, 80.0, 108.0, 180.0, 40.0],
+        ],
+        columns=[
+            "product_id", "city", "category", "base_product", "pack_grams",
+            "q0_units_wk", "p0_price", "mrp", "disc0",
+        ],
+    )
+    oob_elast = elast_df[elast_df.product_id.isin(["RICE1", "DAL1"])].reset_index(drop=True)
+    reco_oob, _ = optimize(oob_elast, None, oob_baseline, config)
+    dal_row = reco_oob.loc[reco_oob.product_id == "DAL1"].iloc[0]
+    dal_move = abs(float(dal_row["opt_disc"]) - float(dal_row["base_disc"]))
+    print(f"DAL1 disc0={dal_row['base_disc']:.2f} (above disc_hi={config['disc_hi']}) "
+          f"-> opt_disc={dal_row['opt_disc']:.2f}  move={dal_move:.4f}ppt "
+          f"(cap={config['max_disc_change_ppt']})")
+    glide_oob_ok = (np.abs(reco_oob["opt_disc"] - reco_oob["base_disc"])
+                    <= config["max_disc_change_ppt"] + 1e-3).all()
+    assert glide_oob_ok, "glide constraint violated for out-of-box cell"
+    assert dal_move <= config["max_disc_change_ppt"] + 1e-3, (
+        f"out-of-box cell snapped past glide cap: moved {dal_move:.4f} > "
+        f"{config['max_disc_change_ppt']}")
+    # And it should actually move DOWN toward the box (not stay pinned at disc0).
+    assert float(dal_row["opt_disc"]) <= float(dal_row["base_disc"]) + 1e-6, (
+        "out-of-box cell above disc_hi should not increase its discount")
 
     # Try a second KPI to exercise the objective switch.
     print("\n=== optimize (kpi=nrw) ===")

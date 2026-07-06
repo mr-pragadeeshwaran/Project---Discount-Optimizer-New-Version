@@ -44,6 +44,8 @@ except Exception:
 
 HISTORY = os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv")
 EXEC_LOG = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log.csv")
+EXEC_LOG_TEMPLATE = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log_template.csv")
+AGREEMENT = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "agreement.csv")
 BASELINES = os.path.join(ROOT, "DISCOUNT_PLAN", "baselines.json")
 OUT_XLSX = os.path.join(ROOT, "DISCOUNT_PLAN", "WEEKLY_TRACKER.xlsx")
 OUT_READOUT = os.path.join(ROOT, "DISCOUNT_PLAN", "WEEKLY_READOUT.md")
@@ -114,6 +116,111 @@ def build_plan_df(csv_path):
     p["pred_net_rev_wk"] = p["pred_units_wk"] * p["suggested_price"]
     p["pred_net_rev_delta_wk"] = p["pred_net_rev_wk"] - p["cur_net_rev_wk"]
     return p
+
+
+def apply_agreement(plan_df):
+    """ENGINE-AGREEMENT consumer rule (WIRING).
+
+    DISCOUNT_PLAN/pricing/agreement.csv is PRODUCED by the pricing engine and records,
+    per cell, whether BOTH engines want to lower the discount:
+        columns: cell_id, product_id, city, pricing_action ('cut'|'raise'|'hold'),
+                 agree_with_cut (bool)   # True iff waste-cut bucket AND optimizer also cuts
+
+    Consumer rule enforced here: a c_waste_cut cell is only ACTUALLY cut when the
+    agreement is ABSENT (backward-compatible — behave exactly as before) OR its
+    agree_with_cut is True. If the file is present and agree_with_cut is False, the two
+    engines disagree, so we HOLD the cell this week (suggested_disc reset to cur_disc)
+    and stamp its decision_reason. Matched on (product_id, city).
+
+    Only c_waste_cut cells are gated — stock/competitive/monitor cells are already held
+    upstream, and reinvest cells are a separate deliberate test, so neither is touched.
+    Returns (plan_df, n_held_for_disagreement).
+    """
+    if not os.path.exists(AGREEMENT):
+        return plan_df, 0
+    try:
+        agr = pd.read_csv(AGREEMENT)
+    except Exception:
+        return plan_df, 0
+    needed = {"product_id", "city", "agree_with_cut"}
+    if not needed.issubset(agr.columns):
+        return plan_df, 0
+
+    def _truthy(v):
+        if isinstance(v, bool):
+            return v
+        return str(v).strip().lower() in ("true", "1", "yes", "y", "t")
+
+    def _pid_key(v):
+        # Normalize product_id to the SAME clean string the pricing engine writes
+        # (_clean_pid): strip a trailing '.0' pandas adds when the id column parses as
+        # float. Without this the consumer key ('532393.0') would miss the producer's
+        # cleaned key ('532393') whenever plan_df.product_id is float, silently letting a
+        # disagreed cut leak through the gate.
+        if isinstance(v, float):
+            return str(int(v)) if float(v).is_integer() else str(v)
+        s = str(v).strip()
+        if s.endswith(".0") and s[:-2].lstrip("-").isdigit():
+            return s[:-2]
+        return s
+
+    agr = agr.copy()
+    agr["_agree"] = agr["agree_with_cut"].map(_truthy)
+    # Match key on (product_id, city) as strings, product_id normalized dtype-agnostically
+    # (int/float/str all collapse to the same key the producer wrote).
+    agree_map = {(_pid_key(p), str(c)): bool(a)
+                 for p, c, a in zip(agr["product_id"], agr["city"], agr["_agree"])}
+
+    df = plan_df.copy()
+    is_waste_cut = df["bucket"] == "c_waste_cut"
+    # A waste-cut cell whose optimizer does NOT agree with the cut -> hold it.
+    disagree = []
+    for idx in df.index[is_waste_cut]:
+        key = (_pid_key(df.at[idx, "product_id"]), str(df.at[idx, "city"]))
+        # Absent from the map -> treat as "no signal" -> do NOT block (backward-compat).
+        if key in agree_map and not agree_map[key]:
+            disagree.append(idx)
+
+    if disagree:
+        df.loc[disagree, "suggested_disc"] = df.loc[disagree, "cur_disc"]
+        df.loc[disagree, "suggested_price"] = df.loc[disagree, "mrp"] * \
+            (1 - df.loc[disagree, "suggested_disc"] / 100.0)
+        # pred_units revert to current (no cut applied) so downstream deltas are honest.
+        if "cur_units_wk" in df.columns and "pred_units_wk" in df.columns:
+            df.loc[disagree, "pred_units_wk"] = df.loc[disagree, "cur_units_wk"]
+            df.loc[disagree, "pred_net_rev_wk"] = df.loc[disagree, "pred_units_wk"] * \
+                df.loc[disagree, "suggested_price"]
+            df.loc[disagree, "pred_net_rev_delta_wk"] = \
+                df.loc[disagree, "pred_net_rev_wk"] - df.loc[disagree, "cur_net_rev_wk"]
+        df.loc[disagree, "decision_reason"] = "engines disagree - test first"
+    return df, len(disagree)
+
+
+def write_execution_log_template(plan_df, week_label):
+    """GAP 3 (template side) — write a blank execution log for the KAM to fill.
+
+    One row per ACTED (cut/reinvest) cell this week; 'applied' left BLANK for the KAM
+    to mark Y/N and return as the real execution_log.csv (which apply_execution_log
+    already reads). This is a TEMPLATE, never read back by the code.
+    Columns: week, cell_id, product_id, city, recommended_action, recommended_disc, applied
+    """
+    if "week_action" in plan_df.columns:
+        acted = plan_df[plan_df["week_action"].isin(["cut", "reinvest"])]
+    else:
+        acted = plan_df.iloc[:0]
+    rec_disc = acted["week_disc"] if "week_disc" in acted.columns else acted.get("suggested_disc")
+    tmpl = pd.DataFrame({
+        "week": week_label,
+        "cell_id": acted["cell_id"],
+        "product_id": acted["product_id"],
+        "city": acted["city"],
+        "recommended_action": acted["week_action"] if "week_action" in acted.columns else "",
+        "recommended_disc": rec_disc,
+        "applied": "",  # KAM fills Y/N
+    })
+    os.makedirs(os.path.dirname(EXEC_LOG_TEMPLATE), exist_ok=True)
+    tmpl.to_csv(EXEC_LOG_TEMPLATE, index=False)
+    return EXEC_LOG_TEMPLATE
 
 
 def _baseline_budget_pct(plan_df):
@@ -239,6 +346,14 @@ def main():
 
     plan_df = build_plan_df(_latest_plan_csv())
 
+    # ── WIRING — engine agreement: hold any waste-cut cell the pricing optimizer does
+    # NOT also want to cut (agreement.csv absent => behave as before). Applied BEFORE the
+    # guardrail so a disagreed cell (suggested_disc reset to cur_disc) glides to a hold.
+    plan_df, n_disagree = apply_agreement(plan_df)
+    if n_disagree:
+        print(f"[tracker] ENGINE DISAGREEMENT — {n_disagree} waste-cut cell(s) HELD "
+              f"(optimizer did not confirm the cut); test first.")
+
     # ── GAP 1/2 — fill prior weeks' actuals from a fresh export, then run the kill-switch ──
     prev = pd.read_csv(HISTORY) if os.path.exists(HISTORY) else None
     alerts = {}
@@ -265,6 +380,11 @@ def main():
 
     plan_df, season = se.apply_seasonality(plan_df, config)
     plan_df, gsum = gr.apply_guardrail(plan_df, config)
+    # (B) Write a blank execution-log TEMPLATE for the KAM — one row per acted cell.
+    tmpl_path = write_execution_log_template(plan_df, week)
+    n_acted = int(plan_df["week_action"].isin(["cut", "reinvest"]).sum()) \
+        if "week_action" in plan_df.columns else 0
+    print(f"[tracker] wrote execution-log template ({n_acted} acted cells) -> {tmpl_path}")
     hist = append_history(plan_df, week, date)
     hist = apply_execution_log(hist)                       # GAP 3 — only applied cells count
     hist.to_csv(HISTORY, index=False)

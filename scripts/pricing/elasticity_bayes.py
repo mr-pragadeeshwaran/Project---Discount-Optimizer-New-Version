@@ -34,6 +34,11 @@ def _sibling_avg(panel):
     tot_u = g["_u"].transform("sum"); tot_up = g["_up"].transform("sum"); n = g["price"].transform("size")
     loo_u = (tot_u - p["_u"]).clip(lower=1e-9); loo_up = tot_up - p["_up"]
     p["sib_price"] = np.where(n > 1, loo_up / loo_u, p["price"])
+    # Per-row flag: did this (category, city, week) actually contain a real sibling? When a cell
+    # is the ONLY SKU in its category/city/week, sib_price fell back to its own price above, so the
+    # sibling regressor would be perfectly collinear with own price. Expose the group size so the
+    # caller can zero the sibling regressor for those rows (ITEM 2 collinearity fix).
+    p["has_real_sibling"] = (n > 1).astype(float).values
     return p
 
 
@@ -68,8 +73,15 @@ def estimate_elasticities(panel_df):
     p["ry"] = _residualize(p, "ln_u", controls)
     p["rp"] = _residualize(p, "ln_p", controls)
     rs = _residualize(p, "ln_s", controls)
+    # Zero the sibling regressor on two grounds:
+    #  (1) per-CATEGORY: a category with only one SKU anywhere has no substitute at all.
+    #  (2) per-ROW: a cell that is the ONLY SKU in its (category, city, week) had sib_price fall
+    #      back to its own price in _sibling_avg — leaving rs collinear with own price for that row.
+    #      Without this, single-SKU-in-a-city-week rows split the fit arbitrarily between own and
+    #      cross. has_real_sibling (group size > 1) removes exactly those rows from the cross signal.
     has_sib = p.groupby("category")["product_id"].transform("nunique").values > 1
-    p["rs"] = rs * has_sib
+    has_real_sibling = p["has_real_sibling"].values
+    p["rs"] = rs * has_sib * has_real_sibling
 
     cats = sorted(p["category"].unique())
 
