@@ -1,0 +1,39 @@
+{
+  "_readme": [
+    "Declarative constraint registry for the DE pricing optimizer (compiled by scripts/pricing/constraints_lib.py).",
+    "Every family ships enabled:false, so the production engine behaves EXACTLY as the validated champion until a family is deliberately switched on.",
+    "To activate: set enabled:true, then pass this file's contents as config['constraints'] to de_optimizer.build_problem / optimize (e.g. CONFIG['constraints'] = constraints_lib.load_config(path)).",
+    "Validate after editing: python -X utf8 scripts/pricing/constraints_lib.py --config DISCOUNT_PLAN/pricing/pricing_constraints.json",
+    "Onboarding another brand = copy this file and edit values; zero code changes."
+  ],
+  "kpi_bounds": {
+    "enabled": false,
+    "_doc": "Paper Eq.33: min_frac*K0 <= KPI(x) <= max_frac*K0 vs the baseline (disc0) value K0. null = that side unbounded. KPIs: revenue, volume, nrw, share, spend, profit, margin. Note the champion already hard-wires a revenue floor at 0.98 — the revenue entry here is an EXTRA declarative layer, not a replacement.",
+    "bounds": {
+      "revenue": { "min_frac": 0.98, "max_frac": null },
+      "volume": { "min_frac": 0.95, "max_frac": null },
+      "nrw": { "min_frac": 1.0, "max_frac": null },
+      "share": { "min_frac": 0.97, "max_frac": null },
+      "spend": { "min_frac": null, "max_frac": 1.12 },
+      "profit": { "min_frac": 0.98, "max_frac": null },
+      "margin": { "min_frac": 1.0, "max_frac": null }
+    }
+  },
+  "pricing_line": {
+    "enabled": false,
+    "_doc": "Paper Eq.36: within each base_product x city pack family, every member's absolute shelf-price move (p_new - p0, rupees) must be equal within tol_rupees — uniform family price moves, no pack drifting alone.",
+    "tol_rupees": 1.0
+  },
+  "portfolio_avg_band": {
+    "enabled": false,
+    "_doc": "Paper Eq.37 (plain-average version): 100*sum(p_new-p0)/sum(p0) must stay within [theta_lo_pct, theta_hi_pct] percent per weekly cycle. Discount cuts RAISE shelf price, so theta_hi caps how fast the portfolio average price may rise.",
+    "theta_lo_pct": -2.0,
+    "theta_hi_pct": 2.0
+  },
+  "vw_avg_band": {
+    "enabled": false,
+    "_doc": "Paper Eq.38-39: volume-weighted average price change band with ENDOGENOUS weights — the new average is weighted by the OPTIMIZED volumes from demand_model at the candidate discounts (not baseline volumes), so the weights move with the decision. Enforced as a soft penalty inside the DE metaheuristic, per the paper's rationale.",
+    "theta_lo_pct": -2.0,
+    "theta_hi_pct": 2.0
+  }
+}

@@ -5,6 +5,9 @@ REM  Double-click this file. It runs the full pipeline, then opens the
 REM  weekly Excel report (Summary, Glide Path, Track Record, By Product...).
 REM ====================================================================
 cd /d "%~dp0"
+echo Step 0 — optimizer parameter review (advisory; see DISCOUNT_PLAN\PARAMS_REVIEW.md)...
+python -X utf8 scripts\tracker\params_review.py
+echo.
 echo Running the discount optimiser pipeline...
 echo.
 python -X utf8 pipeline.py

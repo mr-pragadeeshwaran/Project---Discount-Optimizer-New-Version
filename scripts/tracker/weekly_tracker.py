@@ -371,6 +371,39 @@ def write_readout(plan_df, gsum, score, season, week_label, alerts=None):
                  f"realized saving to date ₹{score.get('cumulative_realized_saving_inr',0):,.0f}.")
     else:
         L.append("\n**Track record:** starts filling from next week, once this week's cuts meet the register.")
+    # ── val_17 — Adoption: were the recommendations actually executed? ──────────
+    # The paper's deployed system ran at ~85% acceptance; a week whose execution
+    # log was never returned reads "n/a" (unknown), NEVER 0% — not-confirmed is
+    # not rejected. LOW is an ops/trust alarm, not a model alarm.
+    acc = score.get("acceptance") or {}
+    if acc.get("weekly"):
+        L.append("\n## Adoption (recommendations actually executed)\n")
+        for w in acc["weekly"][-6:]:                       # recent weeks only
+            if w["acceptance_rate"] is None:
+                L.append(f"- **{w['week']}**: {w['n_recommended']} moves recommended — "
+                         f"execution log not returned yet (adoption **n/a**, not 0%). "
+                         f"Ask the KAM to fill DISCOUNT_PLAN/execution_log_template.csv.")
+            else:
+                vw = (f"; {w['value_weighted_rate']*100:.0f}% of projected value executed"
+                      if w.get("value_weighted_rate") is not None else "")
+                L.append(f"- **{w['week']}**: {w['n_applied']} of {w['n_recommended']} recommended "
+                         f"moves applied ({w['acceptance_rate']*100:.0f}%{vw}) — {w['status']}")
+        if acc.get("cum_acceptance_rate") is not None:
+            cvw = (f" · {acc['cum_value_weighted_rate']*100:.0f}% of projected value executed"
+                   if acc.get("cum_value_weighted_rate") is not None else "")
+            # Rate is over CONFIRMED weeks only — quote the confirmed denominator, and
+            # say how many recs are still unconfirmed instead of folding them in.
+            n_conf = acc.get("n_recommended_confirmed", acc["n_recommended_total"])
+            n_unconf = acc["n_recommended_total"] - n_conf
+            unconf = (f" ({n_unconf} more recs await a returned log — not counted)"
+                      if n_unconf > 0 else "")
+            L.append(f"\n**Cumulative: {acc['cum_acceptance_rate']*100:.0f}% of "
+                     f"{n_conf} log-confirmed recommendations executed{cvw}.**{unconf}")
+        L.append(f"\n_Benchmark: the PepsiCo paper's system deployed at ~{acc.get('benchmark', 0.85)*100:.0f}% "
+                 f"acceptance — track yours against that. Below "
+                 f"{sc.ADOPTION_WATCH*100:.0f}% the plan's projected savings are fiction._")
+    elif acc.get("note"):
+        L.append(f"\n**Adoption:** {acc['note']}.")
     L.append("\n_Golden rule: if a cut loses sales for 2 straight weeks, revert it — the model was wrong on that cell._")
     open(OUT_READOUT, "w", encoding="utf-8").write("\n".join(L))
 
@@ -462,6 +495,15 @@ def main():
     scored_hist = hist[hist["actual_net_rev_delta"].notna() & hist.get("applied", False).astype(bool)] \
         if len(hist) else hist
     score = sc.score_history(scored_hist)
+    # val_17 — acceptance rate (paper §4.3): applied==True / recommended (cut+reinvest).
+    # exec_weeks = weeks the KAM's returned log covers; a covered-less week reads n/a.
+    exec_weeks = None
+    if os.path.exists(EXEC_LOG):
+        try:
+            exec_weeks = set(pd.read_csv(EXEC_LOG)["week"].astype(str))
+        except Exception:
+            exec_weeks = None
+    score["acceptance"] = sc.acceptance_history(hist, exec_weeks)
 
     wb.build_workbook(plan_df, gsum, score, season, OUT_XLSX, week)
     write_readout(plan_df, gsum, score, season, week, alerts)
@@ -469,6 +511,13 @@ def main():
           f"reinvest {gsum.get('n_reinvest')} | proj saving ₹{gsum.get('projected_week_saving_inr',0):,.0f}/wk")
     if alerts.get("reverts"):
         print(f"[tracker] REVERTS: {len(alerts['reverts'])} cells lost sales 2wks — discount restored.")
+    _acc = score["acceptance"]
+    if _acc.get("cum_acceptance_rate") is not None:
+        print(f"[tracker] adoption: {_acc['cum_acceptance_rate']*100:.0f}% of "
+              f"{_acc.get('n_recommended_confirmed', _acc['n_recommended_total'])} "
+              f"log-confirmed recs executed (paper benchmark ~85%)")
+    else:
+        print(f"[tracker] adoption: n/a — {_acc.get('note', 'no execution log yet')}")
     print(f"[tracker] scored cells: {len(scored_hist)} | wrote {OUT_XLSX} + readout")
 
 

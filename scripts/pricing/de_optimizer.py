@@ -13,7 +13,14 @@ FAITHFUL TO PepsiCo PricingAI:
   - Log-linear demand with own + cross elasticity  (DOC Eq. 22-24)
   - Psychological-price-point (PPP) threshold bonus/penalty near round prices
   - Differential-evolution optimizer over a bounded discount vector, constraints as penalties
-  - Multi-seed ensemble; keep the best feasible run
+  - Full KPI menu incl. contribution profit (Eq. 28) and margin ratio (Eq. 29), using the
+    stage6 cost economics (v4_config 50%/15%/₹10 defaults, per-SKU override columns honored)
+  - Multi-run ensemble with VARIED algorithmic configurations (ROBUST_GRID, paper §3.2),
+    agreement-based early stop, per-run wall-clock cap; convergence report merged into
+    gates.json under 'de_robustness' during a real pricing_engine run
+  - Declarative extra constraints via config['constraints'] compiled by constraints_lib
+    (KPI bounds, pricing-line Eq. 36, portfolio price-change bands Eq. 37-39) — all
+    DISABLED by default so the validated champion behaviour is unchanged
   - No Gurobi, no cloud. Only numpy/pandas/scipy/sklearn/statsmodels.
 
 HONESTY CLAMPS (the whole point — no free lunch):
@@ -32,9 +39,38 @@ bottom. Run:  python -X utf8 scripts/pricing/de_optimizer.py
 
 from __future__ import annotations
 
+import json
+import os
+import sys
+import time
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import differential_evolution
+
+# ---------------------------------------------------------------------------
+# Cost economics for the profit / margin KPIs (paper Eq. 28-29).
+# Defaults come from v4_config (DEFAULT_COGS_PCT / DEFAULT_COMMISSION_PCT /
+# DEFAULT_FULFILLMENT_FEE) — the same constants stage6_economics uses:
+#     variable_cost = cogs + commission_pct * price + fulfillment      (economics.py:48)
+# with cogs defaulting to mrp * DEFAULT_COGS_PCT. If v4_config is unreachable
+# (standalone import from an odd cwd) the literal repo defaults are used, so the
+# module stays self-contained. Per-SKU overrides: if baseline_df carries columns
+# 'cogs' / 'commission_pct' / 'fulfillment_fee', those win (same convention as
+# stage6_economics._get_costs).
+# ---------------------------------------------------------------------------
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+try:
+    import v4_config as _v4cfg
+except Exception:
+    try:
+        sys.path.insert(0, _ROOT)
+        import v4_config as _v4cfg
+    except Exception:
+        _v4cfg = None
+DEFAULT_COGS_PCT = getattr(_v4cfg, "DEFAULT_COGS_PCT", 0.50)
+DEFAULT_COMMISSION_PCT = getattr(_v4cfg, "DEFAULT_COMMISSION_PCT", 0.15)
+DEFAULT_FULFILLMENT_FEE = getattr(_v4cfg, "DEFAULT_FULFILLMENT_FEE", 10.0)
 
 # ---------------------------------------------------------------------------
 # Module-level state shared with demand_model().
@@ -210,6 +246,40 @@ def build_problem(elast_df, cross_df, baseline_df, config=None):
             ladder_pairs.append((rows[k - 1], rows[k]))  # (smaller, bigger)
     P["ladder_pairs"] = ladder_pairs
 
+    # ── Cost economics (Eq. 28-29 inputs) ────────────────────────────────────
+    # Per-unit COGS (₹), commission (% of shelf price), fulfillment fee (₹/unit).
+    # Per-SKU columns on baseline_df override the v4_config defaults; otherwise
+    # cogs = mrp * DEFAULT_COGS_PCT (the documented 50/15/₹10 proxy — an HONEST
+    # default, flagged as such until the owner supplies true per-SKU costs).
+    if "cogs" in cells.columns:
+        P["cogs"] = cells["cogs"].fillna(P["mrp"] * DEFAULT_COGS_PCT).to_numpy(dtype=float)
+    else:
+        P["cogs"] = P["mrp"] * DEFAULT_COGS_PCT
+    if "commission_pct" in cells.columns:
+        P["comm_pct"] = cells["commission_pct"].fillna(DEFAULT_COMMISSION_PCT).to_numpy(dtype=float)
+    else:
+        P["comm_pct"] = np.full(n, float(DEFAULT_COMMISSION_PCT))
+    if "fulfillment_fee" in cells.columns:
+        P["fulfil"] = cells["fulfillment_fee"].fillna(DEFAULT_FULFILLMENT_FEE).to_numpy(dtype=float)
+    else:
+        P["fulfil"] = np.full(n, float(DEFAULT_FULFILLMENT_FEE))
+
+    # ── Declarative extra constraints (constraints_lib) ──────────────────────
+    # config['constraints'] is an OPTIONAL dict (schema: DISCOUNT_PLAN/pricing/
+    # pricing_constraints.json). When present, constraints_lib compiles it into
+    # penalty callables f(disc_vec, P, ctx) that _penalized_objective adds on top
+    # of the champion penalties. Absent (the default), extra_penalties == [] and
+    # behaviour is byte-identical to the pre-constraints code path.
+    P["extra_penalties"] = []
+    cons_cfg = (config or {}).get("constraints")
+    if cons_cfg:
+        try:
+            import constraints_lib  # sibling module; lazy so de_optimizer stays standalone
+        except ImportError:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import constraints_lib
+        P["extra_penalties"] = constraints_lib.compile_constraints(cons_cfg, P)
+
     return P
 
 
@@ -294,7 +364,23 @@ def demand_model(disc_vec, P):
 
 
 def _kpis(V, price, P):
-    """Compute the four KPIs from a volume/price vector."""
+    """
+    Compute the KPI chain from a volume/price vector.
+
+    Keys (the full plan-summary chain — units, revenue, spend, profit, margin, share proxy):
+      revenue : Σ V·price                              (shelf/GMV revenue)
+      volume  : Σ V                                    (units — 'units' in the chain report)
+      nrw     : revenue / Σ V·pack_kg                  (net revenue per weight, ₹/kg)
+      share   : Σ V / Σ q0                             (portfolio volume-retention proxy;
+                true market share needs competitor volumes, which are not observed)
+      spend   : Σ V·(mrp − price)                      (weekly discount spend, ₹)
+      profit  : Σ V·(price − cogs − comm_pct·price − fulfil)   (Eq. 28, contribution profit;
+                variable-cost formula identical to stage6_economics/economics.py:48)
+      margin  : profit / revenue                       (Eq. 29, portfolio margin ratio)
+
+    HONESTY NOTE: profit/margin use the v4_config 50%/15%/₹10 cost proxies unless
+    baseline_df supplied per-SKU cogs / commission_pct / fulfillment_fee columns.
+    """
     revenue = float(np.sum(V * price))
     volume = float(np.sum(V))
     pack_kg = P["pack_g"] / 1000.0
@@ -302,7 +388,19 @@ def _kpis(V, price, P):
     nrw = revenue / weight_sold if weight_sold > 1e-9 else 0.0  # net revenue per weight (INR/kg)
     q0_total = float(np.sum(P["q0"]))
     share = volume / q0_total if q0_total > 1e-9 else 0.0  # portfolio volume retention proxy
-    return {"revenue": revenue, "volume": volume, "nrw": nrw, "share": share}
+    # Discount spend: gap to MRP funded per unit sold.
+    spend = float(np.sum(V * np.maximum(P["mrp"] - price, 0.0)))
+    # Eq. 28: contribution profit with the stage6 variable-cost formula.
+    cogs = P.get("cogs")
+    if cogs is None:  # P built by an older caller — derive the same defaults on the fly
+        cogs = P["mrp"] * DEFAULT_COGS_PCT
+    comm = P.get("comm_pct", DEFAULT_COMMISSION_PCT)
+    fulfil = P.get("fulfil", DEFAULT_FULFILLMENT_FEE)
+    vc = cogs + comm * price + fulfil
+    profit = float(np.sum(V * (price - vc)))
+    margin = profit / revenue if abs(revenue) > 1e-9 else 0.0  # Eq. 29
+    return {"revenue": revenue, "volume": volume, "nrw": nrw, "share": share,
+            "spend": spend, "profit": profit, "margin": margin}
 
 
 def _penalized_objective(disc_vec, P, base_kpis):
@@ -314,6 +412,15 @@ def _penalized_objective(disc_vec, P, base_kpis):
       (b) glide:          |disc_i - disc0_i| <= max_disc_change_ppt
       (c) price ladder:   bigger pack per-gram <= tol * smaller pack per-gram
       (d) box bounds handled by DE bounds directly.
+      (e) EXTRA declarative penalties from P['extra_penalties'] (compiled by
+          constraints_lib from config['constraints']; empty by default so the
+          champion behaviour is unchanged). Each callable gets (disc, P, ctx)
+          where ctx carries the already-computed V/price/kpis/base_kpis so no
+          second demand_model evaluation is needed.
+
+    The objective KPI (config['kpi']) may be any _kpis key: revenue, volume,
+    nrw, share, spend, profit, margin — or 'combo' (Sec 2.2.3), the blend
+    combo_alpha*revenue_norm + (1-combo_alpha)*profit_norm (default alpha 0.5).
     """
     cfg = P["config"]
     disc = np.asarray(disc_vec, dtype=float)
@@ -321,10 +428,21 @@ def _penalized_objective(disc_vec, P, base_kpis):
     V = demand_model(disc, P)
     k = _kpis(V, price, P)
 
+    # Normalization uses |baseline| so the DE's sense (maximize the KPI) is preserved
+    # even when a baseline is NEGATIVE (possible for profit/margin under the 50% COGS
+    # proxy on deep-discount groups). For every positive baseline this is identical to
+    # dividing by the baseline itself, so the champion revenue path is unchanged.
+    def _norm(name):
+        base_val = base_kpis[name]
+        return k[name] / max(abs(base_val), 1e-9) if abs(base_val) > 1e-9 else k[name]
+
     kpi_name = cfg.get("kpi", "revenue")
-    base_val = base_kpis[kpi_name]
-    denom = base_val if abs(base_val) > 1e-9 else 1.0
-    reward = k[kpi_name] / denom  # normalized so all KPIs are ~O(1)
+    if kpi_name == "combo":
+        # Sec 2.2.3 blended objective: alpha*revenue_norm + (1-alpha)*profit_norm.
+        alpha = float(cfg.get("combo_alpha", 0.5))
+        reward = alpha * _norm("revenue") + (1.0 - alpha) * _norm("profit")
+    else:
+        reward = _norm(kpi_name)  # normalized so all KPIs are ~O(1)
 
     pen = 0.0
     BIG = 100.0
@@ -352,7 +470,107 @@ def _penalized_objective(disc_vec, P, base_kpis):
         if violation > 0:
             pen += BIG * (violation / max(ppg_small, 1e-6)) ** 2
 
+    # (e) extra declarative penalties (constraints_lib) — no-op when list is empty
+    extra = P.get("extra_penalties") or []
+    if extra:
+        ctx = {"V": V, "price": price, "kpis": k, "base_kpis": base_kpis}
+        for f in extra:
+            pen += float(f(disc, P, ctx))
+
     return -reward + pen
+
+
+# ---------------------------------------------------------------------------
+# DE ROBUSTNESS PROTOCOL (paper §3.2, scaled so production runtime is unchanged)
+#
+# Instead of n_seeds identical-config runs, each run s draws its algorithmic
+# configuration from ROBUST_GRID[s % len(ROBUST_GRID)] with seed=s. Entry 0 is
+# EXACTLY the pre-protocol settings (mutation (0.5,1.0), recombination 0.7,
+# popsize 15, latinhypercube), so run 0 is bit-identical to the old behaviour
+# and the default n_seeds=2 adds only one varied run. Stopping:
+#   - agreement: once >=2 runs completed, stop early if their best objectives
+#     agree within config['de_agree_tol'] (relative; default 1e-3). NOTE: the
+#     build spec said "within ladder_tol", but ladder_tol is a per-gram price
+#     ratio (default 1.0) — the wrong unit for an O(1) normalized objective —
+#     so a dedicated relative tolerance is used instead (honest deviation).
+#   - time cap: each run is halted via callback after config['de_time_cap_s']
+#     seconds (default 120 s/run) and returns its best-so-far.
+# The per-group convergence report lands in kpi_summary['robustness'] and is
+# merged into DISCOUNT_PLAN/pricing/gates.json under 'de_robustness' — but ONLY
+# when gates.json was (re)written during this same process (i.e. a real
+# pricing_engine.py run, which writes gates.json before optimizing). Standalone
+# smoke tests therefore never pollute the production gates file.
+# ---------------------------------------------------------------------------
+ROBUST_GRID = [
+    {"mutation": (0.5, 1.0), "recombination": 0.70, "popsize": 15, "init": "latinhypercube"},  # 0 = champion anchor
+    {"mutation": (0.3, 0.7), "recombination": 0.90, "popsize": 20, "init": "latinhypercube"},
+    {"mutation": (0.8, 1.4), "recombination": 0.50, "popsize": 10, "init": "latinhypercube"},
+    {"mutation": (0.7, 1.0), "recombination": 0.95, "popsize": 12, "init": "latinhypercube"},
+    {"mutation": 0.9,        "recombination": 0.40, "popsize": 18, "init": "latinhypercube"},
+    {"mutation": 0.6,        "recombination": 0.80, "popsize": 25, "init": "sobol"},
+    {"mutation": (0.4, 1.2), "recombination": 0.60, "popsize": 15, "init": "sobol"},
+    {"mutation": (0.2, 0.9), "recombination": 0.70, "popsize": 30, "init": "sobol"},
+]
+
+_IMPORT_TS = time.time()          # process start; gates merge requires gates.json newer than this
+_GATES_PATH = os.path.join(_ROOT, "DISCOUNT_PLAN", "pricing", "gates.json")
+_ROBUSTNESS_GROUPS = {}           # label -> per-group convergence record (process lifetime)
+
+
+class _TimeBudget:
+    """DE callback: returns True (halt, keep best-so-far) once the wall-clock
+    budget is exhausted. budget_s=None disables the cap."""
+
+    def __init__(self, budget_s):
+        self.budget = budget_s
+        self.t0 = time.monotonic()
+        self.tripped = False
+
+    def __call__(self, xk, convergence=0.0):
+        if self.budget is not None and (time.monotonic() - self.t0) > float(self.budget):
+            self.tripped = True
+            return True
+        return False
+
+
+def _robustness_summary():
+    """Aggregate the per-group records into the gates.json 'de_robustness' block."""
+    groups = _ROBUSTNESS_GROUPS
+    n_runs = sum(g["n_completed"] for g in groups.values())
+    spreads = [g["spread_rel"] for g in groups.values() if g["spread_rel"] is not None]
+    return {
+        "protocol": "varied-config multi-run DE (ROBUST_GRID) + agreement stop + per-run time cap",
+        "n_groups": len(groups),
+        "n_runs_total": n_runs,
+        "n_groups_agreed": sum(1 for g in groups.values() if g["agreed"]),
+        "n_groups_stopped_early": sum(1 for g in groups.values() if g["stopped_early"]),
+        "n_runs_timed_out": sum(
+            sum(1 for r in g["runs"] if r["stopped_by"] == "time_cap") for g in groups.values()),
+        "max_spread_rel": max(spreads) if spreads else None,
+        "groups": groups,
+    }
+
+
+def _merge_robustness_into_gates(config):
+    """Write the accumulated convergence report into gates.json['de_robustness'].
+    Fires only when gates.json exists AND was written during this process (a real
+    pricing_engine run writes it just before optimizing); config['gates_robustness']
+    = False disables it explicitly (used by the smoke test)."""
+    if not config.get("gates_robustness", True):
+        return False
+    try:
+        if not os.path.exists(_GATES_PATH):
+            return False
+        if os.path.getmtime(_GATES_PATH) < _IMPORT_TS - 1.0:
+            return False  # stale file from an earlier run — don't rewrite history
+        with open(_GATES_PATH, "r", encoding="utf-8") as fh:
+            gates = json.load(fh)
+        gates["de_robustness"] = _robustness_summary()
+        with open(_GATES_PATH, "w", encoding="utf-8") as fh:
+            json.dump(gates, fh, indent=2, default=str)
+        return True
+    except Exception:
+        return False  # reporting must never break the optimizer
 
 
 def optimize(elast_df, cross_df, baseline_df, config):
@@ -364,14 +582,19 @@ def optimize(elast_df, cross_df, baseline_df, config):
     elast_df    : own_elast (NEGATIVE), own_sd, promo_elast per (product_id, city).
     cross_df    : sparse within-category substitute pairs (product_i, product_j, cross_elast>0).
     baseline_df : q0_units_wk, p0_price, mrp, disc0, pack_grams, base_product per cell.
-    config      : optimizer dict (kpi, disc_lo, disc_hi, max_disc_change_ppt,
-                  revenue_floor_frac, psych_prices, ladder_tol, n_seeds).
+                  Optional per-SKU cost columns: cogs, commission_pct, fulfillment_fee.
+    config      : optimizer dict (kpi in {revenue, volume, nrw, share, spend, profit, margin,
+                  combo}, combo_alpha, disc_lo, disc_hi, max_disc_change_ppt,
+                  revenue_floor_frac, psych_prices, ladder_tol, n_seeds, de_agree_tol,
+                  de_time_cap_s, constraints).
 
     Returns
     -------
     reco_df : per cell — product_id, city, base_disc, opt_disc, base_price, opt_price,
               pred_units_delta_pct, pred_rev_delta_pct.
-    kpi_summary : dict — baseline vs optimized revenue/volume/nrw/share + n_cells_up/down.
+    kpi_summary : dict — baseline vs optimized KPI chain (units/volume, revenue, spend,
+              profit, margin, nrw, share proxy) + n_cells_up/down + feasibility flags +
+              'robustness' (per-run convergence report of the varied-config ensemble).
     """
     P = build_problem(elast_df, cross_df, baseline_df, config)
     n = P["n"]
@@ -409,12 +632,18 @@ def optimize(elast_df, cross_df, baseline_df, config):
     base_V = demand_model(P["disc0"], P)
     base_kpis = _kpis(base_V, base_price, P)
 
-    # Multi-seed DE ensemble; keep the best feasible (lowest penalized objective).
+    # Multi-run DE ensemble (robustness protocol — see ROBUST_GRID note above):
+    # run s uses seed=s and ROBUST_GRID[s % 8]'s mutation/recombination/popsize/init.
+    # Keep the best (lowest penalized objective); stop early on agreement.
     n_seeds = int(config.get("n_seeds", 4))
     n_seeds = max(1, min(n_seeds, 8))
+    agree_tol = float(config.get("de_agree_tol", 1e-3))     # relative objective agreement
+    time_cap = config.get("de_time_cap_s", 120.0)           # seconds per run; None = uncapped
 
     best_obj = np.inf
     best_x = P["disc0"].copy()
+    run_log = []
+    stopped_early = False
 
     if n == 0:
         reco_df = pd.DataFrame(
@@ -430,23 +659,49 @@ def optimize(elast_df, cross_df, baseline_df, config):
         return reco_df, kpi_summary
 
     for s in range(n_seeds):
+        g = ROBUST_GRID[s % len(ROBUST_GRID)]
+        budget = _TimeBudget(time_cap)
+        t0 = time.monotonic()
         result = differential_evolution(
             _penalized_objective,
             bounds,
             args=(P, base_kpis),
             seed=s,
             maxiter=60,
-            popsize=15,
+            popsize=g["popsize"],
             tol=1e-6,
-            mutation=(0.5, 1.0),
-            recombination=0.7,
+            mutation=g["mutation"],
+            recombination=g["recombination"],
             polish=True,
-            init="latinhypercube",
+            init=g["init"],
             updating="deferred",
+            callback=budget,
         )
+        elapsed = time.monotonic() - t0
+        if budget.tripped:
+            stopped_by = "time_cap"
+        elif result.success:
+            stopped_by = "converged"
+        else:
+            stopped_by = "maxiter"
+        run_log.append({
+            "run": s, "seed": s, "mutation": g["mutation"],
+            "recombination": g["recombination"], "popsize": g["popsize"], "init": g["init"],
+            "objective": float(result.fun), "nit": int(getattr(result, "nit", -1)),
+            "nfev": int(getattr(result, "nfev", -1)), "elapsed_s": round(elapsed, 3),
+            "stopped_by": stopped_by,
+        })
         if result.fun < best_obj:
             best_obj = result.fun
             best_x = result.x.copy()
+        # Agreement stop: if the completed runs' best objectives already agree
+        # within tolerance, more varied runs are unlikely to move the answer.
+        if len(run_log) >= 2 and s < n_seeds - 1:
+            objs = [r["objective"] for r in run_log]
+            spread_rel = (max(objs) - min(objs)) / max(abs(min(objs)), 1e-9)
+            if spread_rel <= agree_tol:
+                stopped_early = True
+                break
 
     # Clip to the per-cell glide window (guarantees hard feasibility on bounds + glide).
     opt_disc = np.clip(best_x, lo_cell, hi_cell)
@@ -525,6 +780,28 @@ def optimize(elast_df, cross_df, baseline_df, config):
             ladder_ok = False
             break
 
+    # ── Convergence report (robustness protocol receipt) ─────────────────────
+    objs = [r["objective"] for r in run_log]
+    spread_rel = ((max(objs) - min(objs)) / max(abs(min(objs)), 1e-9)) if len(objs) >= 2 else None
+    for r in run_log:
+        r["is_best"] = bool(abs(r["objective"] - best_obj) < 1e-12)
+    robustness = {
+        "n_planned": n_seeds,
+        "n_completed": len(run_log),
+        "stopped_early": stopped_early,
+        "agreed": bool(spread_rel is not None and spread_rel <= agree_tol),
+        "spread_rel": spread_rel,
+        "agree_tol": agree_tol,
+        "time_cap_s": time_cap,
+        "runs": run_log,
+    }
+    # Register this group in the process-level accumulator and (only during a real
+    # pricing_engine run — see _merge_robustness_into_gates) update gates.json.
+    label_cat = str(cells["category"].iloc[0]) if "category" in cells.columns and len(cells) else "?"
+    label_city = str(cells["city"].iloc[0]) if len(cells) else "?"
+    _ROBUSTNESS_GROUPS[f"{label_cat}|{label_city}"] = dict(robustness, n_cells=int(n))
+    _merge_robustness_into_gates(config)
+
     kpi_summary = {
         "baseline": {k: round(v, 4) for k, v in base_kpis.items()},
         "optimized": {k: round(v, 4) for k, v in opt_kpis.items()},
@@ -536,6 +813,7 @@ def optimize(elast_df, cross_df, baseline_df, config):
             - 1e-6
         ),
         "ladder_ok": bool(ladder_ok),
+        "robustness": robustness,
     }
     return reco_df, kpi_summary
 
@@ -589,6 +867,7 @@ if __name__ == "__main__":
         "psych_prices": [49, 99, 149, 199, 249, 299, 399, 499],
         "ladder_tol": 1.0,
         "n_seeds": 3,
+        "gates_robustness": False,  # synthetic run — never touch the production gates.json
     }
 
     print("=== demand_model sanity check ===")
@@ -674,6 +953,105 @@ if __name__ == "__main__":
     reco2, summ2 = optimize(elast_df, cross_df, baseline_df, cfg2)
     print("nrw baseline:", summ2["baseline"]["nrw"], "-> optimized:", summ2["optimized"]["nrw"])
     assert summ2["optimized"]["nrw"] >= summ2["baseline"]["nrw"] - 1e-6, "nrw should not worsen"
+
+    # --- KPI chain completeness (units/volume, revenue, spend, profit, margin, share) ---
+    print("\n=== KPI chain check (Eq.28 profit / Eq.29 margin) ===")
+    chain = {"revenue", "volume", "nrw", "share", "spend", "profit", "margin"}
+    assert chain <= set(kpi_summary["baseline"]), \
+        f"KPI chain incomplete: {chain - set(kpi_summary['baseline'])}"
+    b = kpi_summary["baseline"]
+    print(f"baseline chain: units {b['volume']:.1f} | revenue ₹{b['revenue']:.0f} | "
+          f"spend ₹{b['spend']:.0f} | profit ₹{b['profit']:.0f} | margin {b['margin']*100:.1f}% "
+          f"| share {b['share']:.3f}")
+    # Hand-check profit on the baseline of one cell (RICE1): V*(p - 0.5*mrp - 0.15*p - 10)
+    P0 = build_problem(elast_df, cross_df, baseline_df, config)
+    V0 = demand_model(P0["disc0"], P0)
+    p0v = np.maximum(P0["mrp"] * (1.0 - P0["disc0"] / 100.0), 1e-6)
+    prof_hand = float(np.sum(V0 * (p0v - (P0["mrp"] * DEFAULT_COGS_PCT
+                                          + DEFAULT_COMMISSION_PCT * p0v
+                                          + DEFAULT_FULFILLMENT_FEE))))
+    assert abs(prof_hand - _kpis(V0, p0v, P0)["profit"]) < 1e-6, "Eq.28 arithmetic mismatch"
+
+    print("\n=== optimize (kpi=profit) ===")
+    cfg3 = dict(config, kpi="profit")
+    reco3, summ3 = optimize(elast_df, cross_df, baseline_df, cfg3)
+    print("profit baseline:", summ3["baseline"]["profit"], "-> optimized:",
+          summ3["optimized"]["profit"])
+    assert summ3["optimized"]["profit"] >= summ3["baseline"]["profit"] - 1e-6, \
+        "profit objective should not worsen profit"
+    assert summ3["revenue_floor_ok"], "profit-chasing must not torch the revenue floor"
+
+    print("\n=== optimize (kpi=margin) ===")
+    cfg4 = dict(config, kpi="margin")
+    reco4, summ4 = optimize(elast_df, cross_df, baseline_df, cfg4)
+    print("margin baseline:", summ4["baseline"]["margin"], "-> optimized:",
+          summ4["optimized"]["margin"])
+    assert summ4["optimized"]["margin"] >= summ4["baseline"]["margin"] - 1e-6, \
+        "margin objective should not worsen margin"
+    assert summ4["revenue_floor_ok"], "margin-chasing must not torch the revenue floor"
+
+    print("\n=== optimize (kpi=combo, alpha=0.5) ===")
+    cfg5 = dict(config, kpi="combo", combo_alpha=0.5)
+    reco5, summ5 = optimize(elast_df, cross_df, baseline_df, cfg5)
+    b5, o5 = summ5["baseline"], summ5["optimized"]
+    combo_base = 0.5 * 1.0 + 0.5 * 1.0  # baseline of each normalized term is 1 by construction
+    combo_opt = 0.5 * (o5["revenue"] / b5["revenue"]) + 0.5 * (o5["profit"] / b5["profit"])
+    print(f"combo (0.5*rev_norm + 0.5*profit_norm): baseline {combo_base:.4f} "
+          f"-> optimized {combo_opt:.4f}")
+    assert combo_opt >= combo_base - 1e-6, "combo objective should not worsen the blend"
+    assert summ5["revenue_floor_ok"], "combo objective must respect the revenue floor"
+
+    # Sign-safety of the normalization: a NEGATIVE baseline KPI must still be MAXIMIZED
+    # (reward uses |baseline| as denominator, never the signed baseline).
+    P_neg = build_problem(elast_df, cross_df, baseline_df, dict(config, kpi="profit"))
+    fake_base = dict(_kpis(demand_model(P_neg["disc0"], P_neg),
+                           np.maximum(P_neg["mrp"] * (1.0 - P_neg["disc0"] / 100.0), 1e-6),
+                           P_neg))
+    fake_base["profit"] = -1000.0  # pretend the baseline profit was negative
+    obj_better = _penalized_objective(P_neg["disc0"], P_neg, fake_base)
+    worse = P_neg["disc0"] + 2.0   # deeper discounts -> lower profit on this fixture
+    obj_worse = _penalized_objective(worse, P_neg, fake_base)
+    assert obj_better < obj_worse, \
+        "normalization sign bug: higher profit must give a LOWER (better) objective " \
+        "even when the baseline profit is negative"
+    print("  negative-baseline normalization: sign-safe (higher profit -> better objective)")
+
+    # --- Robustness protocol receipt ---
+    print("\n=== DE robustness report ===")
+    rob = kpi_summary["robustness"]
+    assert rob["n_completed"] >= 1 and len(rob["runs"]) == rob["n_completed"]
+    assert rob["runs"][0]["mutation"] == (0.5, 1.0) and rob["runs"][0]["popsize"] == 15, \
+        "run 0 must keep the champion configuration (backward-compat anchor)"
+    assert any(r["is_best"] for r in rob["runs"])
+    for r in rob["runs"]:
+        print(f"  run {r['run']}: obj {r['objective']:.6f} | pop {r['popsize']} "
+              f"mut {r['mutation']} rec {r['recombination']} | {r['elapsed_s']}s "
+              f"| {r['stopped_by']}{' | BEST' if r['is_best'] else ''}")
+    print(f"  spread_rel={rob['spread_rel']}, agreed={rob['agreed']}, "
+          f"stopped_early={rob['stopped_early']}")
+    # time-cap path: a ~zero budget must halt cleanly and still return a feasible answer
+    cfg_cap = dict(config, de_time_cap_s=1e-6, n_seeds=1)
+    reco_cap, summ_cap = optimize(elast_df, cross_df, baseline_df, cfg_cap)
+    assert summ_cap["robustness"]["runs"][0]["stopped_by"] == "time_cap", \
+        "time cap did not fire"
+    glide_cap_ok = (np.abs(reco_cap["opt_disc"] - reco_cap["base_disc"])
+                    <= config["max_disc_change_ppt"] + 1e-3).all()
+    assert glide_cap_ok, "time-capped run returned an infeasible plan"
+    print("  time-cap safeguard: fires cleanly, plan stays glide-feasible")
+
+    # --- Declarative constraints: default config file must be a no-op ---
+    print("\n=== constraints hook (default = disabled = champion behaviour) ===")
+    cons_path = os.path.join(_ROOT, "DISCOUNT_PLAN", "pricing", "pricing_constraints.json")
+    if os.path.exists(cons_path):
+        with open(cons_path, "r", encoding="utf-8") as fh:
+            cons_cfg = json.load(fh)
+        P_cons = build_problem(elast_df, cross_df, baseline_df,
+                               dict(config, constraints=cons_cfg))
+        assert P_cons["extra_penalties"] == [], \
+            "default pricing_constraints.json (all disabled) must compile to no penalties"
+        print(f"  {cons_path}: all families disabled -> 0 extra penalties (backward compatible)")
+    else:
+        print("  pricing_constraints.json not found — skipped (constraints_lib has its own test)")
 
     print("\nAll smoke-test assertions passed. Exit 0.")
     sys.exit(0)

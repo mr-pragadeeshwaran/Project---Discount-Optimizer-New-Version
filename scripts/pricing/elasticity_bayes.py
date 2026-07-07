@@ -16,6 +16,12 @@ Model (per category, after Frisch–Waugh–Lovell removes cell FE + controls):
    own_elast = mn[0] ; own_sd = √Sn[0,0]  (real uncertainty, not a clip artifact)
 
 Drop-in for elasticity_hier: estimate_elasticities(panel_df) -> (elast_df, cross_df, baseline_df, gates).
+
+SEQUENTIAL PRIORS (opt-in, price_30/val_10): pass seq_priors=prior_store.load_priors()
+(or set env ELASTICITY_SEQ_PRIORS=1) and each category's prior becomes its PREVIOUS
+posterior (forgetting factor applied by prior_store) instead of the fixed constants;
+unseen/out-of-band categories fall back to the constants. Default OFF — behavior is
+bit-identical to the fixed-prior champion when the flag is not set.
 """
 import warnings, os
 warnings.filterwarnings("ignore")
@@ -59,7 +65,42 @@ def _bayes(X, y, w, m0, S0, sigma2):
     return mn, Sn
 
 
-def estimate_elasticities(panel_df):
+def _load_seq_priors(seq_priors):
+    """Opt-in sequential-prior hook (price_30/val_10). Resolves the seq_priors argument
+    (env ELASTICITY_SEQ_PRIORS=1 auto-loads from prior_store) into {category: (m0, S0)}.
+    Empty dict = fixed-prior champion behavior. A carried prior is only accepted when
+    its own mean is inside the sane band (-2.5, -0.1) and its SD is finite/positive;
+    everything else falls back to the constants (new-category cold start)."""
+    if seq_priors is None and os.environ.get("ELASTICITY_SEQ_PRIORS", "").lower() in ("1", "true", "on"):
+        try:
+            import sys as _sys
+            _here = os.path.dirname(os.path.abspath(__file__))
+            if _here not in _sys.path:
+                _sys.path.insert(0, _here)
+            import prior_store
+            seq_priors = prior_store.load_priors()
+        except Exception as e:
+            print(f"[elasticity_bayes] seq-prior load failed ({e}) — using fixed priors")
+            seq_priors = None
+    seqmap, meta = {}, {}
+    if seq_priors:
+        for c, sp in (seq_priors.get("per_category") or {}).items():
+            try:
+                own, osd = float(sp["own"]), float(sp["own_sd"])
+                cr = float(sp.get("cross", CROSS_PRIOR_MU))
+                csd = float(sp.get("cross_sd", CROSS_PRIOR_SD))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if -2.5 < own < -0.1 and np.isfinite(osd) and osd > 0:
+                seqmap[c] = ([own, cr],
+                             np.diag([min(osd, OWN_PRIOR_SD) ** 2, min(csd, CROSS_PRIOR_SD) ** 2]))
+        meta = {"saved_at": seq_priors.get("saved_at_utc"), "run_stamp": seq_priors.get("run_stamp"),
+                "forgetting": seq_priors.get("forgetting")}
+    return seqmap, meta
+
+
+def estimate_elasticities(panel_df, seq_priors=None):
+    seqmap, seq_meta = _load_seq_priors(seq_priors)
     p = _sibling_avg(panel_df)
     p = p[(p["units"] > 0) & (p["price"] > 0) & (p["sib_price"] > 0)].copy()
     p["cell"] = p["product_id"].astype(str) + "|" + p["city"].astype(str)
@@ -85,7 +126,7 @@ def estimate_elasticities(panel_df):
 
     cats = sorted(p["category"].unique())
 
-    def fit_cat(c, m0):
+    def fit_cat(c, m0, S0=None):
         d = p[p["category"] == c]
         X = d[["rp", "rs"]].values; y = d["ry"].values; w = d["w"].values
         # noise variance from a weighted OLS residual
@@ -94,7 +135,8 @@ def estimate_elasticities(panel_df):
             sig2 = max(np.average((y - X @ b_ols) ** 2, weights=w), 1e-4)
         except Exception:
             sig2 = 1.0
-        S0 = np.diag([OWN_PRIOR_SD ** 2, CROSS_PRIOR_SD ** 2])
+        if S0 is None:
+            S0 = np.diag([OWN_PRIOR_SD ** 2, CROSS_PRIOR_SD ** 2])
         mn, Sn = _bayes(X, y, w, np.array(m0), S0, sig2)
         return mn, np.sqrt(np.diag(Sn)), len(d)
 
@@ -103,8 +145,11 @@ def estimate_elasticities(panel_df):
     owns = np.array([raw[c][0][0] for c in cats]); ses = np.array([raw[c][1][0] for c in cats])
     prec = 1.0 / (ses ** 2 + 1e-9)
     mu_g = float(np.clip(np.sum(owns * prec) / np.sum(prec), -2.5, -0.1))   # empirical-Bayes global own
-    # Stage 2 — hierarchical: shrink each category toward the global own mean
-    est = {c: fit_cat(c, [mu_g, CROSS_PRIOR_MU]) for c in cats}
+    # Stage 2 — hierarchical: shrink each category toward the global own mean.
+    # SEQ-PRIOR categories instead reuse their previous posterior as prior (the carried
+    # posterior already encodes last cycle's pooling); the rest take the champion path.
+    est = {c: (fit_cat(c, seqmap[c][0], seqmap[c][1]) if c in seqmap
+               else fit_cat(c, [mu_g, CROSS_PRIOR_MU])) for c in cats}
 
     base = freeze_baselines(panel_df)
     ce_of = {c: float(est[c][0][1]) for c in cats}
@@ -151,6 +196,21 @@ def estimate_elasticities(panel_df):
                              "cross": round(ce_of[c], 3)} for c in cats},
         "all_pass": bool(((own_means > -2.5) & (own_means <= 0.2)).all() and frac_pos >= 0.5),
     }
+    if seqmap:   # only when the opt-in flag is on — gates.json stays byte-identical otherwise
+        gates["method"] = "conjugate_bayes_sequential_prior"
+        # Stability release gate (val_10): posterior must not whipsaw away from the carried
+        # prior mean. A seeded run that shifts any category > 0.5 fails all_pass, so
+        # prior_store will refuse to seed the NEXT refresh from it (never propagate a jump).
+        shifts = {c: round(own_of[c] - seqmap[c][0][0], 4) for c in cats if c in seqmap}
+        max_shift = max((abs(v) for v in shifts.values()), default=0.0)
+        stability_pass = bool(max_shift <= 0.5)
+        gates["seq_priors"] = {"enabled": True, **seq_meta,
+                               "categories_seeded": sorted(k for k in seqmap if k in set(cats)),
+                               "categories_default": sorted(set(cats) - set(seqmap)),
+                               "own_shift_vs_prior": shifts,
+                               "max_abs_own_shift": round(float(max_shift), 4),
+                               "stability_pass": stability_pass}
+        gates["all_pass"] = bool(gates["all_pass"] and stability_pass)
     return elast_df, cross_df, base, gates
 
 

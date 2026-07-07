@@ -19,14 +19,23 @@ Honesty rules baked in
   saving (sum of ACTUAL deltas, not predicted — the number that actually hit the P&L).
 * First-run / empty history is handled gracefully: zeros / None and a clear note.
 
-Public function
----------------
+Public functions
+----------------
     score_history(history_df) -> dict
+    acceptance_history(history_df, exec_weeks=None) -> dict
 
 Contract for history_df (one row per (cell_id, week) for weeks WITH actuals):
     cell_id, week(str), confidence,
     pred_net_rev_delta(float), actual_net_rev_delta(float),
     pred_units(float), actual_units(float)
+
+acceptance_history (paper §4.3 — the operational trust metric) additionally
+needs week_action + applied (both written by weekly_tracker.append_history /
+apply_execution_log) and, crucially, `exec_weeks`: the set of week labels the
+KAM's execution_log.csv actually covers. A week with recommendations but no
+returned log is reported as rate=None ("log not returned") — NEVER 0%, because
+"not confirmed" is not "rejected". Benchmark: the PepsiCo paper's deployed
+system ran at ~85% acceptance (ADOPTION_FLOOR below).
 
 Dependencies: pandas / numpy / python stdlib only.
 """
@@ -36,6 +45,13 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+
+# ── Acceptance-rate benchmarks (paper §4.3) ─────────────────────────────────
+# The PepsiCo paper reports its deployed system running at ~85% acceptance of
+# recommendations. OK >= FLOOR, WATCH in [WATCH, FLOOR), LOW below WATCH.
+# LOW is an ops/trust alarm (the KAM isn't executing), NOT a model alarm.
+ADOPTION_FLOOR = 0.85
+ADOPTION_WATCH = 0.60
 
 # Columns the module relies on. Kept explicit so an integrator sees exactly what's read.
 _REQUIRED_COLS = [
@@ -239,6 +255,106 @@ def score_history(history_df) -> dict:
     }
 
 
+def _rate_status(rate: float) -> str:
+    """Bucket an acceptance rate against the paper benchmark (~85% deployed)."""
+    if rate >= ADOPTION_FLOOR:
+        return "OK"
+    if rate >= ADOPTION_WATCH:
+        return "WATCH"
+    return "LOW"
+
+
+def acceptance_history(history_df, exec_weeks=None) -> dict:
+    """Weekly + cumulative ACCEPTANCE rate: recommendations actually executed.
+
+    Acceptance = applied==True / recommended, where "recommended" means rows whose
+    week_action is 'cut' or 'reinvest' (holds are not recommendations to execute —
+    same acted-cell definition as killswitch.py). This is the paper's §4.3
+    operational trust metric: value is only realized when a rec is implemented.
+
+    Parameters
+    ----------
+    history_df : pandas.DataFrame | None
+        FULL tracker history (DISCOUNT_PLAN/tracker_history.csv) — needs columns
+        week, week_action, applied; pred_net_rev_delta used if present for the
+        value-weighted rate. May be None/empty (first run).
+    exec_weeks : set[str] | None
+        Week labels covered by the KAM's returned execution_log.csv. A week with
+        recommendations but NOT in this set gets acceptance_rate=None with status
+        'log not returned' — the honest n/a, never a fake 0%. None/empty set =
+        no log returned yet at all.
+
+    Returns
+    -------
+    dict:
+        weekly : list of {week, n_recommended, n_applied, acceptance_rate(float|None),
+                          value_weighted_rate(float|None), status}
+        cum_acceptance_rate, cum_value_weighted_rate : float|None
+            over CONFIRMED weeks only (weeks the log covered)
+        n_recommended_total, n_confirmed_weeks : int
+        benchmark : float  (ADOPTION_FLOOR, the paper's ~85%)
+        note : str  present when there is nothing to report / no log yet
+    """
+    empty = {"weekly": [], "cum_acceptance_rate": None, "cum_value_weighted_rate": None,
+             "n_recommended_total": 0, "n_confirmed_weeks": 0, "benchmark": ADOPTION_FLOOR}
+    if history_df is None or len(history_df) == 0:
+        return {**empty, "note": "no tracker history yet"}
+    if "week_action" not in history_df.columns:
+        return {**empty, "note": "history has no week_action column (pre-upgrade format)"}
+
+    df = history_df.copy()
+    df["week"] = df["week"].astype(str)
+    rec = df[df["week_action"].astype(str).isin(["cut", "reinvest"])].copy()
+    if len(rec) == 0:
+        return {**empty, "note": "no cut/reinvest recommendations logged yet"}
+
+    # applied: normalize to bool exactly like weekly_tracker.apply_execution_log's flag.
+    applied = rec["applied"] if "applied" in rec.columns else pd.Series(False, index=rec.index)
+    rec["applied_b"] = applied.astype(str).str.strip().str.upper().isin(["TRUE", "Y", "YES", "1"])
+    val_src = rec["pred_net_rev_delta"] if "pred_net_rev_delta" in rec.columns \
+        else pd.Series(0.0, index=rec.index)
+    val = pd.to_numeric(val_src, errors="coerce").abs().fillna(0.0)
+    rec["abs_val"] = val
+    exec_weeks = {str(w) for w in (exec_weeks or set())}
+
+    weekly, cum_rec, cum_app, cum_val, cum_val_app = [], 0, 0, 0.0, 0.0
+    for wk, grp in rec.groupby("week", sort=True):
+        n_rec = int(len(grp))
+        if wk not in exec_weeks:
+            # Recommendations exist but the KAM never returned the log for this week:
+            # rate is UNKNOWN (n/a), not zero. Conflating the two would smear an ops
+            # gap (no log) into a fake adoption collapse.
+            weekly.append({"week": wk, "n_recommended": n_rec, "n_applied": None,
+                           "acceptance_rate": None, "value_weighted_rate": None,
+                           "status": "log not returned"})
+            continue
+        n_app = int(grp["applied_b"].sum())
+        v_all = float(grp["abs_val"].sum())
+        v_app = float(grp.loc[grp["applied_b"], "abs_val"].sum())
+        rate = n_app / n_rec
+        vrate = (v_app / v_all) if v_all > 0 else None
+        weekly.append({"week": wk, "n_recommended": n_rec, "n_applied": n_app,
+                       "acceptance_rate": rate, "value_weighted_rate": vrate,
+                       "status": _rate_status(rate)})
+        cum_rec += n_rec; cum_app += n_app; cum_val += v_all; cum_val_app += v_app
+
+    out = {
+        "weekly": weekly,
+        "cum_acceptance_rate": (cum_app / cum_rec) if cum_rec else None,
+        "cum_value_weighted_rate": (cum_val_app / cum_val) if cum_val > 0 else None,
+        "n_recommended_total": int(len(rec)),
+        # DENOMINATOR HONESTY: cum_acceptance_rate is computed over CONFIRMED weeks
+        # only, so any "X% of N recs executed" readout must use THIS N — quoting the
+        # all-weeks total next to a confirmed-weeks rate would overstate execution.
+        "n_recommended_confirmed": int(cum_rec),
+        "n_confirmed_weeks": int(sum(1 for w in weekly if w["acceptance_rate"] is not None)),
+        "benchmark": ADOPTION_FLOOR,
+    }
+    if out["n_confirmed_weeks"] == 0:
+        out["note"] = "no execution log returned yet — acceptance is n/a, not 0"
+    return out
+
+
 if __name__ == "__main__":
     # ------------------------------------------------------------------------------
     # Smoke test: build a tiny synthetic history_df, score it, and also exercise the
@@ -310,6 +426,39 @@ if __name__ == "__main__":
     assert abs(w2["hit_rate"] - 2.0 / 3.0) < 1e-9, w2
     # by_confidence has the three tiers we used
     assert set(result["by_confidence"].keys()) == {"High", "Experimental", "Low"}, result["by_confidence"]
+
+    # --- Case 3: acceptance rate (val_17) — 10 acted cells in W1 (8 applied), 5 in W2
+    # with NO execution log returned for W2, plus hold rows that must be ignored. -----
+    acc_hist = pd.DataFrame(
+        [{"week": "W1", "cell_id": f"c{i}", "week_action": "cut",
+          "applied": (i < 8), "pred_net_rev_delta": 100.0} for i in range(10)]
+        + [{"week": "W1", "cell_id": "h1", "week_action": "hold",
+            "applied": False, "pred_net_rev_delta": 0.0}]
+        + [{"week": "W2", "cell_id": f"d{i}", "week_action": "reinvest",
+            "applied": False, "pred_net_rev_delta": 50.0} for i in range(5)]
+    )
+    acc = acceptance_history(acc_hist, exec_weeks={"W1"})
+    print("\n=== Case 3: acceptance rate ===")
+    print(json.dumps(acc, indent=2, default=str))
+    w1a = next(w for w in acc["weekly"] if w["week"] == "W1")
+    w2a = next(w for w in acc["weekly"] if w["week"] == "W2")
+    assert abs(w1a["acceptance_rate"] - 0.80) < 1e-9, w1a       # 8 of 10 applied
+    assert w1a["status"] == "WATCH", w1a                         # 0.80 < 0.85 floor
+    assert w2a["acceptance_rate"] is None, w2a                   # log not returned != 0%
+    assert w2a["status"] == "log not returned", w2a
+    assert abs(acc["cum_acceptance_rate"] - 0.80) < 1e-9         # cumulative over W1 only
+    # denominator honesty: the confirmed denominator (10, W1) is what the 80% is over —
+    # NOT the all-weeks total (15) that includes W2's unreturned log.
+    assert acc["n_recommended_confirmed"] == 10, acc
+    assert acc["n_recommended_total"] == 15, acc
+    # no execution log at all -> every week n/a, cumulative None (never 0)
+    acc_none = acceptance_history(acc_hist, exec_weeks=None)
+    assert all(w["acceptance_rate"] is None for w in acc_none["weekly"])
+    assert acc_none["cum_acceptance_rate"] is None
+    assert "n/a" in acc_none.get("note", "")
+    # empty / pre-upgrade history -> graceful note
+    assert "note" in acceptance_history(None)
+    assert "note" in acceptance_history(pd.DataFrame({"week": ["W1"]}))
 
     print("\nAll smoke-test assertions passed.")
     sys.exit(0)

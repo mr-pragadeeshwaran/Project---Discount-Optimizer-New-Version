@@ -1,0 +1,19 @@
+{
+  "market": "blinkit_24mantra",
+  "horizon_weeks": 12,
+  "discount_levels_pct": [0, 5, 10, 15, 20],
+  "promo_threshold_pct": 5.0,
+  "solver": {
+    "gap_target": 0.01,
+    "time_limit_s": 60.0
+  },
+  "constraints": {
+    "promotion_exclusivity":    {"enabled": true,  "params": {}},
+    "min_promo_duration":       {"enabled": true,  "params": {"min_weeks": 2}},
+    "max_promo_duration":       {"enabled": true,  "params": {"max_weeks": 6}},
+    "min_promo_spacing":        {"enabled": true,  "params": {"spacing_weeks": 4}},
+    "max_simultaneous_promos":  {"enabled": true,  "params": {"max_per_category_week": 3}},
+    "weekly_budget_cap":        {"enabled": true,  "params": {"budget_pct": null}},
+    "competitive_defense_hold": {"enabled": true,  "params": {"hold_file": "DISCOUNT_PLAN/defense_hold.csv"}}
+  }
+}
