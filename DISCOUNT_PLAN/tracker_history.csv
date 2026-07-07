@@ -148,9 +148,9 @@ W1,2026-07-06,24054_100g_Chennai,High,True,0.0,,10.2,,False,hold
 W1,2026-07-06,24054_100g_Hyderabad,Experimental,True,0.0,,2.5,,False,hold
 W1,2026-07-06,24054_100g_Mumbai,High,True,0.0,,0.8,,False,hold
 W1,2026-07-06,24054_100g_Others,High,True,0.0,,7.5,,False,hold
-W1,2026-07-06,24055_500g_Bangalore,High,True,132.45294565217412,,54.7,,False,cut
+W1,2026-07-06,24055_500g_Bangalore,High,True,0.0,,57.8,,False,hold
 W1,2026-07-06,24055_500g_Chennai,High,True,0.0,,4.2,,False,hold
-W1,2026-07-06,24055_500g_Hyderabad,High,True,73.99190856313503,,31.0,,False,cut
+W1,2026-07-06,24055_500g_Hyderabad,High,True,0.0,,32.8,,False,hold
 W1,2026-07-06,24055_500g_Kolkata,High,True,0.0,,9.5,,False,hold
 W1,2026-07-06,24055_500g_Others,High,True,0.0,,55.8,,False,hold
 W1,2026-07-06,245436_500g_Bangalore,High,True,0.0,,51.2,,False,hold
@@ -476,7 +476,7 @@ W1,2026-07-06,5751_500g_Mumbai,High,True,0.0,,91.2,,False,hold
 W1,2026-07-06,5751_500g_Others,High,True,0.0,,1007.5,,False,hold
 W1,2026-07-06,5751_500g_Pune,High,True,188.78573426573428,,66.2,,False,cut
 W1,2026-07-06,5793_500g_Ahmedabad,High,True,0.0,,30.2,,False,hold
-W1,2026-07-06,5793_500g_Bangalore,High,True,539.941060903733,,200.0,,False,cut
+W1,2026-07-06,5793_500g_Bangalore,High,True,0.0,,200.0,,False,hold
 W1,2026-07-06,5793_500g_Chennai,High,True,0.0,,27.8,,False,hold
 W1,2026-07-06,5793_500g_Delhi-NCR,High,True,333.89268131868147,,123.8,,False,cut
 W1,2026-07-06,5793_500g_Hyderabad,High,True,0.0,,91.5,,False,hold

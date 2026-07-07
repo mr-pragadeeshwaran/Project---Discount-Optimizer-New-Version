@@ -122,7 +122,20 @@ def main():
 
     _report(run, oosA, nA, hiA, allA, oosB, nB, hiB, allB, comp_agg, comp_sane, len(flipped), defense, accept)
     print(f"[challenger] wrote {os.path.join(ROOT, 'DISCOUNT_PLAN', 'CHALLENGER_REPORT.md')}")
+    _write_defense_hold(defense, diag_A)
     return {"accept": accept, "oosA": oosA, "oosB": oosB, "hiA": hiA, "hiB": hiB, "comp_agg": comp_agg}
+
+
+def _write_defense_hold(defense, diag_A):
+    """Persist the 'waste'->competitive-defense cells so the tracker holds them out of the
+    cut wave (weekly_tracker.apply_defense_hold reads this). Regenerated every retrain: an
+    empty defense set writes an empty file, which correctly releases any prior holds."""
+    path = os.path.join(ROOT, "DISCOUNT_PLAN", "defense_hold.csv")
+    keep = diag_A[["cell_id", "product_id", "city"]].drop_duplicates("cell_id")
+    out = defense[["cell_id"]].merge(keep, on="cell_id", how="left")
+    out["reason"] = "competitive defense (challenger reclassified c_waste_cut -> f_monitor)"
+    out.to_csv(path, index=False)
+    print(f"[challenger] wrote {path} ({len(out)} defense-hold cell(s))")
 
 
 def _report(run, oosA, nA, hiA, allA, oosB, nB, hiB, allB, comp_agg, comp_sane, n_flip, defense, accept):

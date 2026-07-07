@@ -46,6 +46,7 @@ HISTORY = os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv")
 EXEC_LOG = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log.csv")
 EXEC_LOG_TEMPLATE = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log_template.csv")
 AGREEMENT = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "agreement.csv")
+DEFENSE_HOLD = os.path.join(ROOT, "DISCOUNT_PLAN", "defense_hold.csv")
 BASELINES = os.path.join(ROOT, "DISCOUNT_PLAN", "baselines.json")
 OUT_XLSX = os.path.join(ROOT, "DISCOUNT_PLAN", "WEEKLY_TRACKER.xlsx")
 OUT_READOUT = os.path.join(ROOT, "DISCOUNT_PLAN", "WEEKLY_READOUT.md")
@@ -194,6 +195,61 @@ def apply_agreement(plan_df):
                 df.loc[disagree, "pred_net_rev_wk"] - df.loc[disagree, "cur_net_rev_wk"]
         df.loc[disagree, "decision_reason"] = "engines disagree - test first"
     return df, len(disagree)
+
+
+def apply_defense_hold(plan_df):
+    """COMPETITIVE-DEFENSE hold (WIRING).
+
+    DISCOUNT_PLAN/defense_hold.csv lists cells the champion/challenger pass reclassified
+    from 'waste' to 'competitive defense' (bucket c under Model A, NOT-c under Model B) —
+    cells where our discount was holding the line against a rival promo, not pure waste.
+    We KEEP champion Model A, so these still read as c_waste_cut here; without this gate
+    they would be cut in the first wave. This holds them out (suggested_disc reset to
+    cur_disc) so they can be watched, not slashed, until an in-market test settles it.
+
+    Matched on cell_id first (exact), else (product_id, city). File absent => no-op
+    (backward-compatible). Returns (plan_df, n_held_for_defense).
+    """
+    if not os.path.exists(DEFENSE_HOLD):
+        return plan_df, 0
+    try:
+        dh = pd.read_csv(DEFENSE_HOLD)
+    except Exception:
+        return plan_df, 0
+    if not len(dh):
+        return plan_df, 0
+
+    def _pid_key(v):
+        if isinstance(v, float):
+            return str(int(v)) if float(v).is_integer() else str(v)
+        s = str(v).strip()
+        if s.endswith(".0") and s[:-2].lstrip("-").isdigit():
+            return s[:-2]
+        return s
+
+    hold_cells = set(str(c).strip() for c in dh.get("cell_id", pd.Series(dtype=str)).dropna())
+    hold_pc = set()
+    if "product_id" in dh.columns and "city" in dh.columns:
+        hold_pc = {(_pid_key(p), str(c).strip()) for p, c in zip(dh["product_id"], dh["city"])}
+
+    df = plan_df.copy()
+    is_waste_cut = df["bucket"] == "c_waste_cut"
+    held = []
+    for idx in df.index[is_waste_cut]:
+        cid = str(df.at[idx, "cell_id"]).strip()
+        pc = (_pid_key(df.at[idx, "product_id"]), str(df.at[idx, "city"]).strip())
+        if cid in hold_cells or pc in hold_pc:
+            held.append(idx)
+
+    if held:
+        df.loc[held, "suggested_disc"] = df.loc[held, "cur_disc"]
+        df.loc[held, "suggested_price"] = df.loc[held, "mrp"] * (1 - df.loc[held, "suggested_disc"] / 100.0)
+        if "cur_units_wk" in df.columns and "pred_units_wk" in df.columns:
+            df.loc[held, "pred_units_wk"] = df.loc[held, "cur_units_wk"]
+            df.loc[held, "pred_net_rev_wk"] = df.loc[held, "pred_units_wk"] * df.loc[held, "suggested_price"]
+            df.loc[held, "pred_net_rev_delta_wk"] = df.loc[held, "pred_net_rev_wk"] - df.loc[held, "cur_net_rev_wk"]
+        df.loc[held, "decision_reason"] = "competitive defense - hold, do not cut"
+    return df, len(held)
 
 
 def write_execution_log_template(plan_df, week_label):
@@ -353,6 +409,13 @@ def main():
     if n_disagree:
         print(f"[tracker] ENGINE DISAGREEMENT — {n_disagree} waste-cut cell(s) HELD "
               f"(optimizer did not confirm the cut); test first.")
+
+    # ── WIRING — competitive-defense hold: keep cells the challenger reclassified as
+    # rival-promo defense out of the cut wave (defense_hold.csv absent => no-op).
+    plan_df, n_defense = apply_defense_hold(plan_df)
+    if n_defense:
+        print(f"[tracker] COMPETITIVE DEFENSE — {n_defense} cell(s) HELD "
+              f"(challenger flagged as defense, not waste); watch, do not cut.")
 
     # ── GAP 1/2 — fill prior weeks' actuals from a fresh export, then run the kill-switch ──
     prev = pd.read_csv(HISTORY) if os.path.exists(HISTORY) else None
