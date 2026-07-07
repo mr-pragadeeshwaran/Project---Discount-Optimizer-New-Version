@@ -19,4 +19,10 @@ Top moves this week (3-point glide steps — not the full cut at once):
 
 **Track record:** starts filling from next week, once this week's cuts meet the register.
 
+## Adoption (recommendations actually executed)
+
+- **W1**: 48 moves recommended — execution log not returned yet (adoption **n/a**, not 0%). Ask the KAM to fill DISCOUNT_PLAN/execution_log_template.csv.
+
+_Benchmark: the PepsiCo paper's system deployed at ~85% acceptance — track yours against that. Below 60% the plan's projected savings are fiction._
+
 _Golden rule: if a cut loses sales for 2 straight weeks, revert it — the model was wrong on that cell._

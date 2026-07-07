@@ -72,7 +72,7 @@ cell_id,product_id,city,pricing_action,agree_with_cut
 24055_Kolkata,24055,Kolkata,cut,False
 32386_1kg_Kolkata,32386,Kolkata,cut,True
 126995_500g_Kolkata,126995,Kolkata,cut,True
-495092_Kolkata,495092,Kolkata,cut,False
+495092_Kolkata,495092,Kolkata,hold,False
 3587_Lucknow,3587,Lucknow,cut,False
 3588_Lucknow,3588,Lucknow,cut,False
 16661_500g_Lucknow,16661,Lucknow,cut,True
@@ -110,7 +110,7 @@ cell_id,product_id,city,pricing_action,agree_with_cut
 16661_Pune,16661,Pune,cut,False
 21833_Pune,21833,Pune,cut,False
 21835_Pune,21835,Pune,cut,False
-21836_Pune,21836,Pune,hold,False
+21836_Pune,21836,Pune,cut,False
 21837_Pune,21837,Pune,cut,False
 31999_Pune,31999,Pune,cut,False
 32385_Pune,32385,Pune,cut,False
@@ -298,7 +298,7 @@ cell_id,product_id,city,pricing_action,agree_with_cut
 5800_Bangalore,5800,Bangalore,raise,False
 5801_Bangalore,5801,Bangalore,hold,False
 67917_Bangalore,67917,Bangalore,hold,False
-81023_Bangalore,81023,Bangalore,raise,False
+81023_Bangalore,81023,Bangalore,hold,False
 112761_Bangalore,112761,Bangalore,raise,False
 443580_Bangalore,443580,Bangalore,raise,False
 481536_Bangalore,481536,Bangalore,raise,False
@@ -500,7 +500,7 @@ cell_id,product_id,city,pricing_action,agree_with_cut
 21491_Chennai,21491,Chennai,cut,False
 21686_Chennai,21686,Chennai,cut,False
 437289_Chennai,437289,Chennai,cut,False
-21491_Delhi-NCR,21491,Delhi-NCR,cut,False
+21491_Delhi-NCR,21491,Delhi-NCR,hold,False
 21686_Delhi-NCR,21686,Delhi-NCR,cut,False
 437289_Delhi-NCR,437289,Delhi-NCR,cut,False
 490411_Delhi-NCR,490411,Delhi-NCR,cut,False

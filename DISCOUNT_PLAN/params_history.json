@@ -1,0 +1,125 @@
+{
+ "entries": [
+  {
+   "ts": "2026-07-07T22:40:51",
+   "week": "W1",
+   "kind": "SEED",
+   "note": "",
+   "params": {
+    "cogs_pct": {
+     "hash": "1b390cd54a0c",
+     "value_repr": "0.5"
+    },
+    "commission_pct": {
+     "hash": "2379ba981a4a",
+     "value_repr": "0.15"
+    },
+    "fulfillment_fee_inr": {
+     "hash": "b1d5781111d8",
+     "value_repr": "10"
+    },
+    "budget_pct_cap": {
+     "hash": "5b08b72ad1fe",
+     "value_repr": "0.12"
+    },
+    "min_margin_pct": {
+     "hash": "8b49d70e9c2a",
+     "value_repr": "0.05"
+    },
+    "max_comp_premium": {
+     "hash": "180505679cfe",
+     "value_repr": "0.1"
+    },
+    "use_dynamic_glide": {
+     "hash": "88b33e4e12f7",
+     "value_repr": "True"
+    },
+    "target_timeline_wks": {
+     "hash": "7b52009b64fd",
+     "value_repr": "12"
+    },
+    "min_change_ppt": {
+     "hash": "77de68daecd8",
+     "value_repr": "3"
+    },
+    "use_hist_floor": {
+     "hash": "88b33e4e12f7",
+     "value_repr": "True"
+    },
+    "hist_floor_pctile": {
+     "hash": "f6e1126cedeb",
+     "value_repr": "25"
+    },
+    "hist_floor_lookback": {
+     "hash": "2d0c8af807ef",
+     "value_repr": "90"
+    },
+    "strategic_skus": {
+     "hash": "97d170e1550e",
+     "value_repr": "[]"
+    },
+    "target_weighted_disc": {
+     "hash": "b85ab32eaa57",
+     "value_repr": "9.0"
+    },
+    "target_disc_pct": {
+     "hash": "c23f7da70705",
+     "value_repr": "10.0"
+    },
+    "target_quarter": {
+     "hash": "cb2f1dbb8b1a",
+     "value_repr": "'Q4 2026'"
+    },
+    "marginal_roi_thr": {
+     "hash": "e8dc057d3346",
+     "value_repr": "1.0"
+    },
+    "tier_increase_roi": {
+     "hash": "70142f66475a",
+     "value_repr": "2.0"
+    },
+    "reinvest_min_lift": {
+     "hash": "743da23f34ee",
+     "value_repr": "5.0"
+    },
+    "reinvest_max_sac": {
+     "hash": "c23f7da70705",
+     "value_repr": "10.0"
+    },
+    "reinvest_min_elast": {
+     "hash": "70142f66475a",
+     "value_repr": "2.0"
+    },
+    "inelastic_thr": {
+     "hash": "e8dc057d3346",
+     "value_repr": "1.0"
+    },
+    "vol_drop_tolerance": {
+     "hash": "743da23f34ee",
+     "value_repr": "5.0"
+    },
+    "train_lookback_days": {
+     "hash": "ec7f1f650671",
+     "value_repr": "180"
+    },
+    "outlier_z": {
+     "hash": "70142f66475a",
+     "value_repr": "2.0"
+    },
+    "festival_calendar": {
+     "hash": "ae5a028ce809",
+     "value_repr": "{'n_config_festivals': 15, 'n_platform_events': 3, 'n_tracker_windows': 12, 'latest_covered_date': '2026-12-31', 'content_sha1': '3aecd241f69b'}"
+    },
+    "pricing_engine.CONFIG": {
+     "hash": "6288f51b1265",
+     "value_repr": "{'kpi': 'revenue', 'disc_lo': 0.0, 'disc_hi': 45.0, 'max_disc_change_ppt': 3.0, 'revenue_floor_frac': 0.98, 'psych_prices': [49, 99, 149, 199, 249, 299, 349, 399, 449, 499, 599, 699, 799, 999], 'ladder_tol': 1.0, 'n_seeds': 2}"
+    },
+    "de_optimizer.DEFAULT_CONFIG": {
+     "hash": "8c658115157e",
+     "value_repr": "{'disc_lo': 0.0, 'disc_hi': 45.0, 'psych_prices': [49, 99, 149, 199, 249, 299, 349, 399, 449, 499, 599, 699, 799, 999]}"
+    }
+   },
+   "drift": []
+  }
+ ]
+}

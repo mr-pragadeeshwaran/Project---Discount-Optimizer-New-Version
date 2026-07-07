@@ -59,8 +59,8 @@ Your current tool judges each SKU×city **in isolation**. This adds the missing 
 
 Objective = **revenue**, subject to: revenue ≥ 98% of baseline, ≤3ppt weekly change, price-per-kg ladders (bigger pack cheaper/kg), psychological ₹-thresholds.
 
-- Projected: revenue **+3.1%**, volume **+1.5%**, NRW **+1.5%**.
-- 73 cells get more discount, 482 get less.
+- Projected: revenue **+3.1%**, volume **+1.5%**, NRW **+1.6%**.
+- 69 cells get more discount, 481 get less.
 
 | SKU | City | Disc now→opt | Pred rev Δ% |
 |---|---|---|---:|

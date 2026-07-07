@@ -1,0 +1,3058 @@
+{
+  "version": 1,
+  "saved_at_utc": "2026-07-07T17:22:06+00:00",
+  "run_stamp": "20260705_161703",
+  "data_window": {
+    "start": "2025-12-29",
+    "end": "2026-06-29"
+  },
+  "method": "conjugate_bayes_empirical_hierarchical",
+  "all_pass": true,
+  "global": {
+    "mu_g": -1.005
+  },
+  "cross_sd_source": "default_diffuse",
+  "per_category": {
+    "Besan & Gram Flour": {
+      "own": -1.03,
+      "own_sd": 0.795,
+      "cross": 0.15,
+      "cross_sd": 0.4
+    },
+    "Dal & Pulses": {
+      "own": -0.953,
+      "own_sd": 0.742,
+      "cross": 0.135,
+      "cross_sd": 0.4
+    },
+    "Honey": {
+      "own": -1.006,
+      "own_sd": 0.799,
+      "cross": 0.15,
+      "cross_sd": 0.4
+    },
+    "Indian Sweets": {
+      "own": -0.925,
+      "own_sd": 0.796,
+      "cross": 0.186,
+      "cross_sd": 0.4
+    },
+    "Jaggery": {
+      "own": -1.244,
+      "own_sd": 0.73,
+      "cross": 0.155,
+      "cross_sd": 0.4
+    },
+    "Millet & Other Atta": {
+      "own": -0.836,
+      "own_sd": 0.76,
+      "cross": 0.197,
+      "cross_sd": 0.4
+    },
+    "Millets": {
+      "own": -1.009,
+      "own_sd": 0.797,
+      "cross": 0.162,
+      "cross_sd": 0.4
+    },
+    "Oil": {
+      "own": -1.039,
+      "own_sd": 0.783,
+      "cross": 0.158,
+      "cross_sd": 0.4
+    },
+    "Plain Peanuts": {
+      "own": -0.995,
+      "own_sd": 0.779,
+      "cross": 0.205,
+      "cross_sd": 0.4
+    },
+    "Poha": {
+      "own": -1.074,
+      "own_sd": 0.775,
+      "cross": 0.104,
+      "cross_sd": 0.4
+    },
+    "Rice & Rice Products": {
+      "own": -1.076,
+      "own_sd": 0.719,
+      "cross": -0.111,
+      "cross_sd": 0.4
+    },
+    "Salt": {
+      "own": -1.013,
+      "own_sd": 0.798,
+      "cross": 0.149,
+      "cross_sd": 0.4
+    },
+    "Seeds": {
+      "own": -1.006,
+      "own_sd": 0.799,
+      "cross": 0.148,
+      "cross_sd": 0.4
+    },
+    "Single Spice Powder": {
+      "own": -0.829,
+      "own_sd": 0.777,
+      "cross": 0.247,
+      "cross_sd": 0.4
+    },
+    "Sooji": {
+      "own": -0.857,
+      "own_sd": 0.782,
+      "cross": 0.15,
+      "cross_sd": 0.4
+    },
+    "Sugar": {
+      "own": -1.009,
+      "own_sd": 0.759,
+      "cross": 0.156,
+      "cross_sd": 0.4
+    },
+    "Wheat Atta": {
+      "own": -1.171,
+      "own_sd": 0.74,
+      "cross": 0.112,
+      "cross_sd": 0.4
+    },
+    "Wheat, Daliya & More": {
+      "own": -1.03,
+      "own_sd": 0.791,
+      "cross": 0.15,
+      "cross_sd": 0.4
+    },
+    "Whole Spices": {
+      "own": -1.027,
+      "own_sd": 0.761,
+      "cross": 0.279,
+      "cross_sd": 0.4
+    }
+  },
+  "per_cell": {
+    "3581|Others": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Bangalore": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Chandigarh Tricity": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Chennai": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Delhi-NCR": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Hyderabad": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Kolkata": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Lucknow": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Mumbai": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Others": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3582|Pune": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3583|Ahmedabad": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Bangalore": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Chandigarh Tricity": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Chennai": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Delhi-NCR": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Hyderabad": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Kolkata": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Lucknow": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Mumbai": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Others": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3583|Pune": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "3586|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3586|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3586|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3586|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3586|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3586|Mumbai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3586|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Mumbai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3587|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Ahmedabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3588|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3592|Bangalore": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Chandigarh Tricity": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Chennai": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Delhi-NCR": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Hyderabad": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Kolkata": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Lucknow": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Mumbai": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Others": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3592|Pune": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "3595|Pune": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "3596|Bangalore": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Chandigarh Tricity": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Chennai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Delhi-NCR": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Hyderabad": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Kolkata": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Lucknow": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Mumbai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Others": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3596|Pune": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "3795|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3795|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3795|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3795|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3795|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3795|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "3796|Bangalore": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3796|Chennai": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3796|Delhi-NCR": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3796|Hyderabad": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3796|Kolkata": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3796|Lucknow": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3796|Mumbai": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3796|Others": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "3796|Pune": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5460|Bangalore": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Chandigarh Tricity": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Chennai": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Delhi-NCR": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Hyderabad": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Kolkata": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Lucknow": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Mumbai": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Others": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5460|Pune": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "5533|Bangalore": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "5533|Chennai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "5533|Hyderabad": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "5533|Lucknow": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "5533|Others": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "5540|Bangalore": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "5540|Others": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "5541|Pune": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "5629|Delhi-NCR": {
+      "own": -1.0092,
+      "own_sd": 0.7975,
+      "low_confidence": true
+    },
+    "5629|Others": {
+      "own": -1.0092,
+      "own_sd": 0.7975,
+      "low_confidence": true
+    },
+    "5751|Ahmedabad": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Bangalore": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Chandigarh Tricity": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Chennai": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Delhi-NCR": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Hyderabad": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Kolkata": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Lucknow": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Mumbai": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Others": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5751|Pune": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "5793|Ahmedabad": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Bangalore": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Chennai": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Delhi-NCR": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Hyderabad": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Kolkata": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Lucknow": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Mumbai": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Others": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5793|Pune": {
+      "own": -1.0741,
+      "own_sd": 0.7746,
+      "low_confidence": true
+    },
+    "5800|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Chandigarh Tricity": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Chennai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Kolkata": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Lucknow": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Mumbai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5800|Pune": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Chandigarh Tricity": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Chennai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Kolkata": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Lucknow": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Mumbai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "5801|Pune": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "16655|Chandigarh Tricity": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "16655|Others": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "16658|Bangalore": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Chandigarh Tricity": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Chennai": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Delhi-NCR": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Hyderabad": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Kolkata": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Lucknow": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Mumbai": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Others": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16658|Pune": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "16659|Delhi-NCR": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "16659|Hyderabad": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "16659|Lucknow": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "16659|Mumbai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "16659|Others": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "16659|Pune": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "16661|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Mumbai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "16661|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21491|Ahmedabad": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Bangalore": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Chandigarh Tricity": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Chennai": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Delhi-NCR": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Hyderabad": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Kolkata": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Lucknow": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Mumbai": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Others": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21491|Pune": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21686|Bangalore": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21686|Chennai": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21686|Delhi-NCR": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21686|Hyderabad": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21686|Kolkata": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21686|Lucknow": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21686|Others": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21686|Pune": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "21752|Bangalore": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "21752|Delhi-NCR": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "21752|Hyderabad": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "21752|Lucknow": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "21752|Others": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "21752|Pune": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "21831|Ahmedabad": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Bangalore": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Chandigarh Tricity": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Chennai": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Delhi-NCR": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Hyderabad": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Kolkata": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Lucknow": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Mumbai": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Others": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21831|Pune": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "21833|Ahmedabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21833|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21833|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21835|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21836|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21836|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21836|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21836|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21836|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21837|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21837|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21837|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21838|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "21852|Bangalore": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Chandigarh Tricity": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Chennai": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Delhi-NCR": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Hyderabad": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Kolkata": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Lucknow": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Mumbai": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Others": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21852|Pune": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "21862|Ahmedabad": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Bangalore": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Chandigarh Tricity": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Chennai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Delhi-NCR": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Hyderabad": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Kolkata": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Lucknow": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Mumbai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Others": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "21862|Pune": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "24054|Bangalore": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "24054|Chandigarh Tricity": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "24054|Chennai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "24054|Hyderabad": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "24054|Mumbai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "24054|Others": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "24055|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "24055|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "24055|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "24055|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "24055|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Mumbai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "31999|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32002|Others": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "32006|Bangalore": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32006|Chennai": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32006|Delhi-NCR": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32006|Hyderabad": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32006|Kolkata": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32006|Lucknow": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32006|Mumbai": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32006|Others": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32006|Pune": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "32385|Ahmedabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32385|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32385|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32385|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32385|Mumbai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32385|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32385|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32386|Ahmedabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32386|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32386|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32386|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "32387|Ahmedabad": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Bangalore": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Chandigarh Tricity": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Chennai": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Delhi-NCR": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Hyderabad": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Kolkata": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Lucknow": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Mumbai": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Others": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "32387|Pune": {
+      "own": -1.0299,
+      "own_sd": 0.7909,
+      "low_confidence": true
+    },
+    "58549|Bangalore": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "58549|Chennai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "58549|Delhi-NCR": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "58549|Hyderabad": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "58549|Kolkata": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "58549|Mumbai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "58549|Others": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "58549|Pune": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "59642|Ahmedabad": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Bangalore": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Chandigarh Tricity": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Chennai": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Delhi-NCR": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Hyderabad": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Kolkata": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Lucknow": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Mumbai": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Others": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "59642|Pune": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "64011|Bangalore": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "64011|Chennai": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "64011|Delhi-NCR": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "64011|Hyderabad": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "64011|Lucknow": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "64011|Mumbai": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "64011|Others": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "64011|Pune": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "67917|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Chandigarh Tricity": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Chennai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Kolkata": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Lucknow": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Mumbai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "67917|Pune": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "75468|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "75468|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "75468|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "75468|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "75469|Bangalore": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Chandigarh Tricity": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Chennai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Delhi-NCR": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Hyderabad": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Kolkata": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Lucknow": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Mumbai": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Others": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "75469|Pune": {
+      "own": -0.8287,
+      "own_sd": 0.777,
+      "low_confidence": true
+    },
+    "81023|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "81023|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "81023|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "81023|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "86959|Ahmedabad": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Bangalore": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Chandigarh Tricity": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Chennai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Delhi-NCR": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Hyderabad": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Kolkata": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Lucknow": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Mumbai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Others": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "86959|Pune": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Ahmedabad": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Bangalore": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Chandigarh Tricity": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Chennai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Delhi-NCR": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Hyderabad": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Kolkata": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Lucknow": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Mumbai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Others": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "98567|Pune": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Ahmedabad": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Bangalore": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Chennai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Delhi-NCR": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Hyderabad": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Kolkata": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Lucknow": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Mumbai": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Others": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "108382|Pune": {
+      "own": -1.0271,
+      "own_sd": 0.7614,
+      "low_confidence": true
+    },
+    "112761|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "112761|Chennai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "112761|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "112761|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "112761|Kolkata": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "112761|Lucknow": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "112761|Mumbai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "112761|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "112761|Pune": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "122262|Bangalore": {
+      "own": -1.0304,
+      "own_sd": 0.7951,
+      "low_confidence": true
+    },
+    "122262|Chandigarh Tricity": {
+      "own": -1.0304,
+      "own_sd": 0.7951,
+      "low_confidence": true
+    },
+    "122262|Delhi-NCR": {
+      "own": -1.0304,
+      "own_sd": 0.7951,
+      "low_confidence": true
+    },
+    "122262|Hyderabad": {
+      "own": -1.0304,
+      "own_sd": 0.7951,
+      "low_confidence": true
+    },
+    "122262|Kolkata": {
+      "own": -1.0304,
+      "own_sd": 0.7951,
+      "low_confidence": true
+    },
+    "122262|Mumbai": {
+      "own": -1.0304,
+      "own_sd": 0.7951,
+      "low_confidence": true
+    },
+    "122262|Others": {
+      "own": -1.0304,
+      "own_sd": 0.7951,
+      "low_confidence": true
+    },
+    "122262|Pune": {
+      "own": -1.0304,
+      "own_sd": 0.7951,
+      "low_confidence": true
+    },
+    "126995|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Lucknow": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Mumbai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Others": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "126995|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "245436|Bangalore": {
+      "own": -1.0058,
+      "own_sd": 0.7991,
+      "low_confidence": true
+    },
+    "245436|Delhi-NCR": {
+      "own": -1.0058,
+      "own_sd": 0.7991,
+      "low_confidence": true
+    },
+    "245436|Hyderabad": {
+      "own": -1.0058,
+      "own_sd": 0.7991,
+      "low_confidence": true
+    },
+    "245436|Mumbai": {
+      "own": -1.0058,
+      "own_sd": 0.7991,
+      "low_confidence": true
+    },
+    "245436|Others": {
+      "own": -1.0058,
+      "own_sd": 0.7991,
+      "low_confidence": true
+    },
+    "245436|Pune": {
+      "own": -1.0058,
+      "own_sd": 0.7991,
+      "low_confidence": true
+    },
+    "286878|Bangalore": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "286878|Chennai": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "286878|Delhi-NCR": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "286878|Hyderabad": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "286878|Kolkata": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "286878|Lucknow": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "286878|Mumbai": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "286878|Others": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "286878|Pune": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "364165|Bangalore": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "364165|Chennai": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "364165|Delhi-NCR": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "364165|Hyderabad": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "364165|Kolkata": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "364165|Lucknow": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "364165|Mumbai": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "364165|Others": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "364165|Pune": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "437289|Ahmedabad": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Bangalore": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Chandigarh Tricity": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Chennai": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Delhi-NCR": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Hyderabad": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Kolkata": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Lucknow": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Mumbai": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Others": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "437289|Pune": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "438513|Delhi-NCR": {
+      "own": -1.0092,
+      "own_sd": 0.7975,
+      "low_confidence": true
+    },
+    "438513|Others": {
+      "own": -1.0092,
+      "own_sd": 0.7975,
+      "low_confidence": true
+    },
+    "443580|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "443580|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "443581|Bangalore": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "443581|Delhi-NCR": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "443581|Hyderabad": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "443581|Kolkata": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "443581|Lucknow": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "443581|Mumbai": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "443581|Others": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "443581|Pune": {
+      "own": -1.0392,
+      "own_sd": 0.783,
+      "low_confidence": true
+    },
+    "481536|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "481536|Chandigarh Tricity": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "481536|Chennai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "481536|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "481536|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "481536|Kolkata": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "481536|Mumbai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "481536|Pune": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "490411|Chandigarh Tricity": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "490411|Delhi-NCR": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "490411|Lucknow": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "490432|Bangalore": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "490432|Chennai": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "490432|Kolkata": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "490432|Pune": {
+      "own": -1.0089,
+      "own_sd": 0.7591,
+      "low_confidence": true
+    },
+    "495081|Bangalore": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "495081|Chandigarh Tricity": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "495081|Chennai": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "495081|Delhi-NCR": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "495081|Kolkata": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "495081|Mumbai": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "495081|Pune": {
+      "own": -0.9946,
+      "own_sd": 0.7785,
+      "low_confidence": true
+    },
+    "495083|Bangalore": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "495083|Chandigarh Tricity": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "495083|Delhi-NCR": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "495083|Hyderabad": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "495083|Kolkata": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "495083|Lucknow": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "495083|Others": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "495083|Pune": {
+      "own": -0.8364,
+      "own_sd": 0.7598,
+      "low_confidence": true
+    },
+    "495085|Bangalore": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "495085|Chandigarh Tricity": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "495085|Chennai": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "495085|Hyderabad": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "495085|Pune": {
+      "own": -0.8569,
+      "own_sd": 0.7821,
+      "low_confidence": true
+    },
+    "495092|Bangalore": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "495092|Chandigarh Tricity": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "495092|Chennai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "495092|Delhi-NCR": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "495092|Hyderabad": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "495092|Kolkata": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "495092|Mumbai": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "495092|Pune": {
+      "own": -0.953,
+      "own_sd": 0.7422,
+      "low_confidence": true
+    },
+    "496799|Ahmedabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Chennai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Kolkata": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Lucknow": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Mumbai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "496799|Pune": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521140|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521140|Chandigarh Tricity": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521140|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521140|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521140|Kolkata": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521140|Mumbai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521140|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521140|Pune": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "521146|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "532385|Bangalore": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "532385|Delhi-NCR": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "532385|Hyderabad": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "532385|Kolkata": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "532385|Lucknow": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "532385|Others": {
+      "own": -1.1708,
+      "own_sd": 0.7398,
+      "low_confidence": true
+    },
+    "532389|Ahmedabad": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532389|Bangalore": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532389|Chennai": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532389|Delhi-NCR": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532389|Hyderabad": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532389|Kolkata": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532389|Mumbai": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532389|Others": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532389|Pune": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532393|Bangalore": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532393|Chennai": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532393|Delhi-NCR": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532393|Hyderabad": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532393|Others": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "532393|Pune": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "536247|Bangalore": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "536247|Delhi-NCR": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "536247|Hyderabad": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "536247|Kolkata": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "536247|Others": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "537173|Bangalore": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "537173|Delhi-NCR": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "537173|Hyderabad": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "537173|Others": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "542154|Delhi-NCR": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "542154|Others": {
+      "own": -1.0128,
+      "own_sd": 0.7984,
+      "low_confidence": true
+    },
+    "545408|Bangalore": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "545408|Chennai": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "545408|Others": {
+      "own": -1.0055,
+      "own_sd": 0.7986,
+      "low_confidence": true
+    },
+    "545915|Bangalore": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "545915|Chennai": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "545915|Hyderabad": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "545915|Mumbai": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "545915|Others": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "545915|Pune": {
+      "own": -1.244,
+      "own_sd": 0.7297,
+      "low_confidence": true
+    },
+    "561937|Bangalore": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "561937|Delhi-NCR": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "561937|Hyderabad": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "561937|Kolkata": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "561937|Others": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "570520|Ahmedabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Bangalore": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Chandigarh Tricity": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Chennai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Delhi-NCR": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Hyderabad": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Kolkata": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Lucknow": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Mumbai": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Others": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "570520|Pune": {
+      "own": -1.0763,
+      "own_sd": 0.7195,
+      "low_confidence": true
+    },
+    "625390|Bangalore": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    },
+    "625390|Hyderabad": {
+      "own": -0.9252,
+      "own_sd": 0.7962,
+      "low_confidence": true
+    }
+  }
+}

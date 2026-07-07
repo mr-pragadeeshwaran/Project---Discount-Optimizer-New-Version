@@ -1,0 +1,72 @@
+{
+  "protocol": "pricingai_3stage",
+  "run": "20260705_161703",
+  "generated": "2026-07-07 23:00",
+  "inputs": {
+    "elasticities": "DISCOUNT_PLAN\\pricing\\elasticities.csv",
+    "cross_price": "DISCOUNT_PLAN\\pricing\\cross_price.csv",
+    "gates_prod": "DISCOUNT_PLAN\\pricing\\gates.json",
+    "fact_table_run": "20260705_161703"
+  },
+  "stage1": {
+    "holdout_weeks": 4,
+    "holdout_range": "2026-06-08..2026-06-29",
+    "n_holdout_rows_scored": 1786,
+    "n_rows_skipped_no_anchor": 31,
+    "n_rows_skipped_no_elasticity": 0,
+    "r2_log_holdout": 0.715,
+    "r2_floor": 0.5,
+    "r2_pass": true,
+    "wmape_units": 0.454,
+    "wmape_ceil": 0.4,
+    "wmape_pass": false,
+    "abs_bias_units": 0.108,
+    "bias_signed": 0.108,
+    "bias_ceil": 0.05,
+    "bias_pass": false,
+    "pass": false
+  },
+  "stage2": {
+    "n_cells": 585,
+    "own_neg_share": 1.0,
+    "own_neg_min": 0.95,
+    "own_neg_pass": true,
+    "own_mag_share_in_band": 1.0,
+    "own_mag_band": [
+      0.05,
+      5.0
+    ],
+    "own_mag_min": 0.95,
+    "own_mag_pass": true,
+    "n_cross_pairs": 2594,
+    "cross_in_band_share": 1.0,
+    "cross_band": [
+      -1.0,
+      1.0
+    ],
+    "cross_band_min": 0.99,
+    "cross_band_pass": true,
+    "cross_nonneg_share": 0.77,
+    "cross_nonneg_min": 0.5,
+    "cross_nonneg_pass": true,
+    "pinned_at_prior_share": 1.0,
+    "pinned_at_prior_flag": true,
+    "global_prior_mu_g": -1.005,
+    "pass": true
+  },
+  "stage3": {
+    "drift_max": 0.3,
+    "production_median_own": -1.006,
+    "refit_method": "bayes",
+    "n_weeks": 26,
+    "mode": "half_split",
+    "window_a": "2025-12-29..2026-03-30 (569 cells)",
+    "window_b": "2026-04-06..2026-06-29 (516 cells)",
+    "median_own_a": -1.008,
+    "median_own_b": -0.946,
+    "median_own_drift": 0.062,
+    "pass": true
+  },
+  "all_pass": false,
+  "verdict": "FAIL"
+}

@@ -1,0 +1,65 @@
+{
+  "method": "multiplicative decomposition, grid+refine WLS on FWL residuals",
+  "elasticity_source": "bayes",
+  "factor_formulas": {
+    "family": "m_family if base_product differs else 1",
+    "size": "m_size if pack-gram ratio < 0.75 else 1 (NaN grams -> differ)",
+    "ppk": "m_ppk if price-per-kg ratio < 0.8 else 1 (NaN -> differ)",
+    "normalization": "w_ij = w_raw_ij / sum_k w_raw_ik (row sums to 1; champion total cross mass preserved exactly)"
+  },
+  "fit": {
+    "estimated": true,
+    "n_evals": 203,
+    "m_family": 0.1,
+    "m_size": 0.20000000000000004,
+    "m_ppk": 0.02,
+    "n_sibling_rows": 10375,
+    "n_weeks": 26,
+    "n_holdout_weeks": 5,
+    "sse_train_uniform": 23.74905126093774,
+    "sse_train_challenger": 23.694653618118256,
+    "sse_holdout_uniform": 39.46028693815928,
+    "sse_holdout_challenger": 39.54862183965744,
+    "holdout_improvement_pct": -0.22385772722991076,
+    "refit_betas_by_category": {
+      "Dal & Pulses": -0.4075,
+      "Indian Sweets": 21.4187,
+      "Jaggery": 0.2943,
+      "Millet & Other Atta": -0.0528,
+      "Millets": -0.6158,
+      "Oil": 0.3912,
+      "Plain Peanuts": 0.8702,
+      "Poha": -0.3289,
+      "Rice & Rice Products": 0.0492,
+      "Salt": -2.7513,
+      "Seeds": 1.0297,
+      "Single Spice Powder": 0.5418,
+      "Sugar": -0.2284,
+      "Wheat Atta": -0.4968,
+      "Whole Spices": 0.0973
+    },
+    "decomposition_adopted_in_output": false
+  },
+  "acceptance_gates": {
+    "own_diag_all_negative": true,
+    "cross_signs_match_champion": true,
+    "frac_nonneg_cross": 0.77,
+    "champion_frac_pos_cross_by_category": 0.947,
+    "decomposition_estimated": true,
+    "decomposition_beats_uniform_on_holdout": false,
+    "shipped_weights": "uniform_fallback",
+    "holdout_no_degradation_of_shipped_matrix": true,
+    "all_pass": true
+  },
+  "matrix_stats": {
+    "n_skus": 84,
+    "n_cities": 11,
+    "n_own_diag": 585,
+    "n_within_cat_cross": 2594,
+    "n_comp_cols": 585,
+    "own_brand_matrix_cells_all_cities": 33431,
+    "nonzero_own_brand_entries": 3179,
+    "fill_pct_own_brand": 9.51,
+    "cross_category_entries": "structural zeros (never estimated \u2014 stated honestly)"
+  }
+}

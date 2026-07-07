@@ -1,0 +1,20 @@
+category,rpi_coef,rpi_p,comp_elast,se,p_value,comp_elast_used,n_rows,n_city_weeks,gate_reason
+Besan & Gram Flour,-0.089,0.889,-0.3389,0.694,0.6253,0.0,199,199,null signal (p=0.625)
+Dal & Pulses,-1.0726,0.0326,1.3532,1.6737,0.4188,0.0,2352,286,null signal (p=0.419)
+Honey,2.7059,0.0893,-0.6925,1.3782,0.6154,0.0,128,128,null signal (p=0.615)
+Indian Sweets,-3.1246,0.1561,-2.6025,4.7407,0.583,0.0,137,97,null signal (p=0.583)
+Jaggery,-1.4181,0.009,-0.2367,0.8566,0.7823,0.0,431,284,null signal (p=0.782)
+Millet & Other Atta,1.4099,0.0695,-2.0844,0.8348,0.0125,0.0,974,286,"WRONG SIGN (gamma=-2.08, p=0.013) — implausible, zeroed"
+Millets,1.3441,0.0408,-1.0335,1.6245,0.5246,0.0,96,52,null signal (p=0.525)
+Oil,-1.3768,0.0041,-6.5418,2.8159,0.0202,0.0,565,234,"WRONG SIGN (gamma=-6.54, p=0.020) — implausible, zeroed"
+Plain Peanuts,-0.2117,0.6137,-1.7692,0.6559,0.007,0.0,482,286,"WRONG SIGN (gamma=-1.77, p=0.007) — implausible, zeroed"
+Poha,0.6274,0.4824,-0.3704,1.1411,0.7455,0.0,516,286,null signal (p=0.746)
+Rice & Rice Products,-2.0569,0.0174,-0.1882,2.0996,0.9286,0.0,1764,286,null signal (p=0.929)
+Salt,-0.4573,0.5048,-2.9668,1.1926,0.0129,0.0,211,178,"WRONG SIGN (gamma=-2.97, p=0.013) — implausible, zeroed"
+Seeds,-1.083,0.1589,1.4482,1.393,0.2985,0.0,296,240,null signal (p=0.299)
+Single Spice Powder,0.5676,0.3384,2.0084,2.0281,0.322,0.0,1131,286,null signal (p=0.322)
+Sooji,2.8572,0.0045,0.084,1.3063,0.9487,0.0,214,214,null signal (p=0.949)
+Sugar,-1.3511,0.0581,-0.4344,1.6816,0.7962,0.0,485,285,null signal (p=0.796)
+Wheat Atta,-1.9124,0.0011,1.3604,1.7554,0.4384,0.0,880,286,null signal (p=0.438)
+"Wheat, Daliya & More",-4.7787,0.0789,5.6174,3.2711,0.0859,0.0,278,278,null signal (p=0.086)
+Whole Spices,-1.0341,0.1883,-1.8304,2.3977,0.4452,0.0,930,286,null signal (p=0.445)
