@@ -1,0 +1,146 @@
+<svg width="1000" height="1560" viewBox="0 0 1000 1560" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0" y="0" width="1000" height="1560" fill="#FFFFFF"/>
+  <text x="500" y="48" font-size="24" font-weight="700" fill="#111827" text-anchor="middle">Regression vs Controlled Test vs Constraint</text>
+  <text x="500" y="74" font-size="14" fill="#6B7280" text-anchor="middle">Three tools, three jobs — and which cells deserve a test · 24 Mantra × Blinkit discount engine</text>
+
+  <!-- PANEL A: doctor analogy -->
+  <text x="50" y="120" font-size="17" font-weight="700" fill="#111827">1 · The doctor analogy — three tools, never competitors</text>
+
+  <rect x="50" y="138" width="280" height="220" rx="10" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+  <text x="66" y="168" font-size="16" font-weight="700" fill="#1E3A8A">REGRESSION</text>
+  <text x="66" y="192" font-size="13" fill="#1E3A8A">Doctor: reads history &amp; symptoms</text>
+  <text x="66" y="214" font-size="13" fill="#374151">Estimates from what already happened</text>
+  <text x="66" y="236" font-size="13" fill="#374151">Cost: free — runs every week</text>
+  <text x="66" y="258" font-size="13" fill="#374151">Coverage: all 585 cells</text>
+  <text x="66" y="280" font-size="13" fill="#374151">Weakness: can be fooled by</text>
+  <text x="66" y="298" font-size="13" fill="#374151">confounding (festivals, stock-outs)</text>
+  <text x="66" y="330" font-size="14" font-weight="700" fill="#1E3A8A">JOB: SCREENING — 90% of the work</text>
+
+  <rect x="360" y="138" width="280" height="220" rx="10" fill="#D1FAE5" stroke="#059669" stroke-width="1.5"/>
+  <text x="376" y="168" font-size="16" font-weight="700" fill="#065F46">CONTROLLED TEST</text>
+  <text x="376" y="192" font-size="13" fill="#065F46">Doctor: orders a lab test</text>
+  <text x="376" y="214" font-size="13" fill="#374151">Creates new, clean evidence</text>
+  <text x="376" y="236" font-size="13" fill="#374151">(test group vs untouched control)</text>
+  <text x="376" y="258" font-size="13" fill="#374151">Cost: 3 weeks, several cities</text>
+  <text x="376" y="280" font-size="13" fill="#374151">Capacity: ~30–40 tests a year</text>
+  <text x="376" y="298" font-size="13" fill="#374151">Strength: needs no model to be right</text>
+  <text x="376" y="330" font-size="14" font-weight="700" fill="#065F46">JOB: VERIFICATION — the last 10%</text>
+
+  <rect x="670" y="138" width="280" height="220" rx="10" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+  <text x="686" y="168" font-size="16" font-weight="700" fill="#92400E">CONSTRAINT</text>
+  <text x="686" y="192" font-size="13" fill="#92400E">Doctor: "never above this dose"</text>
+  <text x="686" y="214" font-size="13" fill="#374151">A safety rule — not evidence at all</text>
+  <text x="686" y="236" font-size="13" fill="#374151">One sentence with a number,</text>
+  <text x="686" y="258" font-size="13" fill="#374151">one line in the optimizer config</text>
+  <text x="686" y="280" font-size="13" fill="#374151">Always on, every single run</text>
+  <text x="686" y="298" font-size="13" fill="#374151">Too many fences = no room to run</text>
+  <text x="686" y="330" font-size="14" font-weight="700" fill="#92400E">JOB: KEEP EVERY ANSWER SAFE</text>
+
+  <text x="50" y="392" font-size="13" font-style="italic" fill="#6B7280">You'd never ask "symptoms OR lab test OR dose limit?" — she uses all three, for different jobs. So does this system.</text>
+
+  <!-- PANEL B: funnel -->
+  <text x="50" y="440" font-size="17" font-weight="700" fill="#111827">2 · Which cells deserve a controlled test? (money × uncertainty × reversibility)</text>
+
+  <rect x="50" y="460" width="900" height="52" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="500" y="492" font-size="15" font-weight="600" fill="#111827" text-anchor="middle">585 cells — regression + DML screen ALL of them, every week, for free</text>
+
+  <line x1="190" y1="512" x2="190" y2="548" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+  <line x1="500" y1="512" x2="500" y2="548" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+  <line x1="810" y1="512" x2="810" y2="548" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+
+  <rect x="50" y="550" width="280" height="170" rx="10" fill="#D1FAE5" stroke="#059669" stroke-width="1.5"/>
+  <text x="66" y="578" font-size="15" font-weight="700" fill="#065F46">ACT via weekly glide</text>
+  <text x="66" y="602" font-size="13" fill="#374151">• High confidence (tight CI band)</text>
+  <text x="66" y="622" font-size="13" fill="#374151">• Small-to-mid money at stake</text>
+  <text x="66" y="642" font-size="13" fill="#374151">• Reversible: ≤3 ppt per week</text>
+  <text x="66" y="662" font-size="13" fill="#374151">• Kill-switch watches live —</text>
+  <text x="66" y="680" font-size="13" fill="#374151">  every step is itself a mini-test</text>
+  <text x="66" y="706" font-size="12" font-weight="600" fill="#065F46">NO formal test needed</text>
+
+  <rect x="360" y="550" width="280" height="170" rx="10" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+  <text x="376" y="578" font-size="15" font-weight="700" fill="#92400E">TEST FIRST</text>
+  <text x="376" y="602" font-size="13" fill="#374151">• The two engines disagree (12 cells)</text>
+  <text x="376" y="622" font-size="13" fill="#374151">• Wide uncertainty band (posterior SD)</text>
+  <text x="376" y="642" font-size="13" fill="#374151">• Confounded category (clipped slope)</text>
+  <text x="376" y="662" font-size="13" fill="#374151">• Big money even if confident</text>
+  <text x="376" y="680" font-size="13" fill="#374151">  (Dal &amp; Pulses = 58% of savings)</text>
+  <text x="376" y="706" font-size="12" font-weight="600" fill="#92400E">Geo-split test before scaling</text>
+
+  <rect x="670" y="550" width="280" height="170" rx="10" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.5"/>
+  <text x="686" y="578" font-size="15" font-weight="700" fill="#991B1B">FIX FIRST — don't test discount</text>
+  <text x="686" y="602" font-size="13" fill="#374151">• a_stock: availability broken —</text>
+  <text x="686" y="622" font-size="13" fill="#374151">  no discount answer exists</text>
+  <text x="686" y="642" font-size="13" fill="#374151">• b_competitive: losing share —</text>
+  <text x="686" y="662" font-size="13" fill="#374151">  cutting may accelerate the loss</text>
+  <text x="686" y="686" font-size="12" font-weight="600" fill="#991B1B">Fix OSA / defend, then re-screen</text>
+
+  <rect x="50" y="742" width="900" height="56" rx="10" fill="#EEF2FF" stroke="#6366F1" stroke-width="1.5"/>
+  <text x="66" y="766" font-size="13" font-weight="700" fill="#3730A3">TEST QUEUE (in order):</text>
+  <text x="66" y="786" font-size="13" fill="#374151">1) engines-disagree cells   2) test_unlock_list.csv (already ranked by expected ₹ × stability)   3) biggest-money cuts   4) reinvest pilots (+3 ppt)</text>
+
+  <!-- PANEL C: geo test -->
+  <text x="50" y="846" font-size="17" font-weight="700" fill="#111827">3 · The geo-split test — one picture</text>
+
+  <rect x="50" y="866" width="170" height="50" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="135" y="896" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">11 cities</text>
+  <line x1="220" y1="891" x2="268" y2="891" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+  <rect x="270" y="866" width="230" height="50" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="385" y="890" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Match pairs by volume</text>
+  <text x="385" y="908" font-size="12" fill="#6B7280" text-anchor="middle">and 8-week trend</text>
+  <line x1="500" y1="891" x2="548" y2="891" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+  <rect x="550" y="866" width="220" height="50" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="660" y="890" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Coin-flip each pair</text>
+  <text x="660" y="908" font-size="12" fill="#6B7280" text-anchor="middle">(removes your bias)</text>
+
+  <line x1="660" y1="916" x2="330" y2="962" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+  <line x1="660" y1="916" x2="700" y2="962" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+
+  <rect x="180" y="964" width="300" height="86" rx="10" fill="#D1FAE5" stroke="#059669" stroke-width="1.5"/>
+  <text x="330" y="994" font-size="15" font-weight="700" fill="#065F46" text-anchor="middle">TEST cities (≥2)</text>
+  <text x="330" y="1018" font-size="13" fill="#374151" text-anchor="middle">Change ONE thing: discount 22% → 19%</text>
+  <text x="330" y="1036" font-size="12" fill="#6B7280" text-anchor="middle">nothing else touched in this category</text>
+
+  <rect x="550" y="964" width="300" height="86" rx="10" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+  <text x="700" y="994" font-size="15" font-weight="700" fill="#1E3A8A" text-anchor="middle">CONTROL cities (≥2)</text>
+  <text x="700" y="1018" font-size="13" fill="#374151" text-anchor="middle">Change NOTHING — the mirror world</text>
+  <text x="700" y="1036" font-size="12" fill="#6B7280" text-anchor="middle">shows what would have happened anyway</text>
+
+  <line x1="330" y1="1050" x2="470" y2="1092" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+  <line x1="700" y1="1050" x2="560" y2="1092" stroke="#9CA3AF" stroke-width="1.5" marker-end="url(#ah)"/>
+
+  <rect x="180" y="1094" width="670" height="96" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="515" y="1122" font-size="15" font-weight="700" fill="#111827" text-anchor="middle">After 3 weeks — difference-in-differences</text>
+  <text x="515" y="1146" font-size="14" fill="#374151" text-anchor="middle">(test after − test before)  −  (control after − control before)  =  TRUE EFFECT</text>
+  <text x="515" y="1170" font-size="13" fill="#6B7280" text-anchor="middle">Rain, festivals, app changes hit both groups — they cancel out. Decide by the rule you wrote BEFORE starting.</text>
+
+  <!-- PANEL D: constraints -->
+  <text x="50" y="1244" font-size="17" font-weight="700" fill="#111827">4 · Constraints — who supplies what</text>
+
+  <rect x="50" y="1264" width="435" height="230" rx="10" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+  <text x="66" y="1292" font-size="15" font-weight="700" fill="#92400E">FROM THE BRAND (ask at onboarding)</text>
+  <text x="66" y="1318" font-size="13" fill="#374151">• Discount budget ceiling (% of baseline revenue)</text>
+  <text x="66" y="1340" font-size="13" fill="#374151">• Hero / strategic SKUs — never auto-cut</text>
+  <text x="66" y="1362" font-size="13" fill="#374151">• Min / max discount by category (positioning)</text>
+  <text x="66" y="1384" font-size="13" fill="#374151">• Festival / event plan (planned deep discounts)</text>
+  <text x="66" y="1406" font-size="13" fill="#374151">• Pack-price ladder intent (bigger = cheaper per kg)</text>
+  <text x="66" y="1428" font-size="13" fill="#374151">• Any platform commitments (locked promo slots)</text>
+  <text x="66" y="1460" font-size="12" font-style="italic" fill="#92400E">Each answer = one config line. No answer = system default.</text>
+
+  <rect x="515" y="1264" width="435" height="230" rx="10" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5"/>
+  <text x="531" y="1292" font-size="15" font-weight="700" fill="#1E3A8A">FROM YOU (system safety defaults)</text>
+  <text x="531" y="1318" font-size="13" fill="#374151">• Glide: no cell moves &gt; 3 ppt per week</text>
+  <text x="531" y="1340" font-size="13" fill="#374151">• Revenue floor: portfolio ≥ 98% of baseline</text>
+  <text x="531" y="1362" font-size="13" fill="#374151">• Discount box: 0–45%, no extrapolation</text>
+  <text x="531" y="1384" font-size="13" fill="#374151">• Price-per-kg ladder enforced + repaired</text>
+  <text x="531" y="1406" font-size="13" fill="#374151">• Psychological ₹-thresholds (49 / 99 / 199…)</text>
+  <text x="531" y="1428" font-size="13" fill="#374151">• Kill-switch: 2 strikes → revert, 4-wk freeze</text>
+  <text x="531" y="1460" font-size="12" font-style="italic" fill="#1E3A8A">These protect every brand identically — not negotiable per deal.</text>
+
+  <text x="500" y="1532" font-size="12" fill="#9CA3AF" text-anchor="middle">Generated 7 Jul 2026 · Optimal Price Finder — regression screens · tests verify · constraints protect · kill-switch reverts · register decides</text>
+
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6" fill="none" stroke="#9CA3AF" stroke-width="1.2"/>
+    </marker>
+  </defs>
+</svg>
