@@ -1,6 +1,6 @@
 # Weekly Discount Readout — W1
 
-**Budget: AMBER** — discount is 13.6% of sales (cap 14.0%), headroom ₹40,294/wk.
+**Budget: RED** — discount is 13.6% of sales (cap 12.0%), headroom ₹-139,701/wk.
 
 **This week: cut 48 · hold 537 · reinvest 0. Projected saving ₹32,164/week.**
 

@@ -432,7 +432,14 @@ def main():
 
     week = a.week or _auto_week_label(prev)
     date = a.date or "2026-07-06"
-    cap = a.budget_pct if a.budget_pct is not None else _baseline_budget_pct(plan_df)
+    # Precedence: --budget_pct flag > v4_config.DEFAULT_BUDGET_PCT_CAP > live baseline.
+    _cfg_cap = getattr(_cfg, "DEFAULT_BUDGET_PCT_CAP", None) if _cfg else None
+    if a.budget_pct is not None:
+        cap = a.budget_pct
+    elif _cfg_cap is not None:
+        cap = float(_cfg_cap)
+    else:
+        cap = _baseline_budget_pct(plan_df)
     # GAP 2 — if the portfolio drift brake tripped, block NEW cuts this week
     if alerts.get("block_new_cuts"):
         plan_df.loc[plan_df["bucket"] == "c_waste_cut", "suggested_disc"] = plan_df["cur_disc"]

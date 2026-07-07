@@ -188,7 +188,22 @@ USE_HISTORICAL_FLOOR_TARGET  = True
 # on ~25% of days, units held up, so we can return to this safely".
 HISTORICAL_FLOOR_PERCENTILE  = 25
 HISTORICAL_FLOOR_LOOKBACK_DAYS = 90   # Look back 90 days for the floor
+
+# ── Hero / flagship SKUs — NEVER auto-cut regardless of the math ──
+# Put your flagship PRODUCT_IDs here (ints or strings, e.g. [24055, 5793]).
+# weekly_tracker.build_plan_df holds any c_waste_cut cell whose product_id is
+# in this list, so a model that flags a hero as "waste" can never slash it
+# without you deciding to. Leave [] for no hero protection (cut purely on the
+# model + gates). ← EDIT ME: your hero SKU IDs.
 STRATEGIC_SKUS = []             # SKU IDs with override rules
+
+# ── Weekly discount-spend cap (tracker) ──
+# The tracker caps total discount spend at this fraction of gross each week.
+# None → use the live baseline (~14%, i.e. don't force extra cuts). Set to a
+# number to hold a hard ceiling; the guardrail glides spend down toward it.
+# 0.12 = "mild trim ~2 ppt below today" (chosen for the first wave).
+# Overridden per-run by --budget_pct on the command line.
+DEFAULT_BUDGET_PCT_CAP = 0.12
 
 # Tiering thresholds
 TIER_STRONG_CUT_MIN_SAVINGS = 10000    # ₹10K/month minimum for Strong Cut
