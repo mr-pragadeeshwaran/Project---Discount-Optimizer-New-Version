@@ -1,26 +1,28 @@
 """
-app.py — local dashboard for the Discount & Pricing Optimizer.
+app.py — local dashboard backend (v2) for the Discount & Pricing Optimizer.
 
-A zero-dependency (stdlib + pandas, both already installed) web UI so the owner can
+Zero-dependency (stdlib + pandas, both already installed) web server so the owner can
 SEE the system instead of running terminal commands:
   - INPUTS   : data files in input_data/, the config knobs that matter
-  - EXECUTE  : every playbook step as a button, with live logs and status
-  - OUTPUTS  : headline numbers, cut list, weekly readout, validation receipts
+  - EXECUTE  : every playbook step as a button, with live logs, progress and status
+  - OUTPUTS  : headline numbers, cut/reinvest lists, weekly readout, validation receipts
 
-Security model: binds to 127.0.0.1 only; the run endpoint accepts ONLY step ids from
-the fixed STEPS allowlist below (never arbitrary commands); one job at a time.
+Security model (unchanged from v1): binds to 127.0.0.1 only; the run endpoint accepts
+ONLY step ids from the fixed STEPS allowlist below (never arbitrary commands);
+one job at a time.
 
+Port: env UI_PORT, default 8765.
 Run:  python -X utf8 ui/app.py        then open  http://localhost:8765
 (or double-click launch_ui.bat at the repo root)
 """
-import os, sys, json, glob, threading, subprocess, time
+import os, re, sys, json, glob, threading, subprocess, time
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 sys.path.insert(0, ROOT)
-PORT = 8765
+PORT = int(os.environ.get("UI_PORT", "8765"))
 
 # ── The execution allowlist: every runnable step, grouped by cadence ────────────
 # Each step: label + plain-English description + the exact command (list form).
@@ -87,7 +89,7 @@ MONTHLY_ORDER = ["pipeline", "champion", "dml", "gates", "challenger", "pricing"
                  "budget", "promo", "scenarios", "backtest", "elast_gates",
                  "sensitivity", "outlier_audit"]
 
-# ── Job runner: one job at a time, log kept in memory ───────────────────────────
+# ── Job runner: one job at a time, log + progress kept in memory ────────────────
 class Job:
     def __init__(self):
         self.lock = threading.Lock()
@@ -95,12 +97,15 @@ class Job:
 
     def reset(self):
         self.step, self.status, self.rc = None, "idle", None
-        self.log, self.started = deque(maxlen=4000), None
+        self.log, self.started = deque(maxlen=6000), None
+        self.done_steps, self.total_steps, self.current = 0, 0, ""
 
     def snapshot(self):
         return {"step": self.step, "status": self.status, "rc": self.rc,
                 "elapsed": round(time.time() - self.started, 1) if self.started else 0,
-                "log": "\n".join(self.log)}
+                "log": "\n".join(self.log),
+                "done_steps": self.done_steps, "total_steps": self.total_steps,
+                "current": self.current}
 
 JOB = Job()
 
@@ -130,15 +135,25 @@ def _reset_state():
     JOB.log.append("[ui] tracker state reset (history/baselines/exec-log cleared)")
 
 
-def _run_commands(step_id, commands):
-    """Worker thread: run each command in sequence, streaming output into the log."""
+def _run_commands(step_id, tasks):
+    """Worker thread: run each (label, cmd) in sequence, streaming output into the log.
+
+    Progress contract: total_steps was set by start_job; done_steps increments as each
+    shell command finishes OK; current holds the label of the command now running.
+    Each command gets a '── <label>' header and a closing 'OK <label> (<secs>s)' or
+    'FAILED <label> (exit <rc>)' line.
+    """
     try:
-        for cmd in commands:
+        for label, cmd in tasks:
             if cmd == "#reset_state":
-                _reset_state(); continue
+                _reset_state()
+                continue
+            JOB.current = label
+            JOB.log.append(f"── {label}")
             argv = [sys.executable, "-X", "utf8"] + _resolve(cmd)
             JOB.log.append(f"$ python -X utf8 {' '.join(cmd)}")
             env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+            t0 = time.time()
             p = subprocess.Popen(argv, cwd=ROOT, stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT, text=True,
                                  encoding="utf-8", errors="replace", env=env)
@@ -146,10 +161,12 @@ def _run_commands(step_id, commands):
                 JOB.log.append(line.rstrip())
             p.wait()
             if p.returncode != 0:
+                JOB.log.append(f"FAILED {label} (exit {p.returncode})")
                 JOB.rc, JOB.status = p.returncode, "failed"
-                JOB.log.append(f"[ui] step failed with exit code {p.returncode}")
                 return
-        JOB.rc, JOB.status = 0, "done"
+            JOB.done_steps += 1
+            JOB.log.append(f"OK {label} ({time.time() - t0:.1f}s)")
+        JOB.rc, JOB.status, JOB.current = 0, "done", ""
         JOB.log.append("[ui] all commands finished OK")
     except Exception as e:
         JOB.rc, JOB.status = -1, "failed"
@@ -161,15 +178,21 @@ def start_job(step_id):
         if JOB.status == "running":
             return False, "A job is already running — wait for it to finish."
         if step_id == "monthly_all":
-            commands = [STEPS[s]["cmd"] for s in MONTHLY_ORDER]
+            tasks = [(STEPS[s]["label"], STEPS[s]["cmd"]) for s in MONTHLY_ORDER]
         elif step_id in STEPS:
             s = STEPS[step_id]
-            commands = [s["cmd"]] + list(s.get("then", []))
+            tasks = [(s["label"], s["cmd"])]
+            for extra in s.get("then", []):
+                if extra == "#reset_state":
+                    tasks.append(("reset tracker state", "#reset_state"))
+                else:
+                    tasks.append((s["label"] + " — restore weekly state", extra))
         else:
             return False, f"Unknown step: {step_id}"
         JOB.reset()
         JOB.step, JOB.status, JOB.started = step_id, "running", time.time()
-        threading.Thread(target=_run_commands, args=(step_id, commands), daemon=True).start()
+        JOB.total_steps = sum(1 for _, c in tasks if c != "#reset_state")
+        threading.Thread(target=_run_commands, args=(step_id, tasks), daemon=True).start()
         return True, "started"
 
 
@@ -179,6 +202,14 @@ def _safe(fn, fallback=None):
         return fn()
     except Exception:
         return fallback
+
+
+def _need(path, what):
+    """Return path if the file exists, else raise a FileNotFoundError whose message
+    is the plain-English <what> (surfaced as 'not generated yet: <what>')."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(what)
+    return path
 
 
 def api_status():
@@ -209,88 +240,197 @@ def api_status():
     def tracker():
         h = pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv"))
         acts = h.get("week_action")
-        return {"rows": len(h), "weeks": int(h["week"].nunique()),
-                "cuts": int((acts == "cut").sum()) if acts is not None else None,
-                "holds": int((acts == "hold").sum()) if acts is not None else None,
-                "scored": int(h["actual_net_rev_delta"].notna().sum()) if "actual_net_rev_delta" in h else 0}
+        week_label = None
+        if "week" in h.columns and len(h):
+            labels = h["week"].astype(str).unique().tolist()
+            week_label = max(labels, key=lambda w: int(re.sub(r"\D", "", w) or 0))
+        return {"rows": len(h),
+                "weeks": int(h["week"].nunique()) if "week" in h.columns else 0,
+                "cuts": int((acts == "cut").sum()) if acts is not None else 0,
+                "holds": int((acts == "hold").sum()) if acts is not None else 0,
+                "scored": int(h["actual_net_rev_delta"].notna().sum()) if "actual_net_rev_delta" in h else 0,
+                "week_label": week_label}
     st["tracker"] = _safe(tracker)
 
     def plan():
-        summ = json.load(open(os.path.join(run, "plan", "plan_summary.json"), encoding="utf-8"))
-        return summ
+        return json.load(open(os.path.join(run, "plan", "plan_summary.json"), encoding="utf-8"))
     st["plan_summary"] = _safe(plan) if run else None
+
+    def cat_savings():
+        d = pd.read_csv(os.path.join(run, "plan", "all_cells.csv"))
+        d = d[d["bucket"] == "c_waste_cut"]
+        g = (d.groupby("category")
+               .agg(cells=("cell_id", "count"),
+                    saving_mo=("net_gain_mo", lambda x: x.clip(lower=0).sum()))
+               .reset_index().sort_values("saving_mo", ascending=False).head(10))
+        return [{"category": r["category"], "cells": int(r["cells"]),
+                 "saving_mo": round(float(r["saving_mo"]))} for _, r in g.iterrows()]
+    st["category_savings"] = (_safe(cat_savings, []) if run else []) or []
+
+    def agreement():
+        a = pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "agreement.csv"))
+        pa = a["pricing_action"].astype(str)
+        return {"cut": int((pa == "cut").sum()), "hold": int((pa == "hold").sum()),
+                "raise": int((pa == "raise").sum()),
+                "agree_with_cut": int(a["agree_with_cut"].astype(bool).sum())}
+    st["agreement"] = _safe(agreement)
+
+    def sens_summary():
+        s = pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "sensitivity_cells.csv"))
+        mf = float(s["flip_rate_joint"].max()) if len(s) else 0.0
+        return {"fragile": int(s["fragile"].sum()), "total": int(len(s)),
+                "max_flip": 0.0 if mf != mf else round(mf, 3)}  # NaN-guard
+    st["sensitivity"] = _safe(sens_summary)
 
     # validation receipts — pass/fail chips
     rec = []
     def add(name, ok, note):
-        rec.append({"name": name, "ok": ok, "note": note})
+        rec.append({"name": name, "ok": bool(ok), "note": note})
 
     def _dml():
-        d = json.load(open(os.path.join(ROOT, "DISCOUNT_PLAN", "dml_results.json"), encoding="utf-8"))
-        return d
-    d = _safe(_dml)
-    if d:
+        return json.load(open(os.path.join(ROOT, "DISCOUNT_PLAN", "dml_results.json"), encoding="utf-8"))
+    if _safe(_dml):
         add("Double ML", True, "causal confirmation present")
 
     def _egates():
         g = json.load(open(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "elasticity_validation.json"), encoding="utf-8"))
         overall = g.get("overall_pass", g.get("all_pass"))
-        return bool(overall), g
+        return bool(overall)
     eg = _safe(_egates)
     if eg is not None:
-        add("Elasticity gates", eg[0], "all 3 stages pass" if eg[0] else "gate failed — direct, don't bank (expected with wide-band elasticities)")
+        add("Elasticity gates", eg, "all 3 stages pass" if eg
+            else "gate failed — direct, don't bank (expected with wide-band elasticities)")
 
-    def _sens():
-        s = pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "sensitivity_cells.csv"))
-        nf = int(s["fragile"].sum())
-        return nf, len(s)
-    sv = _safe(_sens)
-    if sv is not None:
-        add("Sensitivity", sv[0] == 0, f"{sv[0]} fragile of {sv[1]} cut cells")
+    if st["sensitivity"] is not None:
+        sv = st["sensitivity"]
+        add("Sensitivity", sv["fragile"] == 0, f"{sv['fragile']} fragile of {sv['total']} cut cells")
 
     def _chal():
         txt = open(os.path.join(ROOT, "DISCOUNT_PLAN", "CHALLENGER_REPORT.md"), encoding="utf-8").read()
-        keep = "KEEP Model A" in txt
-        return keep
+        return "KEEP Model A" in txt
     ch = _safe(_chal)
     if ch is not None:
-        add("Competitor challenger", True, "champion stands (competition not a confounder)" if ch else "challenger adopted")
+        add("Competitor challenger", True,
+            "champion stands (competition not a confounder)" if ch else "challenger adopted")
 
     def _defense():
-        dh = pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "defense_hold.csv"))
-        return len(dh)
+        return len(pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "defense_hold.csv")))
     dh = _safe(_defense)
     if dh is not None:
         add("Defense hold", True, f"{dh} cell(s) held out of the cut wave")
+
+    # NEW: Backtest — champion must beat BOTH naive benchmarks on pooled wMAPE.
+    def _backtest():
+        f = os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "backtest_folds.csv")
+        if os.path.exists(f):
+            b = pd.read_csv(f)
+            if {"model", "wmape", "n_cellweeks"} <= set(b.columns):
+                pooled = {}
+                for m, gg in b.groupby("model"):
+                    n = gg["n_cellweeks"].sum()
+                    if n > 0:
+                        pooled[m] = float((gg["wmape"] * gg["n_cellweeks"]).sum() / n)
+                champ = pooled.get("champion_recursive", pooled.get("champion_1step"))
+                sn, lw = pooled.get("seasonal_naive"), pooled.get("naive_lastweek")
+                if champ is not None and sn is not None and lw is not None:
+                    ok = champ < sn and champ < lw
+                    note = (f"pooled wMAPE: champion {champ:.1%} vs seasonal-naive {sn:.1%}, "
+                            f"last-week {lw:.1%}")
+                    if not ok:
+                        note += (" — naive benchmark competitive on pure forecasting; "
+                                 "the champion's validated job is decision-making, not forecasting")
+                    return ok, note
+        # fall back to the report's own verdict line
+        txt = open(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "BACKTEST_REPORT.md"),
+                   encoding="utf-8").read()
+        head = txt[:600]
+        if "**PASS" in head:
+            return True, "report verdict: PASS — champion beats both benchmarks"
+        if "**FAIL" in head:
+            return False, "report verdict: FAIL — champion does not beat both naive benchmarks on pooled wMAPE"
+        return False, "backtest present but verdict ambiguous — treat as not passing"
+    bt = _safe(_backtest)
+    if bt is not None:
+        add("Backtest", bt[0], bt[1])
+
+    # NEW: Plan gates C1-C8 — the plan exists AND plan_summary says it meets target.
+    ps = st["plan_summary"]
+    if ps:
+        ok = bool(st["plan_exists"] and ps.get("meets_target"))
+        note = (f"checks plan exists + meets_target: achievable "
+                f"₹{ps.get('achievable_savings_mo_allconf', 0):,.0f}/mo vs target "
+                f"₹{ps.get('target_lo', 0):,.0f}–₹{ps.get('target_hi', 0):,.0f}; "
+                f"{ps.get('cut_cells_all', 0)} cut cells")
+        add("Plan gates C1-C8", ok, note)
+    else:
+        add("Plan gates C1-C8", False, "checks plan exists + meets_target — plan not generated yet")
     st["receipts"] = rec
     return st
+
+
+TABLE_COLS_CUTS = ["product_id", "title", "city", "category", "cur_disc",
+                   "tgt_disc", "net_gain_mo", "confidence"]
+TABLE_COLS_SENS = ["cell_id", "city", "category", "cur_disc", "flip_rate_joint",
+                   "fragile", "in_first_wave", "net_gain_mo"]
+TABLE_COLS_HIST = ["week", "cell_id", "confidence", "week_action",
+                   "pred_net_rev_delta", "actual_net_rev_delta", "applied"]
 
 
 def api_table(name):
     import pandas as pd
     run = _latest_run()
-    if name == "cuts" and run:
-        f = os.path.join(run, "plan", "cut_list.csv")
-        d = pd.read_csv(f)
-        cols = [c for c in ["product_id", "title", "city", "category", "cur_disc",
-                            "tgt_disc", "net_gain_mo", "confidence"] if c in d.columns]
-        d = d[cols].sort_values("net_gain_mo", ascending=False).head(60)
+
+    def _plan_list(fname, what):
+        if not run:
+            raise FileNotFoundError(what)
+        d = pd.read_csv(_need(os.path.join(run, "plan", fname), what))
+        cols = [c for c in TABLE_COLS_CUTS if c in d.columns]
+        d = d[cols]
+        if "net_gain_mo" in cols:
+            d = d.sort_values("net_gain_mo", ascending=False)
         return {"columns": cols, "rows": d.fillna("").values.tolist()}
-    if name == "buckets" and run:
-        d = pd.read_csv(os.path.join(run, "plan", "all_cells.csv"))
+
+    if name == "cuts":
+        return _plan_list("cut_list.csv", "the cut list (run the monthly rebuild)")
+    if name == "reinvest":
+        return _plan_list("reinvest_list.csv", "the reinvest list (run the monthly rebuild)")
+    if name == "buckets":
+        if not run:
+            raise FileNotFoundError("the plan buckets (run the monthly rebuild)")
+        d = pd.read_csv(_need(os.path.join(run, "plan", "all_cells.csv"),
+                              "the plan buckets (run the monthly rebuild)"))
         g = d.groupby("bucket").agg(cells=("cell_id", "count"),
                                     saving_mo=("net_gain_mo", lambda x: x.clip(lower=0).sum())).reset_index()
         return {"columns": ["bucket", "cells", "saving_mo"],
-                "rows": [[r["bucket"], int(r["cells"]), round(float(r["saving_mo"]))] for _, r in g.iterrows()]}
+                "rows": [[r["bucket"], int(r["cells"]), round(float(r["saving_mo"]))]
+                         for _, r in g.iterrows()]}
     if name == "handoff":
-        f = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log_template.csv")
+        f = _need(os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log_template.csv"),
+                  "the KAM handoff file (run the weekly recommend step)")
         d = pd.read_csv(f)
-        return {"columns": list(d.columns), "rows": d.fillna("").head(80).values.tolist()}
+        return {"columns": list(d.columns), "rows": d.fillna("").values.tolist()}
     if name == "scenarios":
-        f = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "scenario_menu.csv")
+        f = _need(os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "scenario_menu.csv"),
+                  "the scenario menu (run the pricing steps)")
         d = pd.read_csv(f)
-        return {"columns": list(d.columns), "rows": d.fillna("").head(20).values.tolist()}
-    raise FileNotFoundError(name)
+        return {"columns": list(d.columns), "rows": d.fillna("").values.tolist()}
+    if name == "sensitivity":
+        f = _need(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "sensitivity_cells.csv"),
+                  "the sensitivity cells (run the sensitivity shake)")
+        d = pd.read_csv(f)
+        cols = [c for c in TABLE_COLS_SENS if c in d.columns]
+        d = d[cols]
+        if "flip_rate_joint" in cols:
+            d = d.sort_values("flip_rate_joint", ascending=False)
+        return {"columns": cols, "rows": d.fillna("").values.tolist()}
+    if name == "history":
+        f = _need(os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv"),
+                  "the tracker history (run the weekly loop)")
+        d = pd.read_csv(f)
+        cols = [c for c in TABLE_COLS_HIST if c in d.columns]
+        d = d[cols].head(200)
+        return {"columns": cols, "rows": d.fillna("").values.tolist()}
+    raise KeyError(name)
 
 
 REPORTS = {
@@ -300,6 +440,8 @@ REPORTS = {
     "sens":     os.path.join("DISCOUNT_PLAN", "validation", "SENSITIVITY_REPORT.md"),
     "promo":    os.path.join("DISCOUNT_PLAN", "promo", "PROMO_CALENDAR.md"),
     "chal":     os.path.join("DISCOUNT_PLAN", "CHALLENGER_REPORT.md"),
+    "params":   os.path.join("DISCOUNT_PLAN", "PARAMS_REVIEW.md"),
+    "egates":   os.path.join("DISCOUNT_PLAN", "validation", "ELASTICITY_GATES.md"),
 }
 
 
@@ -330,9 +472,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, api_table(self.path.rsplit("/", 1)[1]))
             if self.path.startswith("/api/report/"):
                 key = self.path.rsplit("/", 1)[1]
-                p = os.path.join(ROOT, REPORTS[key])
+                if key not in REPORTS:
+                    return self._send(404, {"error": f"unknown report '{key}'"})
+                p = _need(os.path.join(ROOT, REPORTS[key]), f"the {key} report")
                 return self._send(200, {"text": open(p, encoding="utf-8").read()})
             return self._send(404, {"error": "not found"})
+        except KeyError as e:
+            return self._send(404, {"error": f"unknown table {e}"})
         except FileNotFoundError as e:
             return self._send(404, {"error": f"not generated yet: {e}"})
         except Exception as e:
