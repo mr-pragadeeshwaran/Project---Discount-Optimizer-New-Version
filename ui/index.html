@@ -46,7 +46,7 @@
   --good:#0ca30c; --warn:#b7791f; --bad:#c65133;
   --chipbg:#f2f4f7; --shadow:0 1px 2px rgba(16,24,40,.06);
   --goodbg:#eaf7ea; --badbg:#faeee9; --warnbg:#faf3e3;
-  --c1:#2a78d6; --c2:#d97706; --c3:#0f9d8f; --c4:#8b5cf6;
+  --c1:#2a78d6; --c2:#d97706; --c3:#0f9d8f; --c4:#8b5cf6; --c5:#16a34a; --c6:#db2777;
 }
 :root[data-theme="dark"]{
   --bg:#0d0f13; --surface:#161a20; --border:#262b33;
@@ -55,7 +55,7 @@
   --good:#3fbf3f; --warn:#fab219; --bad:#ec835a;
   --chipbg:#1d222b; --shadow:0 1px 2px rgba(0,0,0,.35);
   --goodbg:#142a14; --badbg:#33200f; --warnbg:#2e250e;
-  --c1:#3987e5; --c2:#f59e0b; --c3:#14b8a6; --c4:#a78bfa;
+  --c1:#3987e5; --c2:#f59e0b; --c3:#14b8a6; --c4:#a78bfa; --c5:#4ade80; --c6:#f472b6;
 }
 
 /* ================= base ================= */
@@ -88,7 +88,8 @@ aside{
   transition:width .15s ease;
 }
 .wordmark{display:flex;align-items:center;gap:10px;padding:2px 10px 16px}
-.wordmark .logo{flex:0 0 auto;width:30px;height:30px;border-radius:8px;background:var(--accent);
+.wordmark .logo{flex:0 0 auto;width:30px;height:30px;border-radius:8px;
+  background:linear-gradient(135deg,var(--c1),var(--c4));
   display:flex;align-items:center;justify-content:center;color:#fff}
 .wordmark .wm-txt{min-width:0}
 .wordmark .wm-name{font-weight:650;font-size:14px;letter-spacing:-0.01em;white-space:nowrap}
@@ -143,6 +144,29 @@ nav a.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
 }
 .iconbtn:hover{background:var(--chipbg);color:var(--ink)}
 
+/* Day / Night segmented theme switch */
+.theme-seg{display:inline-flex;align-items:center;gap:2px;background:var(--chipbg);
+  border:1px solid var(--border);border-radius:999px;padding:3px}
+.theme-seg button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;
+  padding:5px 13px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;
+  color:var(--ink3);transition:background .15s ease,color .15s ease}
+.theme-seg button:hover{color:var(--ink)}
+.theme-seg button.on{background:var(--surface);color:var(--ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.theme-seg button.on svg{color:var(--c2)}
+.theme-seg button[data-set="dark"].on svg{color:var(--c4)}
+
+/* colored nav icons + cadence accents */
+nav a[data-route="overview"] svg{color:var(--c1)}
+nav a[data-route="run"] svg{color:var(--c5)}
+nav a[data-route="cuts"] svg{color:var(--c2)}
+nav a[data-route="weekly"] svg{color:var(--c3)}
+nav a[data-route="reports"] svg{color:var(--c4)}
+nav a[data-route="inputs"] svg{color:var(--c6)}
+#monthly-card{border-top:3px solid var(--c1)}
+.run-col > .card:nth-of-type(1){border-top:3px solid var(--c3)}
+.run-col > .card:nth-of-type(2){border-top:3px solid var(--c4)}
+
 .pill{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;
   font-size:12px;font-weight:600;background:var(--chipbg);color:var(--ink2);border:1px solid var(--border);white-space:nowrap}
 .pill.running{background:var(--accent-soft);color:var(--accent);border-color:transparent}
@@ -186,9 +210,16 @@ nav a.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
 .kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);
   padding:14px 16px;transition:transform .15s ease,box-shadow .15s ease}
 .kpi:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(16,24,40,.09)}
-.kpi .k-top{display:flex;align-items:center;gap:7px;color:var(--ink3);font-size:11px;
-  text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:8px}
-.kpi .k-top svg{color:var(--accent)}
+.kpi .k-top{display:flex;align-items:center;gap:9px;color:var(--ink3);font-size:11px;
+  text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:9px}
+.k-ic{width:27px;height:27px;border-radius:8px;display:inline-flex;align-items:center;
+  justify-content:center;flex:0 0 auto}
+.hc1{color:var(--c1);background:color-mix(in srgb,var(--c1) 13%,transparent)}
+.hc2{color:var(--c2);background:color-mix(in srgb,var(--c2) 13%,transparent)}
+.hc3{color:var(--c3);background:color-mix(in srgb,var(--c3) 13%,transparent)}
+.hc4{color:var(--c4);background:color-mix(in srgb,var(--c4) 13%,transparent)}
+.hc5{color:var(--c5);background:color-mix(in srgb,var(--c5) 13%,transparent)}
+.hc6{color:var(--c6);background:color-mix(in srgb,var(--c6) 13%,transparent)}
 .kpi .k-val{font-size:23px;font-weight:650;letter-spacing:-0.01em;line-height:1.15;word-break:break-word}
 .kpi .k-sub{font-size:11.5px;color:var(--ink2);margin-top:4px}
 
@@ -408,7 +439,14 @@ td.num,th.num{text-align:right}
       </div>
       <div class="spacer"></div>
       <span class="pill" id="jobpill"><span id="jobpill-ic"></span><span id="jobpill-tx">Idle</span></span>
-      <button class="iconbtn" id="themebtn" title="Switch theme" aria-label="Switch theme"></button>
+      <div class="theme-seg" id="themeseg" role="group" aria-label="Theme">
+        <button type="button" data-set="light" aria-label="Day theme">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>
+          Day</button>
+        <button type="button" data-set="dark" aria-label="Night theme">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 14.2A8.8 8.8 0 1 1 9.8 3.4a7 7 0 1 0 10.8 10.8z"/></svg>
+          Night</button>
+      </div>
     </header>
 
     <main id="content">
@@ -644,14 +682,11 @@ document.addEventListener('mousemove', e => {
 /* ============================== theme ============================== */
 function applyThemeButton() {
   const t = document.documentElement.getAttribute('data-theme');
-  $('#themebtn').innerHTML = t === 'dark' ? IC.sun : IC.moon;
-  $('#themebtn').title = t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+  $$('#themeseg button').forEach(b => b.classList.toggle('on', b.dataset.set === t));
 }
-function toggleTheme() {
-  const cur = document.documentElement.getAttribute('data-theme');
-  const nxt = cur === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', nxt);
-  try { localStorage.setItem('opf-theme', nxt); } catch (e) {}
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('opf-theme', t); } catch (e) {}
   applyThemeButton();
 }
 
@@ -758,27 +793,28 @@ function renderOverview() {
   }
   const s = S.status || {};
   const ps = s.plan_summary || null, tr = s.tracker || null, c = s.config || {};
-  const kpi = (icon, label, val, sub) =>
-    '<div class="kpi"><div class="k-top">' + icon + '<span>' + esc(label) + '</span></div>' +
+  const kpi = (icon, hue, label, val, sub) =>
+    '<div class="kpi"><div class="k-top"><span class="k-ic ' + hue + '">' + icon + '</span>' +
+    '<span>' + esc(label) + '</span></div>' +
     '<div class="k-val">' + val + '</div><div class="k-sub">' + esc(sub) + '</div></div>';
 
   const kpis =
-    kpi(IC.rupee, 'Waste found / month',
+    kpi(IC.rupee, 'hc5', 'Waste found / month',
         ps ? rup(ps.achievable_savings_mo_allconf) : '—',
         ps ? (rup(ps.achievable_savings_mo_highconf) + ' of it high-confidence') : 'run the monthly rebuild') +
-    kpi(IC.scissors, 'This week: cut / hold',
+    kpi(IC.scissors, 'hc2', 'This week: cut / hold',
         tr && tr.cuts != null ? fmtIN(tr.cuts) + ' / ' + fmtIN(tr.holds) : '—',
         tr ? (tr.week_label ? ('week ' + tr.week_label + ' · ' + fmtIN(tr.scored) + ' scored') : (fmtIN(tr.scored) + ' cells scored so far')) : 'run "Recommend" in the Weekly loop') +
-    kpi(IC.target, 'Model accuracy',
+    kpi(IC.target, 'hc1', 'Model accuracy',
         ps && ps.oos_r2 != null ? 'R² ' + Number(ps.oos_r2).toFixed(2) : '—',
         'decision-engine accuracy (out-of-sample)') +
-    kpi(IC.grid, 'Cells (SKU × city)',
+    kpi(IC.grid, 'hc4', 'Cells (SKU × city)',
         ps ? fmtIN(ps.n_cells) : '—',
         ps ? (fmtIN(ps.n_products) + ' products · ' + fmtIN(ps.weeks) + ' weeks of data') : 'no plan yet') +
-    kpi(IC.wallet, 'Budget cap',
+    kpi(IC.wallet, 'hc3', 'Budget cap',
         c.budget_cap != null ? (c.budget_cap * 100).toFixed(0) + '%' : '—',
         'of gross sales allowed on trade spend') +
-    kpi(IC.clock, 'Latest run',
+    kpi(IC.clock, 'hc6', 'Latest run',
         s.latest_run ? esc(runDate(s.latest_run)) : 'none yet',
         s.plan_exists ? 'plan ready' : 'no plan yet — run the rebuild');
 
@@ -1366,7 +1402,7 @@ document.addEventListener('click', e => {
     return;
   }
 });
-$('#themebtn').addEventListener('click', toggleTheme);
+$$('#themeseg button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.set)));
 $('#rep-close').addEventListener('click', () => { REP.open = null; $('#rep-pane').hidden = true; renderReports(); });
 $('#cut-q').addEventListener('input', e => { CUT.q = e.target.value; renderCutPlan(); });
 $('#cut-cat').addEventListener('change', e => { CUT.cat = e.target.value; renderCutPlan(); });
