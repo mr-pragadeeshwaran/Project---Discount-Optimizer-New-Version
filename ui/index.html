@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discount Optimizer — Dashboard</title>
+<style>
+  :root{
+    --surface:#fcfcfb; --panel:#ffffff; --border:#e6e5e1;
+    --ink:#0b0b0b; --ink2:#52514e; --ink3:#8a8983;
+    --accent:#2a78d6; --good:#0ca30c; --warn:#fab219; --bad:#ec835a;
+    --chipbg:#f3f2ef; --logbg:#0f0f0e; --logink:#d8d7cf;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --surface:#1a1a19; --panel:#222221; --border:#3a3a38;
+      --ink:#ffffff; --ink2:#c3c2b7; --ink3:#8a8983;
+      --accent:#3987e5; --chipbg:#2c2c2a; --logbg:#111110; --logink:#c9c8c0;
+    }
+  }
+  *{box-sizing:border-box} body{margin:0;background:var(--surface);color:var(--ink);
+    font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+  header{padding:18px 24px 6px}
+  h1{font-size:20px;margin:0 0 2px} .sub{color:var(--ink2);font-size:13px}
+  main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px 24px 40px;max-width:1500px}
+  @media(max-width:1000px){main{grid-template-columns:1fr}}
+  section{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);margin:0 0 12px}
+  /* stat tiles */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 24px 0}
+  .tile{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  .tile .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+  .tile .k{color:var(--ink2);font-size:12px;margin-top:2px}
+  /* chips */
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chipbg);
+    border-radius:999px;padding:3px 10px;font-size:12px;margin:2px 4px 2px 0;color:var(--ink2)}
+  .chip b{color:var(--ink)} .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .ok .dot{background:var(--good)} .fail .dot{background:var(--bad)} .run .dot{background:var(--accent)}
+  /* steps */
+  .grp{margin-bottom:14px} .grp h3{font-size:12px;color:var(--ink3);margin:0 0 6px;text-transform:uppercase;letter-spacing:.05em}
+  .step{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;border:1px solid transparent}
+  .step:hover{background:var(--chipbg)}
+  .step .txt{flex:1;min-width:0} .step .lbl{font-weight:600;font-size:13px}
+  .step .dsc{color:var(--ink2);font-size:12px}
+  button{background:var(--accent);color:#fff;border:0;border-radius:7px;padding:6px 13px;
+    font:600 12px "Segoe UI",sans-serif;cursor:pointer;white-space:nowrap}
+  button:disabled{opacity:.45;cursor:default}
+  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  .st{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .st.idle{color:var(--ink3)} .st.running{color:var(--accent)}
+  .st.done{color:var(--good)} .st.failed{color:var(--bad)}
+  /* log */
+  #log{background:var(--logbg);color:var(--logink);border-radius:8px;padding:12px;height:260px;
+    overflow:auto;font:12px/1.5 Consolas,monospace;white-space:pre-wrap;margin-top:10px}
+  /* tables */
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th{color:var(--ink2);text-align:left;font-weight:600;padding:6px 10px;border-bottom:1px solid var(--border);
+     position:sticky;top:0;background:var(--panel)}
+  td{padding:5px 10px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+  .tblwrap{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px}
+  /* tabs */
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+  .tab{padding:5px 12px;border-radius:7px;cursor:pointer;font-size:12.5px;color:var(--ink2);border:1px solid var(--border)}
+  .tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  pre.report{white-space:pre-wrap;font:12.5px/1.55 Consolas,monospace;background:var(--chipbg);
+    border-radius:8px;padding:14px;max-height:460px;overflow:auto}
+  .note{color:var(--ink3);font-size:12px;margin-top:8px}
+  .right{display:flex;flex-direction:column;gap:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Discount &amp; Pricing Optimizer</h1>
+  <div class="sub">24 Mantra Organic · Blinkit — inputs, execution and outputs of the whole system, live from your files</div>
+</header>
+
+<div class="tiles" id="tiles"></div>
+
+<main>
+  <!-- LEFT: inputs + execution -->
+  <div class="right">
+    <section>
+      <h2>Inputs</h2>
+      <div id="cfg"></div>
+      <div class="tblwrap" style="max-height:180px;margin-top:10px">
+        <table id="files"><thead><tr><th>Data file</th><th>MB</th><th>Modified</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="note">To change hero SKUs or the budget cap, edit <b>v4_config.py</b> and re-run the weekly step.</div>
+    </section>
+
+    <section>
+      <h2>Execute</h2>
+      <div class="grp"><h3>Monthly rebuild <button class="ghost" style="float:right" onclick="run('monthly_all')">Run all 13 in order</button></h3>
+        <div id="g-monthly"></div></div>
+      <div class="grp"><h3>Weekly loop</h3><div id="g-weekly"></div></div>
+      <div class="grp"><h3>Governance</h3><div id="g-governance"></div></div>
+      <div id="jobline" class="note">No job running.</div>
+      <div id="log" hidden></div>
+    </section>
+  </div>
+
+  <!-- RIGHT: outputs -->
+  <div class="right">
+    <section>
+      <h2>Proof receipts</h2>
+      <div id="receipts"></div>
+    </section>
+    <section>
+      <h2>Outputs</h2>
+      <div class="tabs" id="tabs"></div>
+      <div id="out"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $=q=>document.querySelector(q);
+const fmt=n=>n==null?"—":Number(n).toLocaleString("en-IN");
+const rup=n=>n==null?"—":"₹"+Math.round(n).toLocaleString("en-IN");
+let STEPS={}, ORDER=[], polling=null;
+
+async function j(u,opt){const r=await fetch(u,opt);const d=await r.json();if(!r.ok)throw d;return d}
+
+/* ── status: tiles, config, files, receipts ─────────────────────── */
+async function refreshStatus(){
+  let s; try{s=await j("/api/status")}catch(e){return}
+  const ps=s.plan_summary||{}, tr=s.tracker||{}, c=s.config||{};
+  $("#tiles").innerHTML=[
+    ["Latest run", s.latest_run||"none yet"],
+    ["Cells (SKU × city)", fmt(ps.n_cells)],
+    ["Waste found / month", rup(ps.achievable_savings_mo_allconf)],
+    ["This week: cut / hold", tr.cuts!=null?`${tr.cuts} / ${tr.holds}`:"—"],
+    ["Model accuracy (OOS R²)", ps.oos_r2!=null?ps.oos_r2.toFixed(2):"—"],
+    ["Budget cap", c.budget_cap!=null?(c.budget_cap*100).toFixed(0)+"% of gross":"—"],
+  ].map(([k,v])=>`<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`).join("");
+  $("#cfg").innerHTML=[
+    ["Brand", c.brand],
+    ["Hero SKUs (never auto-cut)", (c.hero_skus&&c.hero_skus.length)?c.hero_skus.join(", "):"⚠ none set"],
+    ["Training window", c.lookback_days+" days"],
+    ["Glide timeline", c.timeline_weeks+" weeks"],
+  ].map(([k,v])=>`<span class="chip">${k}: <b>${v}</b></span>`).join("");
+  $("#files tbody").innerHTML=(s.input_files||[]).map(f=>
+    `<tr><td>${f.name}</td><td>${f.mb}</td><td>${f.modified}</td></tr>`).join("")||
+    `<tr><td colspan="3">No files in input_data/ yet</td></tr>`;
+  $("#receipts").innerHTML=(s.receipts||[]).map(r=>
+    `<span class="chip ${r.ok?"ok":"fail"}"><span class="dot"></span>${r.ok?"✓":"✗"} <b>${r.name}</b> — ${r.note}</span>`
+  ).join("")||`<span class="note">Run the monthly rebuild to generate proof receipts.</span>`;
+}
+
+/* ── execution steps ────────────────────────────────────────────── */
+async function loadSteps(){
+  const d=await j("/api/steps"); STEPS=d.steps; ORDER=d.monthly_order;
+  const groups={monthly:"#g-monthly",weekly:"#g-weekly",governance:"#g-governance"};
+  for(const [id,s] of Object.entries(STEPS)){
+    const el=document.createElement("div"); el.className="step"; el.id="step-"+id;
+    el.innerHTML=`<div class="txt"><div class="lbl">${s.label}</div><div class="dsc">${s.desc}</div></div>
+      <span class="st idle" id="st-${id}">idle</span>
+      <button onclick="run('${id}')" id="btn-${id}">Run</button>`;
+    document.querySelector(groups[s.group]).appendChild(el);
+  }
+}
+async function run(step){
+  try{ await j("/api/run/"+step,{method:"POST"}) }catch(e){ alert(e.message||e.error); return }
+  $("#log").hidden=false; poll();
+  if(!polling) polling=setInterval(poll,1000);
+}
+async function poll(){
+  const jb=await j("/api/job");
+  $("#jobline").textContent = jb.step ?
+    `Job: ${jb.step} — ${jb.status}${jb.rc!=null?" (exit "+jb.rc+")":""} · ${jb.elapsed}s` : "No job running.";
+  const lg=$("#log"); const stick = lg.scrollTop+lg.clientHeight >= lg.scrollHeight-30;
+  lg.textContent=jb.log||""; if(stick) lg.scrollTop=lg.scrollHeight;
+  document.querySelectorAll(".st").forEach(e=>{e.className="st idle";e.textContent="idle"});
+  if(jb.step){
+    const ids = jb.step==="monthly_all" ? ORDER : [jb.step];
+    for(const id of ids){ const e=$("#st-"+id); if(e){e.className="st "+jb.status;e.textContent=jb.status} }
+  }
+  document.querySelectorAll("button").forEach(b=>{ if(b.id.startsWith("btn-")||b.textContent.includes("Run all")) b.disabled = jb.status==="running" });
+  if(jb.status!=="running"&&polling){ clearInterval(polling); polling=null; refreshStatus(); openTab(curTab); }
+}
+
+/* ── outputs: tables + reports ──────────────────────────────────── */
+const TABS=[
+  ["cuts","Cut list","table"],["buckets","Buckets","table"],["handoff","KAM handoff","table"],
+  ["scenarios","Scenarios","table"],["readout","Weekly readout","report"],["backtest","Backtest","report"],
+  ["sens","Sensitivity","report"],["promo","Promo calendar","report"],["chal","Challenger","report"],["budget","Budget","report"],
+];
+let curTab="cuts";
+function drawTabs(){
+  $("#tabs").innerHTML=TABS.map(([id,lbl])=>
+    `<span class="tab${id===curTab?" on":""}" onclick="openTab('${id}')">${lbl}</span>`).join("");
+}
+async function openTab(id){
+  curTab=id; drawTabs();
+  const kind=TABS.find(t=>t[0]===id)[2];
+  try{
+    if(kind==="table"){
+      const d=await j("/api/table/"+id);
+      $("#out").innerHTML=`<div class="tblwrap"><table><thead><tr>${d.columns.map(c=>`<th>${c}</th>`).join("")}</tr></thead>
+        <tbody>${d.rows.map(r=>`<tr>${r.map(v=>`<td>${typeof v==="number"?fmt(v):v}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+        <div class="note">${id==="cuts"?"The waste-cut cells, biggest monthly saving first. tgt_disc is the glide target, reached over ~12 weeks — never overnight.":""}
+        ${id==="handoff"?"This is exactly what your KAM receives. They mark applied Y/N and return it as execution_log.csv.":""}</div>`;
+    }else{
+      const d=await j("/api/report/"+id);
+      $("#out").innerHTML=`<pre class="report">${d.text.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre>`;
+    }
+  }catch(e){ $("#out").innerHTML=`<div class="note">Not generated yet — ${e.error||""}. Run the matching step on the left.</div>` }
+}
+
+loadSteps().then(()=>{refreshStatus(); drawTabs(); openTab("cuts"); poll();});
+setInterval(refreshStatus, 15000);
+</script>
+</body>
+</html>
