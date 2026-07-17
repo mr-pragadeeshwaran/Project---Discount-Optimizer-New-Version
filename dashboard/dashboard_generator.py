@@ -36,15 +36,59 @@ def _load_last_week_performance():
     except Exception:
         return {"has_data": False}
 
+def _upcoming_events(days_ahead: int = 14) -> list:
+    """Real entries from the config event calendar within the next days_ahead
+    days. Empty list (bar hidden) when the calendar has nothing upcoming —
+    never invented notifications."""
+    today = datetime.date.today()
+    horizon = today + datetime.timedelta(days=days_ahead)
+    out = []
+    for d, name in sorted(getattr(cfg, "FESTIVAL_DATES", {}).items()):
+        try:
+            dt = datetime.date.fromisoformat(d)
+        except ValueError:
+            continue
+        if today <= dt <= horizon:
+            out.append(f"{name} on {dt.strftime('%d %b')}")
+    for (start, end), name in getattr(cfg, "PLATFORM_EVENT_WINDOWS", {}).items():
+        try:
+            s = datetime.date.fromisoformat(start)
+            e = datetime.date.fromisoformat(end)
+        except ValueError:
+            continue
+        if s <= horizon and e >= today:
+            out.append(f"{name} ({s.strftime('%d %b')}–{e.strftime('%d %b')})")
+    return out
+
+
 def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> str:
     """Generates the 4-view HTML dashboard."""
     print("  [Dashboard] Generating 4-view HTML dashboard...")
-    
+
     # ── Prep data ──────────────────────────────────────────
     tier_counts = rec_df["tier"].value_counts()
     tier_savings = rec_df.groupby("tier")["rec_monthly_savings"].sum()
-    
+
     current_disc_avg = rec_df["current_discount_pct"].mean()
+
+    # Glide-path status computed from this run's data vs the config target —
+    # no hardcoded status claims.
+    gap_ppt = current_disc_avg - cfg.TARGET_DISCOUNT_PCT
+    if gap_ppt <= 0.5:
+        glide_value, glide_cls = "At target ✓", "trend-good"
+    else:
+        glide_value, glide_cls = f"{gap_ppt:.1f} ppt above target", ""
+
+    # Real upcoming events from the config calendar (bar hidden when empty).
+    events = _upcoming_events()
+    if events:
+        notifications_html = (
+            '<div class="notifications"><strong>📅 Event calendar:</strong> '
+            + " · ".join(events)
+            + "</div>"
+        )
+    else:
+        notifications_html = ""
 
     # Last week's REAL tracked performance from the weekly scorecard (never mock).
     # Honest "no results yet" state until actuals exist.
@@ -82,7 +126,7 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
             <div class="card">
                 <div class="label">Current Discount %</div>
                 <div class="value">{current_disc_avg:.1f}%</div>
-                <div class="subtext trend-good">↓ from last quarter</div>
+                <div class="subtext">simple average across {len(rec_df)} cells, this run</div>
             </div>
             <div class="card">
                 <div class="label">Target Discount %</div>
@@ -91,7 +135,8 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
             </div>
             <div class="card">
                 <div class="label">Glide-path Status</div>
-                <div class="value trend-good">On track ✓</div>
+                <div class="value {glide_cls}">{glide_value}</div>
+                <div class="subtext">recomputed from this run's data</div>
             </div>
         </div>
 
@@ -134,16 +179,15 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
         tier_df = rec_df[rec_df["tier"] == tier]
         if tier_df.empty: continue
         
-        header_actions = "[Approve All] [Review Each]" if tier != "Trade-off" else "[Review Each]"
         v2_html += f"""
         <div class="tier-section tier-{tier.lower().replace(' ', '')}">
             <div class="tier-header flex justify-between">
                 <h3>TIER — {tier.upper()} ({len(tier_df)} cells)</h3>
-                <span>{header_actions}</span>
+                <span class="subtext">click a row for detail</span>
             </div>
             <table class="w-100">
                 <thead>
-                    <tr><th><input type="checkbox"></th><th>SKU</th><th>City</th><th>Now</th><th>→</th><th>Rec</th><th>Vol Δ</th><th>Rev Δ</th><th>Save/mo</th><th>Conf</th></tr>
+                    <tr><th>SKU</th><th>City</th><th>Now</th><th>→</th><th>Rec</th><th>Vol Δ</th><th>Rev Δ</th><th>Save/mo</th><th>Conf</th></tr>
                 </thead>
                 <tbody>
         """
@@ -151,7 +195,6 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
             row_json = json.dumps(r.drop(labels=["ladder", "curve_points", "curve_params"]).to_dict()).replace('"', '&quot;')
             v2_html += f"""
             <tr onclick="openCellDetail('{r['cell_id']}', '{row_json}')">
-                <td><input type="checkbox" onclick="event.stopPropagation()"></td>
                 <td>{r['title'][:30]}...</td>
                 <td>{r['city']}</td>
                 <td>{r['current_discount_pct']:.0f}%</td>
@@ -165,7 +208,7 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
             """
             # Add warning for trade-offs
             if tier == "Trade-off" and r['rec_vol_change_pct'] < -5:
-                v2_html += f"""<tr class="warning-row"><td colspan="10">⚠ Volume drop above 5% — needs your call</td></tr>"""
+                v2_html += f"""<tr class="warning-row"><td colspan="9">⚠ Volume drop above 5% — needs your call</td></tr>"""
         v2_html += "</tbody></table></div>"
     
     v2_html += "</div>"
@@ -175,7 +218,7 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
     <div id="view3" class="view" style="display:none;">
         <div class="flex justify-between mt-2 mb-2">
             <h2 id="detail-title">SKU — City</h2>
-            <div><button onclick="switchView('view2')">Back</button> <button class="btn-primary">Approve</button></div>
+            <div><button onclick="switchView('view2')">Back</button></div>
         </div>
         
         <div class="flex gap-2">
@@ -199,52 +242,54 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
         
         <div class="card mt-2">
             <h3>SATURATION CURVE</h3>
-            <div id="chart-container" style="height: 250px; background: #f8fafc; border: 1px solid #e2e8f0; display:flex; align-items:center; justify-content:center;">
-                [Chart renders here]
+            <div id="chart-container" style="height: 250px; background: #f8fafc; border: 1px solid #e2e8f0;">
             </div>
+            <p class="subtext">Predicted daily units at each discount level (model curve). Dashed lines mark the current and recommended discount.</p>
         </div>
         
         <div class="card mt-2">
             <h3>WHY THIS RECOMMENDATION</h3>
             <p>At <span id="w-c-disc"></span>% discount, marginal ROI is low.</p>
             <p>At <span id="w-r-disc"></span>% discount, marginal ROI = <strong id="w-r-roi"></strong> (just above threshold 1.0)</p>
-            <p>Cells with similar profile: 6 — average actual outcome matched prediction within 4%</p>
+            <p>Model confidence for this cell: <strong id="w-conf"></strong></p>
         </div>
         
-        <div class="flex gap-2 mt-2">
-            <div class="card flex-1">
-                <h3>GUARDRAILS APPLIED</h3>
-                <p>Floor price check: <span id="g-floor"></span></p>
-                <p>Max change rate: <span id="g-change"></span></p>
-                <p id="g-throttle" class="trend-bad font-bold"></p>
-                <p id="g-phase"></p>
-            </div>
-            <div class="card flex-1">
-                <h3>OVERRIDE OPTIONS</h3>
-                <div><input type="radio" name="override" checked> Accept recommendation</div>
-                <div><input type="radio" name="override"> Modify discount: <input type="number" style="width:60px">%</div>
-                <div><input type="radio" name="override"> Defer to next cycle</div>
-                <div><input type="checkbox"> Mark "do not auto-act" (strategic)</div>
-                <div class="mt-2"><input type="text" placeholder="Notes..." class="w-100"></div>
-            </div>
+        <div class="card mt-2">
+            <h3>GUARDRAILS APPLIED</h3>
+            <p>Floor price check: <span id="g-floor"></span></p>
+            <p>Max change rate: <span id="g-change"></span></p>
+            <p id="g-throttle" class="trend-bad font-bold"></p>
+            <p id="g-phase"></p>
         </div>
     </div>
     """
 
     # ── View 4: Export HTML ────────────────────────────────
-    v4_html = """
+    # Real numbers computed from this run's recommendations — the download
+    # button produces an actual CSV of the actionable rows, client-side.
+    actionable = rec_df[rec_df["tier"].isin(["Strong Cut", "Trade-off", "Increase"])]
+    export_cols = [c for c in ["cell_id", "title", "city", "category",
+                               "current_price", "rec_price",
+                               "current_discount_pct", "rec_discount_pct",
+                               "tier", "confidence", "rec_monthly_savings",
+                               "phasing_plan"] if c in actionable.columns]
+    export_json_str = json.dumps(
+        actionable[export_cols].to_dict(orient="records"), cls=NpEncoder
+    )
+    act_savings_l = actionable["rec_monthly_savings"].sum() / 100000
+
+    v4_html = f"""
     <div id="view4" class="view" style="display:none;">
-        <h2>Export to Blinkit</h2>
+        <h2>Export Recommended Changes</h2>
         <div class="card mt-4 text-center">
-            <h3>EXPORT APPROVED CHANGES</h3>
-            <p class="mt-2">Cells approved: <strong>58</strong></p>
-            <p>Total impact/mo: <strong>+₹24.8L margin, -₹19.6L discount spend</strong></p>
-            <p class="mt-2">Effective date: <input type="date"></p>
-            
+            <h3>THIS RUN'S ACTIONABLE RECOMMENDATIONS</h3>
+            <p class="mt-2">Actionable cells (Strong Cut / Trade-off / Increase): <strong>{len(actionable)}</strong></p>
+            <p>Modeled net-revenue impact: <strong>₹{act_savings_l:.1f}L / month</strong></p>
+            <p class="subtext">Model-estimated, not yet register-proven — the weekly tracker's
+            predicted-vs-actual scorecard is what converts this into evidence.</p>
+
             <div class="flex justify-center gap-2 mt-4">
-                <button class="btn-primary">Download CSV — Blinkit Format</button>
-                <button>Download CSV — Internal Review</button>
-                <button>Generate Audit Log</button>
+                <button class="btn-primary" onclick="downloadExportCsv()">Download CSV — recommended changes</button>
             </div>
         </div>
     </div>
@@ -290,11 +335,7 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
     </style>
 </head>
 <body>
-    <div class="notifications">
-        <strong>🔔 Notifications:</strong> 
-        <span class="mr-4">Competitor X cut price on Jaggery in Bangalore.</span>
-        <span><a href="#">Only Organic Day</a> on Friday — 23 cells need event pricing.</span>
-    </div>
+    {notifications_html}
     <div class="nav">
         <a id="tab1" class="active" onclick="switchView('view1')">Portfolio Summary</a>
         <a id="tab2" onclick="switchView('view2')">Action Queue</a>
@@ -311,7 +352,63 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
 
     <script>
         const curveData = {curves_json_str};
-        
+        const exportData = {export_json_str};
+
+        function downloadExportCsv() {{
+            if (!exportData.length) {{ alert('No actionable recommendations in this run.'); return; }}
+            const cols = Object.keys(exportData[0]);
+            const esc = v => {{
+                const s = (v === null || v === undefined) ? '' : String(v);
+                return /[",\\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            }};
+            const lines = [cols.join(',')].concat(
+                exportData.map(r => cols.map(c => esc(r[c])).join(','))
+            );
+            const blob = new Blob([lines.join('\\n')], {{ type: 'text/csv' }});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'recommended_changes.csv';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }}
+
+        function renderCurve(cellId, r) {{
+            const el = document.getElementById('chart-container');
+            const c = curveData[cellId];
+            if (!c || !c.points || !c.points.length) {{
+                el.innerHTML = '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#64748b;"><em>No curve available for this cell</em></div>';
+                return;
+            }}
+            const pts = c.points.slice().sort((a, b) => a.discount_pct - b.discount_pct);
+            const W = 600, H = 250, padL = 50, padR = 20, padT = 15, padB = 30;
+            const xs = pts.map(p => p.discount_pct), ys = pts.map(p => p.predicted_units);
+            const xMin = Math.min(...xs), xMax = Math.max(...xs);
+            const yMax = Math.max(...ys) * 1.05 || 1;
+            const X = v => padL + (v - xMin) / Math.max(xMax - xMin, 1e-9) * (W - padL - padR);
+            const Y = v => H - padB - (v / yMax) * (H - padT - padB);
+            const poly = pts.map(p => X(p.discount_pct).toFixed(1) + ',' + Y(p.predicted_units).toFixed(1)).join(' ');
+            const marker = (disc, color, label) => {{
+                if (disc === null || disc === undefined || disc < xMin || disc > xMax) return '';
+                const x = X(disc).toFixed(1);
+                return `<line x1="${{x}}" y1="${{padT}}" x2="${{x}}" y2="${{H - padB}}" stroke="${{color}}" stroke-dasharray="4 3"/>` +
+                       `<text x="${{x}}" y="${{padT + 10}}" fill="${{color}}" font-size="10" text-anchor="middle">${{label}}</text>`;
+            }};
+            el.innerHTML =
+                `<svg viewBox="0 0 ${{W}} ${{H}}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">` +
+                `<line x1="${{padL}}" y1="${{H - padB}}" x2="${{W - padR}}" y2="${{H - padB}}" stroke="#cbd5e1"/>` +
+                `<line x1="${{padL}}" y1="${{padT}}" x2="${{padL}}" y2="${{H - padB}}" stroke="#cbd5e1"/>` +
+                `<text x="${{(W) / 2}}" y="${{H - 6}}" fill="#64748b" font-size="11" text-anchor="middle">Discount %</text>` +
+                `<text x="12" y="${{H / 2}}" fill="#64748b" font-size="11" text-anchor="middle" transform="rotate(-90 12 ${{H / 2}})">Units/day</text>` +
+                `<text x="${{padL - 6}}" y="${{Y(0) + 4}}" fill="#64748b" font-size="10" text-anchor="end">0</text>` +
+                `<text x="${{padL - 6}}" y="${{Y(yMax / 1.05) + 4}}" fill="#64748b" font-size="10" text-anchor="end">${{(yMax / 1.05).toFixed(0)}}</text>` +
+                `<text x="${{X(xMin)}}" y="${{H - padB + 14}}" fill="#64748b" font-size="10" text-anchor="middle">${{xMin.toFixed(0)}}%</text>` +
+                `<text x="${{X(xMax)}}" y="${{H - padB + 14}}" fill="#64748b" font-size="10" text-anchor="middle">${{xMax.toFixed(0)}}%</text>` +
+                `<polyline points="${{poly}}" fill="none" stroke="#2563eb" stroke-width="2"/>` +
+                marker(c.current_disc, '#64748b', 'now') +
+                marker(c.elbow_disc, '#16a34a', 'rec') +
+                `</svg>`;
+        }}
+
         function switchView(viewId) {{
             document.querySelectorAll('.view').forEach(e => e.style.display = 'none');
             document.querySelectorAll('.nav a').forEach(e => e.classList.remove('active'));
@@ -338,6 +435,9 @@ def generate_dashboard(rec_df: pd.DataFrame, output_dir: str, context: dict) -> 
             document.getElementById('w-c-disc').textContent = r.current_discount_pct;
             document.getElementById('w-r-disc').textContent = r.elbow_discount_pct;
             document.getElementById('w-r-roi').textContent = r.elbow_marginal_roi;
+            document.getElementById('w-conf').textContent =
+                r.confidence + (r.quality_note ? " — " + r.quality_note : "");
+            renderCurve(cellId, r);
             
             document.getElementById('g-floor').textContent = r.guardrail_floor_ok ? "✓ Passed" : "✗ Hit floor limit";
             document.getElementById('g-change').textContent = r.guardrail_change_ok ? "✓ Passed" : "⚠ Hit max change rate";
