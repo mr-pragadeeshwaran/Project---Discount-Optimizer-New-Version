@@ -399,7 +399,14 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .legend .lv{font-weight:600;color:var(--ink)}
 .donut-big{font-family:var(--display);font-size:31px;font-weight:800;letter-spacing:-0.02em;fill:var(--ink)}
 .donut-sub{font-size:11px;fill:var(--ink3);text-transform:uppercase;letter-spacing:.08em}
+.donut-arc{transition:stroke-width var(--dur-2) var(--ease-spring);cursor:default}
+.donut-flex svg:hover .donut-arc{opacity:.5}
+.donut-flex svg .donut-arc:hover{opacity:1;stroke-width:26}
+.legend .li{cursor:default;transition:color var(--dur-1) var(--ease-out)}
+.legend .lp{color:var(--ink3);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
 .hbar-svg{width:100%;height:auto;display:block}
+.hbar-bar{transform-box:fill-box;transform-origin:left center;animation:hgrow var(--dur-4) var(--ease-out) both}
+@keyframes hgrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .chart-note{font-size:11.5px;color:var(--ink3);margin-top:10px}
 
 .receipts{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:9px}
@@ -427,26 +434,36 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .cadence-head h3{font-size:15px}
 .cadence-head .ch-s{font-size:12px;color:var(--ink2)}
 .progress{margin:0 0 12px;display:flex;align-items:center;gap:10px}
-.progress .bar{flex:1;height:6px;border-radius:99px;background:var(--chipbg);overflow:hidden}
-.progress .fill{height:100%;border-radius:99px;background:var(--accent);transition:width .4s ease;width:0}
-.progress .ptxt{font-size:12px;color:var(--ink2);white-space:nowrap;font-weight:600}
+.progress .bar{flex:1;height:7px;border-radius:99px;background:var(--chipbg);overflow:hidden}
+.progress .fill{height:100%;border-radius:99px;background:var(--accent);transition:width var(--dur-4) var(--ease-out);width:0;
+  background-image:linear-gradient(100deg,transparent 20%,color-mix(in srgb,var(--bg) 45%,transparent) 50%,transparent 80%);
+  background-size:220% 100%;animation:progshim 1.3s linear infinite}
+@keyframes progshim{from{background-position:180% 0}to{background-position:-40% 0}}
+.progress .ptxt{font-size:12px;color:var(--ink2);white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums}
 .stepper{display:flex;flex-direction:column}
-.stp{display:flex;align-items:flex-start;gap:12px;padding:9px 8px;border-radius:9px;position:relative;
-  transition:background .15s ease}
+.stp{display:flex;align-items:flex-start;gap:12px;padding:9px 8px;border-radius:var(--r-md);position:relative;
+  transition:background var(--dur-2) var(--ease-out)}
 .stp:hover{background:var(--chipbg)}
+.stp.s-running{background:var(--accent-soft)}
 .stp .badge{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--chipbg);color:var(--ink2);
-  display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:650;margin-top:1px;position:relative;z-index:1}
-.stp.s-done .badge{background:var(--goodbg);color:var(--good)}
-.stp.s-failed .badge{background:var(--badbg);color:var(--bad)}
-.stp.s-running .badge{background:var(--accent-soft)}
-.stp:not(:last-child)::before{content:"";position:absolute;left:19.5px;top:34px;bottom:-6px;width:1.5px;background:var(--border)}
+  display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:650;margin-top:1px;position:relative;z-index:1;
+  transition:background var(--dur-2) var(--ease-out),color var(--dur-2) var(--ease-out),box-shadow var(--dur-2) var(--ease-out)}
+.stp.s-done .badge{background:var(--good);color:#fff}
+.stp.s-failed .badge{background:var(--bad);color:#fff}
+.stp.s-running .badge{background:var(--surface);color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);animation:stppulse 1.5s var(--ease-in-out) infinite}
+@keyframes stppulse{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 8%,transparent)}}
+.stp:not(:last-child)::before{content:"";position:absolute;left:19.5px;top:34px;bottom:-6px;width:2px;border-radius:2px;
+  background:var(--border);transition:background var(--dur-3) var(--ease-out)}
+.stp.s-done:not(:last-child)::before{background:var(--good)}
 .stp .sx{flex:1;min-width:0}
 .stp .sl{font-weight:600;font-size:13px}
+.stp.s-done .sl{color:var(--ink2)}
 .stp .sd{font-size:12px;color:var(--ink2)}
 .stp .btn{margin-top:2px}
 .action-card{display:flex;align-items:flex-start;gap:12px;padding:13px;border:1px solid var(--border);
-  border-radius:10px;margin-bottom:9px;transition:border-color .15s ease}
-.action-card:hover{border-color:var(--accent)}
+  border-radius:var(--r-md);margin-bottom:9px;box-shadow:var(--e1);
+  transition:border-color var(--dur-2) var(--ease-out),box-shadow var(--dur-3) var(--ease-out),transform var(--dur-2) var(--ease-out)}
+.action-card:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--border));box-shadow:var(--e2);transform:translateY(-1px)}
 .action-card .ai{flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:var(--accent-soft);color:var(--accent);
   display:flex;align-items:center;justify-content:center}
 .action-card .ax{flex:1;min-width:0}
@@ -1041,26 +1058,32 @@ function donutChart(counts) {
                        .filter(d => d.v > 0);
   const total = items.reduce((a, d) => a + d.v, 0);
   if (!total) return '';
-  const cx = 100, cy = 100, r = 76, TAU = Math.PI * 2, gap = items.length > 1 ? 0.035 : 0;
-  let a0 = -Math.PI / 2, paths = '';
+  const cx = 100, cy = 100, r = 76, TAU = Math.PI * 2, gap = items.length > 1 ? 0.05 : 0;
+  const single = items.length === 1;
+  // faint full-ring track so the composition reads as a whole even at a glance
+  let paths = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--chipbg)" stroke-width="22"/>';
+  let a0 = -Math.PI / 2;
   items.forEach(d => {
     const span = d.v / total * TAU;
     const a1 = a0 + span;
     const s0 = a0 + gap / 2, s1 = Math.max(a1 - gap / 2, s0 + 0.01);
-    const tip = '<b>' + esc(d.label) + '</b><br>' + fmtIN(d.v) + ' cells · ' + Math.round(d.v / total * 100) + '%';
+    const pct = Math.round(d.v / total * 100);
+    const tip = '<b>' + esc(d.label) + '</b><br>' + fmtIN(d.v) + ' cells · ' + pct + '%';
+    const cap = single ? '' : ' stroke-linecap="round"';
     if (span >= TAU - 0.01) {
-      paths += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + d.color + '" stroke-width="22" data-tip="' + esc(tip) + '"/>';
+      paths += '<circle class="donut-arc" cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + d.color + '" stroke-width="22" data-tip="' + esc(tip) + '"/>';
     } else {
       const x0 = cx + r * Math.cos(s0), y0 = cy + r * Math.sin(s0);
       const x1 = cx + r * Math.cos(s1), y1 = cy + r * Math.sin(s1);
       const large = (s1 - s0) > Math.PI ? 1 : 0;
-      paths += '<path d="M ' + x0.toFixed(2) + ' ' + y0.toFixed(2) + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + '" fill="none" stroke="' + d.color + '" stroke-width="22" data-tip="' + esc(tip) + '"/>';
+      paths += '<path class="donut-arc" d="M ' + x0.toFixed(2) + ' ' + y0.toFixed(2) + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + '" fill="none" stroke="' + d.color + '" stroke-width="22"' + cap + ' data-tip="' + esc(tip) + '"/>';
     }
     a0 = a1;
   });
   const legend = items.map(d =>
     '<div class="li"><span class="sw" style="background:' + d.color + '"></span>' +
-    '<span class="ln">' + esc(d.label) + '</span><span class="lv">' + fmtIN(d.v) + '</span></div>').join('');
+    '<span class="ln">' + esc(d.label) + '</span><span class="lv">' + fmtIN(d.v) + '</span>' +
+    '<span class="lp">' + Math.round(d.v / total * 100) + '%</span></div>').join('');
   return '<div class="donut-flex">' +
     '<svg viewBox="0 0 200 200" role="img" aria-label="Cells by bucket">' + paths +
     '<text x="100" y="97" text-anchor="middle" class="donut-big">' + fmtIN(total) + '</text>' +
@@ -1074,24 +1097,21 @@ function hbarChart(items) { /* items: [{category, cells, saving_mo}] */
   const W = 620, labelW = 172, valW = 74, rowH = 34, H = rows.length * rowH + 6;
   const barMax = W - labelW - valW - 12;
   const max = Math.max.apply(null, rows.map(d => toNum(d.saving_mo) || 0).concat([1]));
+  const x = labelW;
   let out = '';
   rows.forEach((d, i) => {
     const v = toNum(d.saving_mo) || 0;
-    const w = Math.max(3, v / max * barMax);
-    const y = i * rowH + 8, h = 17, rr = Math.min(4, w / 2);
+    const w = Math.max(4, v / max * barMax);
+    const y = i * rowH + 8, h = 16, rr = h / 2;
     const name = String(d.category || '');
     const nm = name.length > 24 ? name.slice(0, 23) + '…' : name;
     const tip = '<b>' + esc(name) + '</b><br>' + rup(v) + ' / month · ' + fmtIN(d.cells) + ' cell' + (toNum(d.cells) === 1 ? '' : 's');
-    const x = labelW;
-    const path = 'M' + x + ',' + y +
-      ' L' + (x + w - rr).toFixed(1) + ',' + y +
-      ' Q' + (x + w).toFixed(1) + ',' + y + ' ' + (x + w).toFixed(1) + ',' + (y + rr) +
-      ' L' + (x + w).toFixed(1) + ',' + (y + h - rr) +
-      ' Q' + (x + w).toFixed(1) + ',' + (y + h) + ' ' + (x + w - rr).toFixed(1) + ',' + (y + h) +
-      ' L' + x + ',' + (y + h) + ' Z';
-    out += '<text x="' + (labelW - 10) + '" y="' + (y + h / 2 + 4) + '" text-anchor="end" font-size="12" fill="var(--ink2)">' + esc(nm) + '</text>' +
-      '<path d="' + path + '" fill="var(--c1)" data-tip="' + esc(tip) + '"/>' +
-      '<text x="' + (x + w + 8).toFixed(1) + '" y="' + (y + h / 2 + 4) + '" font-size="12" font-weight="600" fill="var(--ink)">' + rupC(v) + '</text>';
+    out +=
+      '<text x="' + (labelW - 12) + '" y="' + (y + h / 2 + 4) + '" text-anchor="end" font-size="12" fill="var(--ink2)">' + esc(nm) + '</text>' +
+      '<rect x="' + x + '" y="' + y + '" width="' + barMax + '" height="' + h + '" rx="' + rr + '" fill="var(--chipbg)"/>' +
+      '<rect class="hbar-bar" x="' + x + '" y="' + y + '" width="' + w.toFixed(1) + '" height="' + h + '" rx="' + rr + '" fill="var(--c1)" ' +
+        'style="animation-delay:' + (i * 0.05).toFixed(2) + 's" data-tip="' + esc(tip) + '"/>' +
+      '<text x="' + (x + w + 9).toFixed(1) + '" y="' + (y + h / 2 + 4) + '" font-size="12" font-weight="700" fill="var(--ink)">' + rupC(v) + '</text>';
   });
   return '<svg class="hbar-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Waste by category per month">' + out + '</svg>';
 }
