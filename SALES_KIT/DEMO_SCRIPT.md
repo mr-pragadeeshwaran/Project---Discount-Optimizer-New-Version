@@ -20,9 +20,11 @@ across quick-commerce?"** — every number that follows gets anchored to it.
 
 Open **Sheet 1 — Summary**. Point at three rows only:
 
-1. Discount spend/month (theirs will be bigger than our ₹18.4L reference).
+1. Discount spend/month (our live reference: **₹81.8L/month** across 84 products × 11 cities).
 2. "After cuts" column — spend goes down while units barely move.
-3. Model accuracy block: **"Price-engine accuracy 0.87, tier: Moderate."**
+3. Model accuracy block — **read the tier and R² live off the sheet; never quote
+   from memory** (the system self-rates, currently "Moderate", and publishes
+   its own error rate).
 
 > "Notice it calls itself *Moderate*, not *excellent*. This system publishes
 > its own error rate. Everything I show you is built to survive your data
@@ -61,9 +63,10 @@ weekly and a stale number in this meeting kills the credibility story.**
 
 > "Current price ₹__ → target ₹__ over __ weeks — the exact weekly steps are
 > right here. This single row is worth ₹__/month; across the portfolio the
-> report currently identifies ≈₹1.76L/month recoverable. Your ops team executes
-> these rows on Monday; that's the whole workflow. Cells the model isn't sure
-> about say 'Needs Test' — it refuses to guess."
+> engine currently identifies ≈₹6.98L/month of confirmed waste (63 product×city
+> cells, each double-checked by an independent causal method). Your ops team
+> executes these rows on Monday; that's the whole workflow. Cells the model
+> isn't sure about say 'Needs Test' — it refuses to guess."
 
 ## Minute 12–14 · The skeptic's pack (only if their analyst is present)
 
@@ -92,7 +95,7 @@ Hand over the pilot offer:
 | They say | You say |
 |---|---|
 | "Our agency already optimizes discounts" | "Ask them for their held-out accuracy and their predicted-vs-actual sheet. We publish both — and our forward test shows we *under*-promise." |
-| "0.87 isn't perfect" | "Correct — and it says so itself. The alternative isn't a perfect model, it's gut feel. Directionally validated + conservative beats confident guessing." |
+| "That R² isn't perfect" | "Correct — and it says so itself. The alternative isn't a perfect model, it's gut feel. Directionally validated + conservative beats confident guessing." |
 | "What if it's wrong for a city?" | "Every move is 3 points/week to a price the city has already survived, with a weekly review. Worst case for one cell ≈ one week of small mispricing; upside is permanent." |
 | "Why not build in-house?" | "You could — in 3–6 months of a data scientist's time. The pilot costs less than one of those months and starts Monday." |
 | "Price feels high" | "Anchor it to your discount line, not software: recovering 5–10% of a ₹1Cr+/month discount budget pays the fee many times over. And month 1 credits the readiness fee." |
