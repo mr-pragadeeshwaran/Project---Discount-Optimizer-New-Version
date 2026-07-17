@@ -548,6 +548,10 @@ td.num,th.num{text-align:right}
       <section class="page" data-page="inputs" id="page-inputs">
         <div class="cfg-grid" id="cfg-grid"></div>
         <div class="card">
+          <div class="sec-label">Settings file — edit every knob in a spreadsheet</div>
+          <div id="settings-body"></div>
+        </div>
+        <div class="card">
           <div class="sec-label">Data files in input_data/</div>
           <div id="files-body"></div>
         </div>
@@ -637,6 +641,8 @@ const IC = {
   scale: svgOpen(15) + '<path d="M12 3v18M8 21h8"/><path d="M5 7l-3 6a3.5 3.5 0 0 0 7 0zM19 7l-3 6a3.5 3.5 0 0 0 7 0z"/><path d="M4 7h16"/></svg>',
   shield: svgOpen(15) + '<path d="M12 3l8 3v6c0 4.5-3.4 7.8-8 9-4.6-1.2-8-4.5-8-9V6z"/></svg>',
   warn: svgOpen(15) + '<path d="M12 9v4M12 16.8v.2"/><path d="M10.3 3.9L2.6 17.2A2 2 0 0 0 4.3 20.2h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  down: svgOpen(14) + '<path d="M12 4v12M6.5 11.5L12 17l5.5-5.5M4 20h16"/></svg>',
+  up: svgOpen(14) + '<path d="M12 17V5M6.5 9.5L12 4l5.5 5.5M4 20h16"/></svg>',
   sun: svgOpen(16) + '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3L19 19M19 5l-1.7 1.7M6.7 17.3L5 19"/></svg>',
   moon: svgOpen(16) + '<path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>',
 };
@@ -649,6 +655,7 @@ const S = {
   stepState: {},           /* step id -> 'done' | 'failed' | 'running' */
   logPinned: true,
   route: 'overview',
+  settings: null,          /* /api/settings payload; null = refetch on next render */
 };
 
 const PAGE_META = {
@@ -1044,6 +1051,7 @@ const WK = { handoff: undefined, history: undefined };
 
 function invalidateData() {
   CUT.cache = {}; WK.handoff = undefined; WK.history = undefined; REP.cache = {};
+  S.settings = null;      /* a run can change what the settings file resolves to */
 }
 
 function rowsToObjects(d) {
@@ -1349,7 +1357,7 @@ function renderInputs() {
   if (heroes.length) {
     cards.push('<div class="cfg-card"><div class="cl">Hero SKUs (never auto-cut)</div><div class="cv" style="font-size:13px;font-weight:600">' + heroes.map(h => '<span class="chip" style="margin:2px 4px 2px 0">' + esc(h) + '</span>').join('') + '</div><div class="cs">protected from every cut wave</div></div>');
   } else {
-    cards.push('<div class="cfg-card warn"><div class="cl">' + IC.warn + 'Hero SKUs — none set</div><div class="cv" style="font-size:14px">No SKUs are protected</div><div class="cs">Edit <b>STRATEGIC_SKUS</b> in <b>v4_config.py</b> to shield your flagship items from auto-cuts.</div></div>');
+    cards.push('<div class="cfg-card warn"><div class="cl">' + IC.warn + 'Hero SKUs — none set</div><div class="cv" style="font-size:14px">No SKUs are protected</div><div class="cs">Set <b>STRATEGIC_SKUS</b> in the settings file below to shield your flagship items from auto-cuts.</div></div>');
   }
   cards.push('<div class="cfg-card"><div class="cl">Budget cap</div><div class="cv">' + (c.budget_cap != null ? (c.budget_cap * 100).toFixed(0) + '%' : '—') + '</div><div class="cs">max trade spend as a share of gross sales</div></div>');
   cards.push('<div class="cfg-card"><div class="cl">Training window</div><div class="cv">' + (c.lookback_days != null ? fmtIN(c.lookback_days) + ' days' : '—') + '</div><div class="cs">how much history the model learns from</div></div>');
@@ -1362,6 +1370,131 @@ function renderInputs() {
       fl.map(f => '<tr><td>' + esc(f.name) + '</td><td class="num">' + fmtIN(f.mb) + '</td><td>' + esc(f.modified) + '</td></tr>').join('') +
       '</tbody></table></div>'
     : '<div class="empty"><div class="et">No data files yet</div><div class="es">Drop the Blinkit export CSVs into <b>input_data/</b>, then run step 1 — Build foundation.</div></div>';
+
+  renderSettings();
+}
+
+/* ------------------------------ settings file ------------------------------ */
+function fmtSettingVal(v) {
+  if (v == null || v === '') return '—';
+  if (Array.isArray(v)) return v.length ? v.map(x => '<span class="chip" style="margin:1px 3px 1px 0">' + esc(x) + '</span>').join('') : '<i style="color:var(--muted)">none</i>';
+  if (typeof v === 'boolean') return v ? 'yes' : 'no';
+  if (typeof v === 'number') return esc(v.toLocaleString('en-IN'));
+  return esc(v);
+}
+
+async function renderSettings() {
+  const box = $('#settings-body');
+  if (!box) return;
+  if (!S.settings) {
+    box.innerHTML = '<div class="skel" style="height:150px"></div>';
+    try { S.settings = await api('/api/settings'); }
+    catch (e) {
+      box.innerHTML = '<div class="empty"><div class="et">Couldn’t read the settings</div><div class="es">' + esc(e.message || '') + '</div></div>';
+      return;
+    }
+  }
+  const d = S.settings;
+
+  const head =
+    '<p style="margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.6;max-width:760px">' +
+    'Every knob below lives in a <b>spreadsheet</b>, not in code. Download the template, edit the ' +
+    '<b>value</b> column, upload it back — it takes effect on the next run. Leave a value blank to keep the ' +
+    'built-in default. A bad value is rejected on upload with the reason, so nothing broken ever reaches a run.' +
+    '</p>' +
+    '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:16px">' +
+    '<a class="btn" href="/api/settings/template.xlsx" download>' + IC.down + ' Download template (Excel)</a>' +
+    '<a class="btn ghost" href="/api/settings/template.csv" download>' + IC.down + ' Download template (CSV)</a>' +
+    '<label class="btn ghost" style="cursor:pointer;margin:0">' + IC.up + ' Upload filled file' +
+    '<input type="file" id="settings-file" accept=".csv,.xlsx" style="display:none"></label>' +
+    '<span id="settings-upmsg" style="font-size:12.5px;color:var(--muted)"></span>' +
+    '</div>';
+
+  if (!d.ok) {
+    box.innerHTML = head +
+      '<div class="cfg-card warn" style="max-width:none"><div class="cl">' + IC.warn + 'Your settings file has a problem</div>' +
+      '<div class="cs" style="white-space:pre-wrap;margin-top:6px;font-size:12.5px">' + esc(d.error || '') + '</div>' +
+      '<div class="cs" style="margin-top:8px">Until this is fixed every run will stop with this error — that is deliberate: a wrong number must never reach your prices. Fix the file (or upload a fresh template) and this card clears.</div></div>';
+    wireSettingsUpload();
+    return;
+  }
+
+  const st = d.status || {};
+  const src = st.source
+    ? '<span class="chip">' + IC.check + ' ' + esc(st.source) + '</span> <span style="color:var(--muted);font-size:12.5px">' +
+      esc(st.n_overrides) + ' value(s) overriding the defaults' + (st.calendar_source ? ' · ' + esc(st.calendar_source) : '') + '</span>'
+    : '<span class="chip">Using built-in defaults</span> <span style="color:var(--muted);font-size:12.5px">no settings file in <b>config/</b> yet — download a template to start</span>';
+
+  const rows = d.rows || [];
+  let tbl = '';
+  (d.sections || []).forEach(sec => {
+    const rs = rows.filter(r => r.section === sec);
+    if (!rs.length) return;
+    tbl += '<tr class="secrow"><td colspan="4" style="background:var(--chipbg);font-weight:650;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">' + esc(sec) + '</td></tr>';
+    rs.forEach(r => {
+      tbl += '<tr>' +
+        '<td class="mono" style="font-size:12px">' + esc(r.key) + '</td>' +
+        '<td style="font-weight:600">' + fmtSettingVal(r.value) + '</td>' +
+        '<td>' + (r.source === 'file'
+          ? '<span class="chip" style="background:var(--accent-soft);color:var(--accent-deep)">from file</span>'
+          : '<span style="color:var(--muted);font-size:12px">default</span>') + '</td>' +
+        '<td style="color:var(--muted);font-size:12px;line-height:1.5">' + esc(r.description) + '<div style="margin-top:2px;opacity:.75">' + esc(r.unit) + '</div></td>' +
+        '</tr>';
+    });
+  });
+
+  box.innerHTML = head +
+    '<div style="margin-bottom:12px">' + src + '</div>' +
+    '<div class="tblwrap" style="max-height:460px"><table><thead><tr>' +
+    '<th>Setting</th><th>Value in force</th><th>Source</th><th>What it does</th>' +
+    '</tr></thead><tbody>' + tbl + '</tbody></table></div>' +
+    '<p style="margin:12px 0 0;color:var(--muted);font-size:12px">The festival calendar and platform-event windows are the <b>Festivals</b> and <b>Platform Events</b> sheets of the Excel template' +
+    (st.festival_dates ? ' — currently ' + esc(st.festival_dates) + ' dates, last one ' + esc(st.festival_last) : '') + '.</p>';
+  wireSettingsUpload();
+}
+
+function wireSettingsUpload() {
+  const inp = $('#settings-file');
+  if (!inp) return;
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    const msg = $('#settings-upmsg');
+    msg.textContent = 'Checking ' + f.name + '…';
+    msg.style.color = 'var(--muted)';
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result).split(',')[1] || '');
+        r.onerror = () => rej(new Error('could not read the file'));
+        r.readAsDataURL(f);
+      });
+      const r = await fetch('/api/settings/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: f.name, content_b64: b64 }),
+      });
+      const out = await r.json();
+      if (out.ok) {
+        msg.textContent = '';
+        toast(out.message || 'Settings saved.', 'good');
+        S.settings = null;
+        await renderSettings();
+        S.statusLoaded = false;
+        await refreshStatus();
+        renderInputs();
+      } else {
+        msg.textContent = '';
+        toast('Rejected — see the card below.', 'bad');
+        S.settings = { ok: false, error: out.message || 'rejected', status: {}, rows: [], sections: [] };
+        await renderSettings();
+      }
+    } catch (e) {
+      msg.textContent = '';
+      toast('Upload failed: ' + (e.message || ''), 'bad');
+    }
+    inp.value = '';
+  };
 }
 
 /* ============================== status + boot ============================== */

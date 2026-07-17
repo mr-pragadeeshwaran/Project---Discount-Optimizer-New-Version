@@ -445,6 +445,29 @@ REPORTS = {
 }
 
 
+def api_settings():
+    """Effective settings + where each value came from (code default vs file).
+
+    Reloads v4_config so an edited/uploaded file shows up without restarting
+    the server. A broken settings file is reported as an error here rather
+    than silently leaving the page blank — it is the reason the next run
+    would fail.
+    """
+    import importlib
+    import settings_loader as sl
+    importlib.reload(sl)
+    try:
+        import v4_config
+        importlib.reload(v4_config)
+        return {"ok": True, "status": sl.status(), "rows": sl.describe(),
+                "sections": sl.SECTIONS}
+    except sl.SettingsError as e:
+        return {"ok": False, "error": str(e),
+                "status": {"source": sl.STATE.get("source") or "config/settings.*",
+                           "n_overrides": 0, "error": str(e)},
+                "rows": [], "sections": []}
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):        # silence per-request console noise
         pass
@@ -453,6 +476,15 @@ class Handler(BaseHTTPRequestHandler):
         data = body if isinstance(body, bytes) else json.dumps(body, default=str).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", ctype + "; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _send_download(self, body, filename, ctype):
+        data = body if isinstance(body, bytes) else body.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
@@ -468,6 +500,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, api_status())
             if self.path == "/api/job":
                 return self._send(200, JOB.snapshot())
+            if self.path == "/api/settings":
+                return self._send(200, api_settings())
+            if self.path.startswith("/api/settings/template"):
+                import settings_loader as sl
+                if self.path.endswith(".xlsx"):
+                    return self._send_download(
+                        sl.template_xlsx_bytes(), "statiq_settings.xlsx",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                if self.path.endswith("festivals.csv"):
+                    return self._send_download(sl.template_festivals_csv(),
+                                               "festivals.csv", "text/csv; charset=utf-8")
+                if self.path.endswith("platform_events.csv"):
+                    return self._send_download(sl.template_events_csv(),
+                                               "platform_events.csv", "text/csv; charset=utf-8")
+                return self._send_download(sl.template_csv(), "settings.csv",
+                                           "text/csv; charset=utf-8")
             if self.path.startswith("/api/table/"):
                 return self._send(200, api_table(self.path.rsplit("/", 1)[1]))
             if self.path.startswith("/api/report/"):
@@ -490,9 +538,37 @@ class Handler(BaseHTTPRequestHandler):
                 step = self.path.rsplit("/", 1)[1]
                 ok, msg = start_job(step)
                 return self._send(200 if ok else 409, {"ok": ok, "message": msg})
+            if self.path == "/api/settings/upload":
+                return self._send(*self._settings_upload())
             return self._send(404, {"error": "not found"})
         except Exception as e:
             return self._send(500, {"error": str(e)})
+
+    def _settings_upload(self):
+        """Install an uploaded settings file.
+
+        Body: {"filename": "...", "content_b64": "..."}. The file is validated
+        BEFORE it is written, and is only ever written to the fixed
+        config/settings.{csv,xlsx} path — the uploaded name is used solely to
+        pick the format, never as a destination.
+        """
+        import base64
+        import settings_loader as sl
+        n = int(self.headers.get("Content-Length") or 0)
+        if n <= 0 or n > 5_000_000:
+            return 400, {"ok": False, "message": "Expected a settings file under 5 MB."}
+        try:
+            body = json.loads(self.rfile.read(n).decode("utf-8"))
+            name = os.path.basename(str(body.get("filename") or "settings.csv"))
+            data = base64.b64decode(body.get("content_b64") or "")
+        except Exception as e:
+            return 400, {"ok": False, "message": f"Could not read the upload: {e}"}
+        if JOB.status == "running":
+            return 409, {"ok": False,
+                         "message": "A job is running — wait for it to finish before "
+                                    "changing settings mid-run."}
+        ok, msg = sl.install_bytes(name, data)
+        return (200 if ok else 400), {"ok": ok, "message": msg}
 
 
 def main():
