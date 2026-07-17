@@ -39,8 +39,28 @@ import killswitch as ks     # GAP 2 — strikes / revert / drift brake
 
 try:
     import v4_config as _cfg
-except Exception:
-    _cfg = None
+except ImportError:            # only a MISSING config falls back to live baselines;
+    _cfg = None                # a broken config/settings.* must raise, not be ignored
+
+def _pid_key(v):
+    """Normalize a product_id to the SAME clean string the pricing engine writes
+    (_clean_pid): strip the trailing '.0' pandas adds when an id column parses as
+    float, and make int/float/str collapse to one key.
+
+    Used by BOTH id-matched gates, which fail silently and dangerously otherwise:
+      - engine agreement: key '532393.0' would miss the producer's '532393' and
+        let a disagreed cut through;
+      - hero protection: the plan's product_id is int64 while STRATEGIC_SKUS from
+        config/settings.* are strings, so a raw isin() never matches and every
+        hero SKU stays cuttable.
+    """
+    if isinstance(v, float):
+        return str(int(v)) if float(v).is_integer() else str(v)
+    s = str(v).strip()
+    if s.endswith(".0") and s[:-2].lstrip("-").isdigit():
+        return s[:-2]
+    return s
+
 
 HISTORY = os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv")
 EXEC_LOG = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log.csv")
@@ -89,12 +109,21 @@ def build_plan_df(csv_path):
     # (e) is surfaced as a test opportunity, not an automatic weekly spend increase.
     cur_disc = d["cur_disc"].astype(float)
     # STRATEGIC_SKUS are never auto-cut regardless of the math (hero/flagship items).
+    # Only a MISSING config yields "no heroes" — a broken settings file must raise,
+    # never silently un-protect the brand's flagship SKUs.
     try:
         import v4_config as _cfg
-        strategic = set(getattr(_cfg, "STRATEGIC_SKUS", []) or [])
-    except Exception:
+        strategic = {_pid_key(s) for s in (getattr(_cfg, "STRATEGIC_SKUS", []) or [])}
+    except ImportError:
         strategic = set()
-    is_cut = (d["bucket"] == "c_waste_cut") & (~d["product_id"].isin(strategic))
+    # Match on the normalized key: the plan's product_id is int64, the configured
+    # heroes are strings — a raw isin() would silently protect nothing.
+    is_hero = d["product_id"].map(_pid_key).isin(strategic)
+    if strategic:
+        n_shield = int((is_hero & (d["bucket"] == "c_waste_cut")).sum())
+        print(f"[tracker] HERO SHIELD — {len(strategic)} strategic SKU(s) configured; "
+              f"{n_shield} waste-cut cell(s) held.")
+    is_cut = (d["bucket"] == "c_waste_cut") & (~is_hero)
     suggested = cur_disc.copy()
     suggested[is_cut] = d.loc[is_cut, "tgt_disc"].astype(float)
     pred_units = d["cur_units_wk"].astype(float).copy()
@@ -151,19 +180,6 @@ def apply_agreement(plan_df):
         if isinstance(v, bool):
             return v
         return str(v).strip().lower() in ("true", "1", "yes", "y", "t")
-
-    def _pid_key(v):
-        # Normalize product_id to the SAME clean string the pricing engine writes
-        # (_clean_pid): strip a trailing '.0' pandas adds when the id column parses as
-        # float. Without this the consumer key ('532393.0') would miss the producer's
-        # cleaned key ('532393') whenever plan_df.product_id is float, silently letting a
-        # disagreed cut leak through the gate.
-        if isinstance(v, float):
-            return str(int(v)) if float(v).is_integer() else str(v)
-        s = str(v).strip()
-        if s.endswith(".0") and s[:-2].lstrip("-").isdigit():
-            return s[:-2]
-        return s
 
     agr = agr.copy()
     agr["_agree"] = agr["agree_with_cut"].map(_truthy)

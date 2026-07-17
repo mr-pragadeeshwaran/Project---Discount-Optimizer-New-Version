@@ -62,11 +62,11 @@ from scipy.optimize import differential_evolution
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 try:
     import v4_config as _v4cfg
-except Exception:
-    try:
+except ImportError:                # retry with ROOT on the path; a broken
+    try:                           # config/settings.* must raise, not fall back
         sys.path.insert(0, _ROOT)
         import v4_config as _v4cfg
-    except Exception:
+    except ImportError:
         _v4cfg = None
 DEFAULT_COGS_PCT = getattr(_v4cfg, "DEFAULT_COGS_PCT", 0.50)
 DEFAULT_COMMISSION_PCT = getattr(_v4cfg, "DEFAULT_COMMISSION_PCT", 0.15)

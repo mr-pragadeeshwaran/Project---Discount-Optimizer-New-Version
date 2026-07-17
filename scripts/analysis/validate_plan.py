@@ -7,7 +7,8 @@ Exit 0 iff every SAFETY gate passes (C1-C5, C7, C8). C6 — the business
 savings target — is a loudly-reported VERDICT (MEETS/BELOW), not an abort:
 a safe, correct plan that is smaller than the ambition bar must still be
 executable, otherwise the gate punishes honest shrinkage of the estimate.
-The target itself lives in v4_config.SAVINGS_TARGET_MONTHLY_INR.
+Set the target in config/settings.csv (SAVINGS_TARGET_MONTHLY_INR); the
+default lives in v4_config.py.
 
   C1 Discount effect is ISOLATED from OSA, Ad SOV, competitive intensity — the
      model controls for all three (non-degenerate) and every recommendation
@@ -31,11 +32,8 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, ROOT)
-try:
-    import v4_config as _cfg
-    TARGET_LO = getattr(_cfg, "SAVINGS_TARGET_MONTHLY_INR", 500_000)
-except Exception:
-    TARGET_LO = 500_000
+import v4_config as _cfg      # a broken config/settings.* must stop the run here
+TARGET_LO = getattr(_cfg, "SAVINGS_TARGET_MONTHLY_INR", 500_000)
 TARGET_HI = 1_000_000
 R2_FLOOR = 0.60
 OOS_R2_BAR = 0.75                            # goal: model accuracy R² ≥ 0.75 (out-of-sample)
@@ -180,7 +178,8 @@ def main():
     print(f"  out-of-sample R² = {oos} (bar {OOS_R2_BAR}) | buckets: {S['bucket_counts']}")
     print(f"  Safety gates C1-C5, C7, C8: {'ALL PASS' if allpass else 'FAIL — see above'}"
           f"  |  C6 target verdict: {'MEETS' if c6_ok else 'BELOW'} "
-          f"Rs.{TARGET_LO/100_000:.1f}L (set in v4_config.SAVINGS_TARGET_MONTHLY_INR)")
+          f"Rs.{TARGET_LO/100_000:.1f}L (SAVINGS_TARGET_MONTHLY_INR — set it in "
+          f"config/settings.csv)")
     return 0 if allpass else 1
 
 

@@ -44,8 +44,8 @@ dp = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(dp)
 try:
     import v4_config as cfg
     COGS_PCT, COMM_PCT, FULFIL = cfg.DEFAULT_COGS_PCT, cfg.DEFAULT_COMMISSION_PCT, cfg.DEFAULT_FULFILLMENT_FEE
-except Exception:
-    COGS_PCT, COMM_PCT, FULFIL = 0.50, 0.15, 10.0
+except ImportError:            # only a MISSING config falls back to the proxies;
+    COGS_PCT, COMM_PCT, FULFIL = 0.50, 0.15, 10.0   # a broken settings file raises
 
 OUT_DIR = os.path.join(ROOT, "DISCOUNT_PLAN", "validation")
 HISTORY = os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv")
