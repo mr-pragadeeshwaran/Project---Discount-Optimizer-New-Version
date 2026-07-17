@@ -168,17 +168,29 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
+            m = None
             try:
-                m = smf.rlm(formula_core, data=sub_tr, M=sm.robust.norms.HuberT()).fit()
-                models[cat] = m
+                cand = smf.rlm(formula_core, data=sub_tr, M=sm.robust.norms.HuberT()).fit()
+                if _fit_is_sane(cand, sub_tr):
+                    m = cand
+                else:
+                    print(f"    {cat}: RLM fit diverged (non-finite params or absurd "
+                          f"in-sample predictions), falling back to OLS")
             except Exception as e:
                 print(f"    {cat}: RLM failed ({type(e).__name__}: {e}), using OLS")
+            if m is None:
                 try:
-                    m = smf.ols(formula_core, data=sub_tr).fit()
-                    models[cat] = m
+                    cand = smf.ols(formula_core, data=sub_tr).fit()
+                    if _fit_is_sane(cand, sub_tr):
+                        m = cand
+                    else:
+                        print(f"    {cat}: OLS fit also degenerate; skipping category "
+                              f"(cells fall back to category-median/default elasticity)")
+                        continue
                 except Exception as e2:
                     print(f"    {cat}: OLS also failed ({e2}); skipping")
                     continue
+            models[cat] = m
 
         # Category-level elasticity & badge coefficient
         pe_cat = float(m.params.get("log_price",   _global_default_elasticity()))
@@ -312,6 +324,23 @@ def train_hierarchical_model(feat_df: pd.DataFrame) -> dict:
 def _global_default_elasticity() -> float:
     """Sensible CPG default if model can't estimate (used only as backup)."""
     return -1.5
+
+
+def _fit_is_sane(m, df: pd.DataFrame) -> bool:
+    """Reject diverged fits. RLM's IRLS can blow up on some panels/environments
+    (residual scale → 0 gives runaway coefficients); a diverged fit must never
+    flow into elasticities, per-cell R² or the customer-facing accuracy report.
+    Sane = all params finite AND in-sample log-unit predictions finite and
+    bounded (|pred| ≤ 15 → exp(15) ≈ 3.3M units/day, far beyond any real cell)."""
+    try:
+        if not np.all(np.isfinite(np.asarray(m.params, dtype=float))):
+            return False
+        yp = np.asarray(m.predict(df), dtype=float)
+        if yp.size == 0 or not np.all(np.isfinite(yp)):
+            return False
+        return float(np.max(np.abs(yp))) <= 15.0
+    except Exception:
+        return False
 
 
 def _decorrelate_badge(g: pd.DataFrame) -> pd.Series:
@@ -800,10 +829,15 @@ def _compute_diagnostics(models: dict, train: pd.DataFrame,
         r2_tr = _r2(y, p)
     if y_te_all:
         y = np.concatenate(y_te_all); p = np.concatenate(p_te_all)
-        r2_te   = _r2(y, p)
-        log_mae = float(np.mean(np.abs(y - p)))
-        au = np.exp(y); pu = np.exp(p)
-        raw_mape = float(np.mean(np.abs((au - pu) / np.maximum(au, 0.5))) * 100)
+        fin = np.isfinite(y) & np.isfinite(p)
+        y, p = y[fin], p[fin]
+        if len(y) >= 2:
+            r2_te   = _r2(y, p)
+            log_mae = float(np.mean(np.abs(y - p)))
+            # Clip pred logs before exp() (mirrors the bin-grain path) so a
+            # single wild prediction can never turn the MAPE into Infinity.
+            au = np.exp(np.clip(y, -3, 12)); pu = np.exp(np.clip(p, -3, 12))
+            raw_mape = float(np.mean(np.abs((au - pu) / np.maximum(au, 0.5))) * 100)
 
     # Aggregated (cell × 3% discount-bin) — what Stage 5 consumes
     mape_agg = 99.9; r2_units_agg = 0.0

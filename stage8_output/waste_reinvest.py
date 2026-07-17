@@ -1050,8 +1050,30 @@ def _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir):
         lines.append("")
 
     # ── Model accuracy ──────────────────────────────────────────────
+    # Headline = the DECISION model (the price/badge curve that actually sets
+    # recommendations, held out, at the 3-ppt bin grain) — the same numbers
+    # the tier is computed from and the Excel Summary shows. The full
+    # statistical model (incl. momentum/lag features) is context only.
+    # Degenerate values (a diverged fit) are labelled as failed, never
+    # printed as if they were measurements.
+    def _fmt_r2(v):
+        v = float(v)
+        if not np.isfinite(v) or v <= -9.98:
+            return None
+        return f"{v:.2f}"
+
+    def _fmt_mape(v):
+        v = float(v)
+        if not np.isfinite(v) or v > 500:
+            return None
+        return f"{v:.1f}%"
+
     acc = summary.get("model_accuracy", {})
     if acc.get("available"):
+        dec_r2   = _fmt_r2(acc.get("decision_r2_bin", 0))
+        dec_mape = _fmt_mape(acc.get("decision_mape_bin", 99.9))
+        full_r2  = _fmt_r2(acc.get("test_r2_log", 0))
+        train_r2 = _fmt_r2(acc.get("train_r2_log", 0))
         lines.append("## Model Accuracy")
         lines.append("")
         lines.append(f"**Overall: {acc['tier']}** — trained on {acc['n_train']:,} regular-day rows, "
@@ -1059,16 +1081,26 @@ def _write_markdown(summary, waste_main, reinvest_main, needs_test, run_dir):
         lines.append("")
         lines.append("| Metric | Value | What it means |")
         lines.append("|---|---:|---|")
-        lines.append(f"| Out-of-sample R² (test set) | {acc['test_r2_log']:.2f} | "
-                     f"Fraction of week-to-week variation in unit sales the model explains on data it "
-                     f"hasn't seen during training. 1.0 = perfect, 0 = useless. |")
-        lines.append(f"| Average error at discount-bin grain | {acc['test_mape_agg']:.1f}% | "
-                     f"Average % error when comparing predicted vs actual mean units in each 3-ppt "
-                     f"discount band. This is the metric the saturation curve uses. |")
-        lines.append(f"| Training-data fit (in-distribution R²) | {acc['train_r2_log']:.2f} | "
+        lines.append(f"| Price-engine accuracy — held-out R² (3-ppt bin grain) | {dec_r2 or 'FAILED — fit unstable this run'} | "
+                     f"How well the price/badge curve that actually sets recommendations predicts "
+                     f"held-out demand at the grain decisions are made. This is the number the "
+                     f"Overall tier is based on. |")
+        lines.append(f"| Price-engine error at the same grain | {dec_mape or 'FAILED — fit unstable this run'} | "
+                     f"Average % error comparing predicted vs actual mean units in each 3-ppt "
+                     f"discount band, held out. |")
+        lines.append(f"| Full statistical model — held-out log R² (context only) | {full_r2 or 'FAILED — fit unstable this run'} | "
+                     f"The full regression including momentum/lag features. Quoted for context; "
+                     f"its fit is flattered by autocorrelation, so the price-engine rows above "
+                     f"are the honest headline. |")
+        lines.append(f"| Training-data fit (in-distribution R²) | {train_r2 or 'FAILED — fit unstable this run'} | "
                      f"How well the model fits the data it was trained on. High value = price/quantity "
                      f"relationship is well captured. |")
         lines.append("")
+        if dec_r2 is None or dec_mape is None or full_r2 is None:
+            lines.append("*⚠ One or more accuracy checks came back degenerate this run — the model "
+                         "fit diverged. Do not quote this run's accuracy; re-run the pipeline and "
+                         "investigate before acting on new recommendations.*")
+            lines.append("")
         lines.append("*Daily-level predictions are inherently noisy for CPG SKU × city data; "
                      "recommendations are most reliable on the High-confidence cells.*")
         lines.append("")
@@ -1419,10 +1451,21 @@ def _write_json(df, model_output, summary, run_dir):
     """Write per_cell_detail.json with full per-cell payload."""
     diagnostics = model_output.get("diagnostics", {}) if model_output else {}
 
+    def _finite_or_none(v):
+        """Non-finite metrics (a diverged fit) become null — never emit
+        Infinity/NaN, which is invalid strict JSON and reads as a real value."""
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        return round(f, 3) if np.isfinite(f) else None
+
     output = {
         "model_diagnostics": {
-            "overall_holdout_mape": diagnostics.get("test_mape", "N/A"),
-            "overall_holdout_r2": diagnostics.get("test_r2", "N/A"),
+            "overall_holdout_mape": _finite_or_none(diagnostics.get("test_mape")),
+            "overall_holdout_r2": _finite_or_none(diagnostics.get("test_r2")),
+            "decision_holdout_r2_bin": _finite_or_none(diagnostics.get("decision_test_r2_bin")),
+            "decision_holdout_mape_bin": _finite_or_none(diagnostics.get("decision_test_mape_bin")),
             "n_train": diagnostics.get("n_train", 0),
             "n_test": diagnostics.get("n_test", 0),
         },
