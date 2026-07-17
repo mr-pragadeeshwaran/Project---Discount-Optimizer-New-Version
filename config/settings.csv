@@ -1,0 +1,27 @@
+# Edit the value column only. Blank value = keep the built-in default. Write 'none' to empty a list. Unknown keys are rejected.
+section,key,value,unit,description
+Business targets,SAVINGS_TARGET_MONTHLY_INR,500000,whole number,Monthly savings ambition in Rs. Gate C6 reports MEETS/BELOW against this. A verdict only — a smaller plan still executes.
+Business targets,TARGET_DISCOUNT_PCT,10.0,percent 0-100 (12 = 12%),Headline discount % the brand is steering toward (dashboard KPI).
+Business targets,TARGET_WEIGHTED_DISCOUNT_PCT,9.0,percent 0-100 (12 = 12%),Revenue-weighted portfolio discount % the flywheel glides toward.
+Business targets,TARGET_QUARTER,Q4 2026,text,"Quarter label the discount target is set for, e.g. Q4 2026."
+Business targets,DEFAULT_BUDGET_PCT_CAP,0.12,fraction 0-1 (0.12 = 12%),Weekly discount-spend cap as a fraction of gross sales. 0.12 = 12%. Blocks reinvestment when breached; never forces extra cuts.
+Business targets,TARGET_TIMELINE_WEEKS,12,whole number,Every cell's full discount gap must close within this many weekly cycles.
+Business targets,MIN_DISCOUNT_CHANGE_PPT,3,number,Smallest weekly discount step in percentage points. Gaps smaller than this close in one cycle.
+Brand identity,BRAND_NAME,24 Mantra Organic,text,The client's own brand as it appears on the platform.
+Brand identity,OWN_BRAND_PATTERNS,24 Mantra Organic | 24 Mantra,"list, separate with |","Every spelling of the own brand in the data. Blank = derive from BRAND_NAME. Ingestion fails loud if these match no rows, or match a competitor too."
+Brand identity,PLATFORM_NAME,Blinkit,text,"The quick-commerce platform, e.g. Blinkit."
+Brand identity,STRATEGIC_SKUS,none,"list of ids, separate with |","Hero PRODUCT_IDs that must NEVER be auto-cut, whatever the model says. Separate with |. Write none for no hero protection."
+Brand identity,STRICT_OWN_BRAND_MATCH,yes,yes / no,yes = fail loudly if the brand patterns also match a competitor brand (e.g. 'Sun' catching 'Sunfeast'). Keep yes unless you truly own several distinct brand strings.
+Cost structure,DEFAULT_COGS_PCT,0.5,fraction 0-1 (0.12 = 12%),Cost of goods as a fraction of MRP. 0.50 = 50%. PROXY until finance supplies real per-SKU costs — every profit figure inherits this.
+Cost structure,DEFAULT_COMMISSION_PCT,0.15,fraction 0-1 (0.12 = 12%),Platform commission as a fraction of selling price. 0.15 = 15%.
+Cost structure,DEFAULT_FULFILLMENT_FEE,10,number,Fulfilment cost in Rs per unit.
+Model and guardrails,TRAIN_LOOKBACK_DAYS,180,whole number,Train only on the last N days of regular trading. The single biggest accuracy lever — shorter avoids stale price regimes and launch ramps.
+Model and guardrails,OUTLIER_Z_THRESHOLD,2.0,number,Per-cell z-score above which a day is treated as an outlier and excluded from training. 2.0 is the tuned production value; 3.0 keeps more days.
+Model and guardrails,MARGINAL_ROI_THRESHOLD,1.0,number,The elbow: deepest discount whose marginal ROI still clears this. 1.0 = the last rupee of discount must at least pay for itself.
+Model and guardrails,HISTORICAL_FLOOR_PERCENTILE,25,number,Percentile of a cell's own recent discounts treated as its proven-safe floor. 25 = 'we ran this low on a quarter of days and survived'.
+Model and guardrails,INELASTIC_ELASTICITY_THRESHOLD,1.0,number,"Cells with |elasticity| at or below this cannot pay for a discount; they are held/raised, never reinvested. 1.0 is the theorem boundary."
+Model and guardrails,REINVEST_MIN_VOL_LIFT_PCT,5.0,percent 0-100 (12 = 12%),"A reinvest candidate must lift volume by at least this %, net of leakage."
+Model and guardrails,REINVEST_MAX_MARGIN_SAC_PCT,10.0,percent 0-100 (12 = 12%),A reinvest candidate may sacrifice at most this % of current contribution.
+Model and guardrails,REINVEST_MIN_ELASTICITY,2.0,number,|elasticity| a cell needs before deeper discount is even considered.
+Model and guardrails,VOLUME_DROP_TOLERANCE_PCT,5.0,percent 0-100 (12 = 12%),Kill-switch: a cell strikes when actual volume misses prediction by more than this %. Two strikes revert the cut.
+Model and guardrails,DRIFT_ALERT_THRESHOLD,0.15,fraction 0-1 (0.12 = 12%),Prediction error fraction that counts as model drift. 0.15 = 15%.

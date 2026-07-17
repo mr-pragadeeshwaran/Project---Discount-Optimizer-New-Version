@@ -4,6 +4,18 @@ v4_config.py — Central configuration for the 8-Stage Pricing Optimization Syst
 Designed for 24 Mantra Organic SKUs across 11 cities on Blinkit.
 Competitor brands are excluded from modeling; their pricing is captured
 via the Competitor Price column for competitive positioning features.
+
+EVERY VALUE BELOW IS A DEFAULT. Drop a settings file in config/ and it wins:
+
+    config/settings.xlsx   (sheets: Settings | Festivals | Platform Events)
+    config/settings.csv    (+ festivals.csv, platform_events.csv)
+
+Get a pre-filled template from the dashboard (Inputs & Settings → Download
+template) or run:  python -X utf8 scripts/make_settings_template.py
+
+So a brand's targets, budget cap, hero SKUs, costs and festival calendar are
+edited in a spreadsheet — not in this file. See settings_loader.py for the
+registry of overridable keys and the (fail-loud) validation rules.
 """
 import os
 
@@ -284,3 +296,16 @@ CATEGORY_EXTRA_STOPWORDS = []
 # default elasticity because their category is too thin to model. High share ⇒
 # auto-categorisation fragmented; switch to CATEGORY_MODE="keywords".
 CATEGORY_DEFAULT_FALLBACK_WARN_SHARE = 0.30
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  FILE OVERRIDES — keep this LAST: config/settings.* wins over the
+#  defaults above. A broken settings file raises SettingsError here, on
+#  import, rather than letting a wrong number reach a customer's prices.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+try:
+    import settings_loader as _settings
+except ImportError as _e:                      # loader missing ⇒ defaults only
+    print(f"[config] settings_loader unavailable ({_e}); using code defaults.")
+else:
+    _settings.apply_to(globals())              # SettingsError propagates by design
