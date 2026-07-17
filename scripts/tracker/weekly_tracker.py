@@ -21,7 +21,7 @@ Usage:
   python -X utf8 scripts/tracker/weekly_tracker.py --week W1 --date 2026-07-06
   (with no args it uses the latest model run and today-ish as the week.)
 """
-import os, sys, glob, json, argparse
+import os, sys, glob, json, argparse, datetime
 import numpy as np
 import pandas as pd
 
@@ -464,7 +464,10 @@ def main():
             prev = hist0
 
     week = a.week or _auto_week_label(prev)
-    date = a.date or "2026-07-06"
+    # Default date = this week's Monday (the cycle label), not a hardcoded day —
+    # the UI's Recommend/Score buttons pass no --date, so this default is live.
+    _today = datetime.date.today()
+    date = a.date or (_today - datetime.timedelta(days=_today.weekday())).isoformat()
     # Precedence: --budget_pct flag > v4_config.DEFAULT_BUDGET_PCT_CAP > live baseline.
     _cfg_cap = getattr(_cfg, "DEFAULT_BUDGET_PCT_CAP", None) if _cfg else None
     if a.budget_pct is not None:
