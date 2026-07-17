@@ -68,6 +68,11 @@ def _latest_facttable():
 def build_panel(fact_path):
     ft = pd.read_csv(fact_path, low_memory=False)
     ft["DATE"] = pd.to_datetime(ft["DATE"], errors="coerce")
+    # Feed coverage bounds BEFORE any filtering — used to drop calendar-
+    # incomplete edge weeks (an export that starts/ends mid-week creates a
+    # partial "week" whose summed units read 30-60% low and poison the
+    # out-of-time holdout). Live weekly exports will always end mid-week.
+    feed_min, feed_max = ft["DATE"].min(), ft["DATE"].max()
     ft = ft[ft.get("is_regular_day", 1) == 1].copy()
     num = ["OFFTAKE_QTY", "discount_pct_actual", "selling_price", "stable_mrp",
            "WT_AVAILABILITY_PCT", "MONTHLY_AD_SOV", "MONTHLY_CAT_SHARE_MRP",
@@ -75,6 +80,14 @@ def build_panel(fact_path):
     for c in num:
         ft[c] = pd.to_numeric(ft.get(c), errors="coerce")
     ft = ft.dropna(subset=["OFFTAKE_QTY", "selling_price", "cell_id", "DATE"])
+    wk_per = ft["DATE"].dt.to_period("W")
+    complete = (wk_per.dt.start_time >= feed_min.normalize()) & \
+               (wk_per.dt.end_time.dt.normalize() <= feed_max.normalize())
+    if (~complete).any():
+        edges = sorted(wk_per[~complete].dt.start_time.dt.date.unique())
+        print(f"[plan] dropping {len(edges)} calendar-incomplete edge week(s) "
+              f"{edges} — feed covers {feed_min.date()}..{feed_max.date()}")
+        ft = ft[complete].copy()
     ft["week"] = ft["DATE"].dt.to_period("W").dt.start_time
     ft["u"]    = ft["OFFTAKE_QTY"].clip(lower=0)
     ft["u_sp"] = ft["u"] * ft["selling_price"]
@@ -110,8 +123,17 @@ def build_panel(fact_path):
     # lagged sales — breaks reverse causality (discount deployed in REACTION to
     # last week's demand) and captures autocorrelation, lifting predictive R2.
     # lag1+lag2 clears out-of-sample R2 0.78 (vs 0.73 with lag1 alone).
-    p["lag1_lu"]   = p.groupby("cell_id")["units"].transform(lambda s: np.log1p(s).shift(1))
-    p["lag2_lu"]   = p.groupby("cell_id")["units"].transform(lambda s: np.log1p(s).shift(2))
+    # Calendar-aware: a lag only counts when the previous panel row is the
+    # actual previous calendar week. Gappy cells (delisted/seasonal SKUs that
+    # vanish for months and reappear) otherwise feed a months-old week in as
+    # "last week", which flips the lag coefficients and lets regime jumps
+    # masquerade as one-week transitions.
+    lu = np.log1p(p["units"])
+    g = p.groupby("cell_id")
+    p["lag1_lu"] = lu.groupby(p["cell_id"]).shift(1)
+    p["lag2_lu"] = lu.groupby(p["cell_id"]).shift(2)
+    p.loc[(p["week"] - g["week"].shift(1)) != pd.Timedelta(days=7),  "lag1_lu"] = np.nan
+    p.loc[(p["week"] - g["week"].shift(2)) != pd.Timedelta(days=14), "lag2_lu"] = np.nan
     p["is_weekend"] = 0
     return p
 
