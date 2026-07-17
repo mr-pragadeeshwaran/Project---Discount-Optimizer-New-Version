@@ -689,6 +689,10 @@ td.num,th.num{text-align:right}
           </span>
           <select id="cut-cat" aria-label="Category filter"><option value="">All categories</option></select>
           <select id="cut-conf" aria-label="Confidence filter"><option value="">All confidence</option><option value="high">High only</option></select>
+          <button class="btn ghost sm" id="cut-export" type="button" aria-label="Download the current view as CSV">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/></svg>
+            <span class="ct-tx">Export CSV</span>
+          </button>
         </div>
         <div id="cut-body"></div>
         <div class="tfoot" id="cut-foot"></div>
@@ -1466,6 +1470,7 @@ async function renderCutPlan() {
   if (d.error) {
     const em = TABLE_EMPTY[name] || ['This table', 'the monthly rebuild'];
     body.innerHTML = '<div class="card">' + emptyState(em[0], em[1], d.status === 404 ? '' : d.error) + '</div>';
+    CUT.view = null; $('#cut-export').disabled = true;
     return;
   }
   let cols = d.columns.slice(), objs = d.objs;
@@ -1495,6 +1500,9 @@ async function renderCutPlan() {
   CUT.sort[name] = st;
   let sorted = objs;
   if (st.key) sorted = sortObjs(objs, st.key === 'move' ? 'cur_disc' : st.key, st.dir);
+
+  CUT.view = { cols: cols, rows: sorted, name: name };  /* exactly what's on screen, for CSV export */
+  $('#cut-export').disabled = !sorted.length;
 
   body.innerHTML = objs.length
     ? tableHTML(cols, sorted, st.key, st.dir, name)
@@ -1879,6 +1887,23 @@ document.addEventListener('keydown', e => {
 });
 $('#rep-close').addEventListener('click', () => { REP.open = null; $('#rep-pane').hidden = true; renderReports(); });
 $('#cut-q').addEventListener('input', e => { CUT.q = e.target.value; renderCutPlan(); });
+$('#cut-export').addEventListener('click', exportCutView);
+function exportCutView() {
+  const v = CUT.view;
+  if (!v || !v.rows || !v.rows.length) { toast('Nothing to export in this view', 'bad'); return; }
+  const cols = [];
+  v.cols.forEach(c => { if (c === 'move') cols.push('cur_disc', 'tgt_disc'); else cols.push(c); });
+  const q = s => { s = (s == null ? '' : String(s)); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const lines = [cols.join(',')];
+  v.rows.forEach(r => lines.push(cols.map(c => q(r[c])).join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = v.name + '_view.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+  toast('Exported ' + fmtIN(v.rows.length) + ' rows to CSV', 'good');
+}
 $('#cut-cat').addEventListener('change', e => { CUT.cat = e.target.value; renderCutPlan(); });
 $('#cut-conf').addEventListener('change', e => { CUT.conf = e.target.value; renderCutPlan(); });
 $('#log').addEventListener('scroll', e => {
