@@ -1,6 +1,6 @@
 # Scenario Menu — negotiation-ready optimized options
 
-*Run `20260705_161703` · round 1 · challenger artifact — the champion plan (pricing_reco.csv, cut list, tracker) is untouched. All scenarios share the validated demand kernel (de_optimizer.demand_model), so differences between rows are pure objective/constraint choices, not model noise.*
+*Run `20260711_221318` · round 2 · challenger artifact — the champion plan (pricing_reco.csv, cut list, tracker) is untouched. All scenarios share the validated demand kernel (de_optimizer.demand_model), so differences between rows are pure objective/constraint choices, not model noise.*
 
 ## The menu
 
@@ -32,6 +32,6 @@ _Objective KPIs available in the optimizer this run: revenue, volume, nrw, share
 
 ## How a negotiation uses this
 
-1. Pick the scenario matching the counterpart's constraint (finance wants margin -> `revenue_tight`/`nrw_base`; trade wants volume -> `volume_base`) and hand the KAM its per-cell sheet (`scenarios/round_01/reco_<scenario>.csv`).
+1. Pick the scenario matching the counterpart's constraint (finance wants margin -> `revenue_tight`/`nrw_base`; trade wants volume -> `volume_base`) and hand the KAM its per-cell sheet (`scenarios/round_02/reco_<scenario>.csv`).
 2. KAM executes it as a glide-capped in-market test; counterpart pushback lands in `negotiation_feedback.csv` (lock/opt-out/max/min per cell) and the menu is re-run for the next round.
 3. Actuals feed back through the weekly tracker, elasticities refresh, and the next round's menu is re-optimized on measured — not assumed — response. That is the closed loop.

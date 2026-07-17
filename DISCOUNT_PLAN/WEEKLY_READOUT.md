@@ -1,4 +1,4 @@
-# Weekly Discount Readout — W1
+# Weekly Discount Readout — W3
 
 **Budget: RED** — discount is 13.6% of sales (cap 12.0%), headroom ₹-139,701/wk.
 
@@ -22,6 +22,8 @@ Top moves this week (3-point glide steps — not the full cut at once):
 ## Adoption (recommendations actually executed)
 
 - **W1**: 48 moves recommended — execution log not returned yet (adoption **n/a**, not 0%). Ask the KAM to fill DISCOUNT_PLAN/execution_log_template.csv.
+- **W2**: 48 moves recommended — execution log not returned yet (adoption **n/a**, not 0%). Ask the KAM to fill DISCOUNT_PLAN/execution_log_template.csv.
+- **W3**: 48 moves recommended — execution log not returned yet (adoption **n/a**, not 0%). Ask the KAM to fill DISCOUNT_PLAN/execution_log_template.csv.
 
 _Benchmark: the PepsiCo paper's system deployed at ~85% acceptance — track yours against that. Below 60% the plan's projected savings are fiction._
 

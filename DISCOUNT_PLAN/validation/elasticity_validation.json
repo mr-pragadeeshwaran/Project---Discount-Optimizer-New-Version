@@ -1,12 +1,12 @@
 {
   "protocol": "pricingai_3stage",
-  "run": "20260705_161703",
-  "generated": "2026-07-07 23:00",
+  "run": "20260711_221318",
+  "generated": "2026-07-11 22:58",
   "inputs": {
     "elasticities": "DISCOUNT_PLAN\\pricing\\elasticities.csv",
     "cross_price": "DISCOUNT_PLAN\\pricing\\cross_price.csv",
     "gates_prod": "DISCOUNT_PLAN\\pricing\\gates.json",
-    "fact_table_run": "20260705_161703"
+    "fact_table_run": "20260711_221318"
   },
   "stage1": {
     "holdout_weeks": 4,

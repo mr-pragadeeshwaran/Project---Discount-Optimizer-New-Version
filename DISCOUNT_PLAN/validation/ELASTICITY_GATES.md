@@ -1,6 +1,6 @@
 # Elasticity Validation Gates — 3-Stage Protocol
 
-*Run `20260705_161703` · matrix `DISCOUNT_PLAN\pricing\elasticities.csv` · 585 SKU×city cells · generated 2026-07-07 23:00*
+*Run `20260711_221318` · matrix `DISCOUNT_PLAN\pricing\elasticities.csv` · 585 SKU×city cells · generated 2026-07-11 22:58*
 
 ## Verdict: **FAIL** — do NOT bank savings from this matrix; act via live tests only
 

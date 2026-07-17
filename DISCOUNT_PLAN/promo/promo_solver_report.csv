@@ -1,185 +1,185 @@
 category,city,n_cells,n_vars,n_rows,status,stop_reason,gap_target,achieved_gap,hit_time_limit,dual_bound,objective_net_rev,baseline_hold_net_rev,nodes,solve_time_s,budget_wk,n_held_cells
-Besan & Gram Flour,Bangalore,1,84,87,0,target_gap_hit,0.01,0.0,False,-220429.0,220429.0,220487.0,1,0.03,2206.0,0
+Besan & Gram Flour,Bangalore,1,84,87,0,target_gap_hit,0.01,0.0,False,-220429.0,220429.0,220487.0,1,0.16,2206.0,0
 Besan & Gram Flour,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.002941,False,-19847.0,19789.0,19853.0,1,0.03,199.0,0
-Besan & Gram Flour,Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-147354.0,147354.0,147393.0,1,0.0,1474.0,0
+Besan & Gram Flour,Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-147354.0,147354.0,147393.0,1,0.02,1474.0,0
 Besan & Gram Flour,Hyderabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-116812.0,116812.0,116844.0,1,0.02,1169.0,0
 Besan & Gram Flour,Kolkata,1,84,87,0,target_gap_hit,0.01,0.002941,False,-19014.0,18959.0,19019.0,1,0.02,190.0,0
-Besan & Gram Flour,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-59218.0,59218.0,59234.0,1,0.0,592.0,0
-Besan & Gram Flour,Others,1,84,87,0,target_gap_hit,0.01,0.0,False,-150002.0,150002.0,150042.0,1,0.02,1501.0,0
-Besan & Gram Flour,Pune,1,84,87,0,target_gap_hit,0.01,0.002941,False,-30167.0,30078.0,30175.0,1,0.02,302.0,0
-Dal & Pulses,Ahmedabad,4,336,276,0,target_gap_hit,0.01,0.0,False,-287319.0,287319.0,284571.0,1,0.03,2849.0,0
-Dal & Pulses,Bangalore,11,924,690,0,target_gap_hit,0.01,0.004598,False,-4096338.0,4077587.0,4046793.0,1,0.08,40334.0,1
-Dal & Pulses,Chandigarh Tricity,9,756,591,0,target_gap_hit,0.01,0.0,False,-242225.0,242225.0,238727.0,1,0.08,2386.0,0
-Dal & Pulses,Chennai,10,840,654,0,target_gap_hit,0.01,0.004185,False,-453383.0,451493.0,447167.0,1,0.05,4466.0,0
-Dal & Pulses,Delhi-NCR,11,924,717,0,target_gap_hit,0.01,0.0,False,-2233410.0,2233410.0,2203878.0,1,0.08,22150.0,0
-Dal & Pulses,Hyderabad,11,924,690,0,target_gap_hit,0.01,0.006483,False,-2457668.0,2441838.0,2431135.0,1,0.05,24211.0,1
-Dal & Pulses,Kolkata,10,840,654,0,target_gap_hit,0.01,0.0,False,-1138460.0,1138460.0,1125204.0,1,0.06,11187.0,0
-Dal & Pulses,Lucknow,10,840,654,0,target_gap_hit,0.01,0.0,False,-531347.0,531347.0,526643.0,1,0.05,5262.0,0
-Dal & Pulses,Mumbai,7,588,465,0,target_gap_hit,0.01,0.0,False,-2360687.0,2360687.0,2339037.0,1,0.05,23208.0,0
-Dal & Pulses,Others,16,1344,1032,0,target_gap_hit,0.01,0.0,False,-4202016.0,4202016.0,4145530.0,1,0.09,41686.0,0
-Dal & Pulses,Pune,11,924,717,0,target_gap_hit,0.01,0.0,False,-1530348.0,1530348.0,1517026.0,1,0.06,15082.0,0
+Besan & Gram Flour,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-59218.0,59218.0,59234.0,1,0.02,592.0,0
+Besan & Gram Flour,Others,1,84,87,0,target_gap_hit,0.01,0.0,False,-150002.0,150002.0,150042.0,1,0.01,1501.0,0
+Besan & Gram Flour,Pune,1,84,87,0,target_gap_hit,0.01,0.002941,False,-30167.0,30078.0,30175.0,1,0.03,302.0,0
+Dal & Pulses,Ahmedabad,4,336,276,0,target_gap_hit,0.01,0.0,False,-287319.0,287319.0,284571.0,1,0.06,2849.0,0
+Dal & Pulses,Bangalore,11,924,690,0,target_gap_hit,0.01,0.004598,False,-4096338.0,4077587.0,4046793.0,1,0.11,40334.0,1
+Dal & Pulses,Chandigarh Tricity,9,756,591,0,target_gap_hit,0.01,0.0,False,-242225.0,242225.0,238727.0,1,0.11,2386.0,0
+Dal & Pulses,Chennai,10,840,654,0,target_gap_hit,0.01,0.004185,False,-453383.0,451493.0,447167.0,1,0.09,4466.0,0
+Dal & Pulses,Delhi-NCR,11,924,717,0,target_gap_hit,0.01,0.0,False,-2233410.0,2233410.0,2203878.0,1,0.16,22150.0,0
+Dal & Pulses,Hyderabad,11,924,690,0,target_gap_hit,0.01,0.006483,False,-2457668.0,2441838.0,2431135.0,1,0.22,24211.0,1
+Dal & Pulses,Kolkata,10,840,654,0,target_gap_hit,0.01,0.0,False,-1138460.0,1138460.0,1125204.0,1,0.09,11187.0,0
+Dal & Pulses,Lucknow,10,840,654,0,target_gap_hit,0.01,0.0,False,-531347.0,531347.0,526643.0,1,0.11,5262.0,0
+Dal & Pulses,Mumbai,7,588,465,0,target_gap_hit,0.01,0.0,False,-2360687.0,2360687.0,2339037.0,1,0.08,23208.0,0
+Dal & Pulses,Others,16,1344,1032,0,target_gap_hit,0.01,0.0,False,-4202016.0,4202016.0,4145530.0,1,0.19,41686.0,0
+Dal & Pulses,Pune,11,924,717,0,target_gap_hit,0.01,0.0,False,-1530348.0,1530348.0,1517026.0,1,0.11,15082.0,0
 Honey,Bangalore,1,84,87,0,target_gap_hit,0.01,0.0,False,-232315.0,232315.0,232315.0,1,0.02,2323.0,0
 Honey,Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-221159.0,221159.0,221159.0,1,0.02,2212.0,0
-Honey,Hyderabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-318304.0,318304.0,318304.0,1,0.0,3183.0,0
-Honey,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-193556.0,193556.0,193556.0,1,0.0,1936.0,0
+Honey,Hyderabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-318304.0,318304.0,318304.0,1,0.01,3183.0,0
+Honey,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-193556.0,193556.0,193556.0,1,0.03,1936.0,0
 Honey,Others,1,84,87,0,target_gap_hit,0.01,0.0,False,-133865.0,133865.0,133865.0,1,0.02,1339.0,0
 Honey,Pune,1,84,87,0,target_gap_hit,0.01,0.0,False,-24999.0,24999.0,24999.0,1,0.02,250.0,0
-Indian Sweets,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-3600.0,3600.0,3600.0,1,0.0,36.0,0
+Indian Sweets,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-3600.0,3600.0,3600.0,1,0.03,36.0,0
 Indian Sweets,Bangalore,6,504,402,0,target_gap_hit,0.01,0.0,False,-308973.0,308973.0,305690.0,1,0.05,3142.0,0
-Indian Sweets,Chennai,2,168,150,0,target_gap_hit,0.01,0.0,False,-86225.0,86225.0,86284.0,1,0.02,862.0,0
-Indian Sweets,Delhi-NCR,5,420,339,0,target_gap_hit,0.01,0.0,False,-342075.0,342075.0,342456.0,1,0.02,3450.0,0
-Indian Sweets,Hyderabad,6,504,402,0,target_gap_hit,0.01,0.0,False,-335329.0,335329.0,335611.0,1,0.03,3410.0,0
-Indian Sweets,Kolkata,3,252,213,0,target_gap_hit,0.01,0.0,False,-30261.0,30261.0,30261.0,1,0.02,317.0,0
-Indian Sweets,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-34800.0,34800.0,34800.0,1,0.02,348.0,0
-Indian Sweets,Others,5,420,339,0,target_gap_hit,0.01,0.0,False,-393834.0,393834.0,394102.0,1,0.03,4030.0,0
-Indian Sweets,Pune,2,168,150,0,target_gap_hit,0.01,0.0,False,-42422.0,42422.0,42157.0,1,0.02,433.0,0
-Jaggery,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-88757.0,88757.0,88945.0,1,0.02,885.0,0
-Jaggery,Bangalore,2,168,150,0,target_gap_hit,0.01,0.00494,False,-982316.0,977488.0,981035.0,1,0.03,9779.0,0
-Jaggery,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.0,False,-121203.0,121203.0,121460.0,1,0.0,1209.0,0
-Jaggery,Chennai,2,168,150,0,target_gap_hit,0.01,0.004965,False,-141403.0,140704.0,141214.0,1,0.0,1410.0,0
-Jaggery,Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-537761.0,537761.0,538901.0,1,0.0,5367.0,0
-Jaggery,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.004841,False,-522704.0,520186.0,522320.0,1,0.02,5195.0,0
-Jaggery,Kolkata,1,84,87,0,target_gap_hit,0.01,0.0,False,-768140.0,768140.0,769769.0,1,0.0,7671.0,0
+Indian Sweets,Chennai,2,168,150,0,target_gap_hit,0.01,0.0,False,-86225.0,86225.0,86284.0,1,0.03,862.0,0
+Indian Sweets,Delhi-NCR,5,420,339,0,target_gap_hit,0.01,0.0,False,-342075.0,342075.0,342456.0,1,0.08,3450.0,0
+Indian Sweets,Hyderabad,6,504,402,0,target_gap_hit,0.01,0.0,False,-335329.0,335329.0,335611.0,1,0.08,3410.0,0
+Indian Sweets,Kolkata,3,252,213,0,target_gap_hit,0.01,0.0,False,-30261.0,30261.0,30261.0,1,0.05,317.0,0
+Indian Sweets,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-34800.0,34800.0,34800.0,1,0.05,348.0,0
+Indian Sweets,Others,5,420,339,0,target_gap_hit,0.01,0.0,False,-393834.0,393834.0,394102.0,1,0.12,4030.0,0
+Indian Sweets,Pune,2,168,150,0,target_gap_hit,0.01,0.0,False,-42422.0,42422.0,42157.0,1,0.05,433.0,0
+Jaggery,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-88757.0,88757.0,88945.0,1,0.03,885.0,0
+Jaggery,Bangalore,2,168,150,0,target_gap_hit,0.01,0.00494,False,-982316.0,977488.0,981035.0,1,0.05,9779.0,0
+Jaggery,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.0,False,-121203.0,121203.0,121460.0,1,0.03,1209.0,0
+Jaggery,Chennai,2,168,150,0,target_gap_hit,0.01,0.004965,False,-141403.0,140704.0,141214.0,1,0.03,1410.0,0
+Jaggery,Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-537761.0,537761.0,538901.0,1,0.03,5367.0,0
+Jaggery,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.004841,False,-522704.0,520186.0,522320.0,1,0.05,5195.0,0
+Jaggery,Kolkata,1,84,87,0,target_gap_hit,0.01,0.0,False,-768140.0,768140.0,769769.0,1,0.02,7671.0,0
 Jaggery,Lucknow,1,84,87,0,target_gap_hit,0.01,0.0,False,-121871.0,121871.0,122129.0,1,0.02,1215.0,0
-Jaggery,Mumbai,2,168,150,0,target_gap_hit,0.01,0.005056,False,-496079.0,493583.0,496089.0,1,0.02,4964.0,0
-Jaggery,Others,2,168,150,0,target_gap_hit,0.01,0.0,False,-2708162.0,2708162.0,2711494.0,1,0.03,26997.0,0
-Jaggery,Pune,2,168,150,0,target_gap_hit,0.01,0.004064,False,-186698.0,185943.0,186414.0,1,0.02,1861.0,0
-Millet & Other Atta,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-38161.0,38161.0,36936.0,1,0.0,376.0,0
-Millet & Other Atta,Bangalore,5,420,339,0,target_gap_hit,0.01,0.0,False,-977707.0,977707.0,960934.0,1,0.03,9642.0,0
-Millet & Other Atta,Chandigarh Tricity,4,336,276,0,target_gap_hit,0.01,0.0,False,-87007.0,87007.0,85522.0,1,0.03,859.0,0
-Millet & Other Atta,Chennai,4,336,276,0,target_gap_hit,0.01,0.0,False,-203971.0,203971.0,201091.0,1,0.01,2016.0,0
-Millet & Other Atta,Delhi-NCR,5,420,339,0,target_gap_hit,0.01,0.0,False,-1311704.0,1311704.0,1284910.0,1,0.03,12942.0,0
-Millet & Other Atta,Hyderabad,5,420,339,0,target_gap_hit,0.01,0.0,False,-658048.0,658048.0,642465.0,1,0.03,6490.0,0
-Millet & Other Atta,Kolkata,5,420,339,0,target_gap_hit,0.01,0.0,False,-417949.0,417949.0,409855.0,1,0.03,4126.0,0
-Millet & Other Atta,Lucknow,5,420,339,0,target_gap_hit,0.01,0.0,False,-144068.0,144068.0,142169.0,1,0.03,1426.0,0
-Millet & Other Atta,Mumbai,4,336,276,0,target_gap_hit,0.01,0.0,False,-570755.0,570755.0,558654.0,1,0.03,5608.0,0
-Millet & Other Atta,Others,6,504,402,0,target_gap_hit,0.01,0.0,False,-2840413.0,2840413.0,2774763.0,1,0.03,28041.0,0
-Millet & Other Atta,Pune,5,420,339,0,target_gap_hit,0.01,0.0,False,-286765.0,286765.0,279780.0,1,0.03,2825.0,0
+Jaggery,Mumbai,2,168,150,0,target_gap_hit,0.01,0.005056,False,-496079.0,493583.0,496089.0,1,0.03,4964.0,0
+Jaggery,Others,2,168,150,0,target_gap_hit,0.01,0.0,False,-2708162.0,2708162.0,2711494.0,1,0.05,26997.0,0
+Jaggery,Pune,2,168,150,0,target_gap_hit,0.01,0.004064,False,-186698.0,185943.0,186414.0,1,0.03,1861.0,0
+Millet & Other Atta,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-38161.0,38161.0,36936.0,1,0.02,376.0,0
+Millet & Other Atta,Bangalore,5,420,339,0,target_gap_hit,0.01,0.0,False,-977707.0,977707.0,960934.0,1,0.05,9642.0,0
+Millet & Other Atta,Chandigarh Tricity,4,336,276,0,target_gap_hit,0.01,0.0,False,-87007.0,87007.0,85522.0,1,0.05,859.0,0
+Millet & Other Atta,Chennai,4,336,276,0,target_gap_hit,0.01,0.0,False,-203971.0,203971.0,201091.0,1,0.06,2016.0,0
+Millet & Other Atta,Delhi-NCR,5,420,339,0,target_gap_hit,0.01,0.0,False,-1311704.0,1311704.0,1284910.0,1,0.05,12942.0,0
+Millet & Other Atta,Hyderabad,5,420,339,0,target_gap_hit,0.01,0.0,False,-658048.0,658048.0,642465.0,1,0.05,6490.0,0
+Millet & Other Atta,Kolkata,5,420,339,0,target_gap_hit,0.01,0.0,False,-417949.0,417949.0,409855.0,1,0.05,4126.0,0
+Millet & Other Atta,Lucknow,5,420,339,0,target_gap_hit,0.01,0.0,False,-144068.0,144068.0,142169.0,1,0.05,1426.0,0
+Millet & Other Atta,Mumbai,4,336,276,0,target_gap_hit,0.01,0.0,False,-570755.0,570755.0,558654.0,1,0.05,5608.0,0
+Millet & Other Atta,Others,6,504,402,0,target_gap_hit,0.01,0.0,False,-2840413.0,2840413.0,2774763.0,1,0.06,28041.0,0
+Millet & Other Atta,Pune,5,420,339,0,target_gap_hit,0.01,0.0,False,-286765.0,286765.0,279780.0,1,0.08,2825.0,0
 Millets,Delhi-NCR,2,168,150,0,target_gap_hit,0.01,8.5e-05,False,-225622.0,225603.0,225623.0,1,0.03,2256.0,0
-Millets,Others,2,168,150,0,target_gap_hit,0.01,0.000246,False,-25551.0,25545.0,25551.0,1,0.02,256.0,0
-Oil,Bangalore,3,252,213,0,target_gap_hit,0.01,0.0,False,-964973.0,964973.0,966440.0,1,0.03,9717.0,0
+Millets,Others,2,168,150,0,target_gap_hit,0.01,0.000246,False,-25551.0,25545.0,25551.0,1,0.05,256.0,0
+Oil,Bangalore,3,252,213,0,target_gap_hit,0.01,0.0,False,-964973.0,964973.0,966440.0,1,0.11,9717.0,0
 Oil,Chennai,1,84,87,0,target_gap_hit,0.01,0.0,False,-112031.0,112031.0,112588.0,1,0.02,1128.0,0
 Oil,Delhi-NCR,3,252,213,0,target_gap_hit,0.01,0.006404,False,-422925.0,420233.0,424839.0,1,0.03,4252.0,0
-Oil,Hyderabad,3,252,213,0,target_gap_hit,0.01,0.004675,False,-766673.0,763105.0,770021.0,1,0.02,7708.0,0
-Oil,Kolkata,2,168,150,0,target_gap_hit,0.01,0.00409,False,-291598.0,290410.0,292961.0,1,0.02,2933.0,0
-Oil,Lucknow,3,252,213,0,target_gap_hit,0.01,0.004414,False,-49124.0,48908.0,49097.0,1,0.02,494.0,0
+Oil,Hyderabad,3,252,213,0,target_gap_hit,0.01,0.004675,False,-766673.0,763105.0,770021.0,1,0.05,7708.0,0
+Oil,Kolkata,2,168,150,0,target_gap_hit,0.01,0.00409,False,-291598.0,290410.0,292961.0,1,0.03,2933.0,0
+Oil,Lucknow,3,252,213,0,target_gap_hit,0.01,0.004414,False,-49124.0,48908.0,49097.0,1,0.05,494.0,0
 Oil,Mumbai,2,168,150,0,target_gap_hit,0.01,0.003973,False,-91284.0,90923.0,91653.0,1,0.03,937.0,0
 Oil,Others,3,252,213,0,target_gap_hit,0.01,0.00619,False,-834225.0,829093.0,836879.0,1,0.03,8403.0,0
-Oil,Pune,3,252,213,0,target_gap_hit,0.01,0.0,False,-118264.0,118264.0,118162.0,1,0.02,1190.0,0
+Oil,Pune,3,252,213,0,target_gap_hit,0.01,0.0,False,-118264.0,118264.0,118162.0,1,0.05,1190.0,0
 Plain Peanuts,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-98444.0,98444.0,98444.0,1,0.02,984.0,0
-Plain Peanuts,Bangalore,3,252,213,0,target_gap_hit,0.01,0.0,False,-757325.0,757325.0,743644.0,1,0.02,7573.0,0
-Plain Peanuts,Chandigarh Tricity,2,168,150,0,target_gap_hit,0.01,0.0,False,-78636.0,78636.0,78636.0,1,0.01,786.0,0
+Plain Peanuts,Bangalore,3,252,213,0,target_gap_hit,0.01,0.0,False,-757325.0,757325.0,743644.0,1,0.03,7573.0,0
+Plain Peanuts,Chandigarh Tricity,2,168,150,0,target_gap_hit,0.01,0.0,False,-78636.0,78636.0,78636.0,1,0.02,786.0,0
 Plain Peanuts,Chennai,3,252,213,0,target_gap_hit,0.01,0.0,False,-106813.0,106813.0,104998.0,1,0.03,1068.0,0
-Plain Peanuts,Delhi-NCR,3,252,213,0,target_gap_hit,0.01,0.0,False,-1080356.0,1080356.0,1068662.0,1,0.02,10802.0,0
-Plain Peanuts,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.0,False,-554117.0,554117.0,540875.0,1,0.02,5541.0,0
+Plain Peanuts,Delhi-NCR,3,252,213,0,target_gap_hit,0.01,0.0,False,-1080356.0,1080356.0,1068662.0,1,0.05,10802.0,0
+Plain Peanuts,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.0,False,-554117.0,554117.0,540875.0,1,0.03,5541.0,0
 Plain Peanuts,Kolkata,2,168,150,0,target_gap_hit,0.01,0.0,False,-166902.0,166902.0,166902.0,1,0.02,1669.0,0
-Plain Peanuts,Lucknow,2,168,150,0,target_gap_hit,0.01,0.0,False,-181206.0,181206.0,178778.0,1,0.02,1812.0,0
+Plain Peanuts,Lucknow,2,168,150,0,target_gap_hit,0.01,0.0,False,-181206.0,181206.0,178778.0,1,0.01,1812.0,0
 Plain Peanuts,Mumbai,3,252,213,0,target_gap_hit,0.01,0.0,False,-283351.0,283351.0,274918.0,1,0.03,2833.0,0
-Plain Peanuts,Others,2,168,150,0,target_gap_hit,0.01,0.0,False,-1334585.0,1334585.0,1321960.0,1,0.02,13343.0,0
-Plain Peanuts,Pune,3,252,213,0,target_gap_hit,0.01,0.0,False,-208287.0,208287.0,204748.0,1,0.02,2083.0,0
-Poha,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.003491,False,-29558.0,29455.0,29403.0,1,0.02,297.0,0
-Poha,Bangalore,2,168,123,0,target_gap_hit,0.01,0.0,False,-428528.0,428528.0,428528.0,1,0.02,4286.0,1
-Poha,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.0,False,-23279.0,23279.0,23279.0,1,0.02,233.0,0
+Plain Peanuts,Others,2,168,150,0,target_gap_hit,0.01,0.0,False,-1334585.0,1334585.0,1321960.0,1,0.05,13343.0,0
+Plain Peanuts,Pune,3,252,213,0,target_gap_hit,0.01,0.0,False,-208287.0,208287.0,204748.0,1,0.05,2083.0,0
+Poha,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.003491,False,-29558.0,29455.0,29403.0,1,0.03,297.0,0
+Poha,Bangalore,2,168,123,0,target_gap_hit,0.01,0.0,False,-428528.0,428528.0,428528.0,1,0.05,4286.0,1
+Poha,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.0,False,-23279.0,23279.0,23279.0,1,0.03,233.0,0
 Poha,Chennai,2,168,150,0,target_gap_hit,0.01,0.000758,False,-126118.0,126023.0,125648.0,1,0.03,1262.0,0
-Poha,Delhi-NCR,2,168,150,0,target_gap_hit,0.01,0.0,False,-567672.0,567672.0,566911.0,1,0.02,5683.0,0
-Poha,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.0,False,-188308.0,188308.0,187118.0,1,0.02,1886.0,0
-Poha,Kolkata,2,168,150,0,target_gap_hit,0.01,0.000568,False,-182029.0,181926.0,181729.0,1,0.02,1822.0,0
-Poha,Lucknow,2,168,150,0,target_gap_hit,0.01,0.001524,False,-44554.0,44486.0,44260.0,1,0.02,446.0,0
-Poha,Mumbai,2,168,150,0,target_gap_hit,0.01,0.0,False,-290549.0,290549.0,289873.0,1,0.02,2909.0,0
-Poha,Others,2,168,150,0,target_gap_hit,0.01,0.0,False,-786837.0,786837.0,784422.0,1,0.02,7875.0,0
-Poha,Pune,2,168,150,0,target_gap_hit,0.01,0.001323,False,-119589.0,119431.0,118891.0,1,0.01,1197.0,0
-Rice & Rice Products,Ahmedabad,2,168,150,0,target_gap_hit,0.01,0.0,False,-34060.0,34060.0,33774.0,1,0.02,351.0,0
-Rice & Rice Products,Bangalore,10,840,654,0,target_gap_hit,0.01,0.005888,False,-3126996.0,3108693.0,3093229.0,1,0.06,31524.0,0
-Rice & Rice Products,Chandigarh Tricity,6,504,402,0,target_gap_hit,0.01,0.0,False,-116271.0,116271.0,114412.0,1,0.05,1173.0,0
-Rice & Rice Products,Chennai,7,588,465,0,target_gap_hit,0.01,0.008702,False,-421401.0,417765.0,422016.0,1,0.05,4243.0,0
-Rice & Rice Products,Delhi-NCR,9,756,591,0,target_gap_hit,0.01,0.0,False,-2455953.0,2455953.0,2417564.0,1,0.06,24842.0,0
-Rice & Rice Products,Hyderabad,9,756,591,0,target_gap_hit,0.01,0.00444,False,-2187207.0,2177538.0,2158601.0,1,0.06,22084.0,0
-Rice & Rice Products,Kolkata,8,672,528,0,target_gap_hit,0.01,0.004961,False,-1110050.0,1104570.0,1101034.0,1,0.06,11194.0,0
-Rice & Rice Products,Lucknow,6,504,402,0,target_gap_hit,0.01,0.002254,False,-257843.0,257263.0,255084.0,1,0.02,2596.0,0
-Rice & Rice Products,Mumbai,8,672,528,0,target_gap_hit,0.01,0.004903,False,-1135181.0,1129643.0,1126725.0,1,0.06,11427.0,0
-Rice & Rice Products,Others,10,840,654,0,target_gap_hit,0.01,0.0034,False,-5340946.0,5322850.0,5282659.0,1,0.06,53729.0,0
-Rice & Rice Products,Pune,8,672,528,0,target_gap_hit,0.01,0.003813,False,-811228.0,808147.0,788805.0,1,0.03,8169.0,0
-Salt,Bangalore,1,84,87,0,target_gap_hit,0.01,0.001237,False,-56187.0,56117.0,56278.0,1,0.0,563.0,0
-Salt,Chennai,1,84,87,0,target_gap_hit,0.01,0.001237,False,-16493.0,16473.0,16520.0,1,0.0,165.0,0
-Salt,Delhi-NCR,2,168,150,0,target_gap_hit,0.01,0.001356,False,-76334.0,76231.0,75121.0,1,0.02,764.0,0
-Salt,Hyderabad,1,84,87,0,target_gap_hit,0.01,0.001237,False,-27313.0,27279.0,27357.0,1,0.0,274.0,0
+Poha,Delhi-NCR,2,168,150,0,target_gap_hit,0.01,0.0,False,-567672.0,567672.0,566911.0,1,0.08,5683.0,0
+Poha,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.0,False,-188308.0,188308.0,187118.0,1,0.09,1886.0,0
+Poha,Kolkata,2,168,150,0,target_gap_hit,0.01,0.000568,False,-182029.0,181926.0,181729.0,1,0.05,1822.0,0
+Poha,Lucknow,2,168,150,0,target_gap_hit,0.01,0.001524,False,-44554.0,44486.0,44260.0,1,0.05,446.0,0
+Poha,Mumbai,2,168,150,0,target_gap_hit,0.01,0.0,False,-290549.0,290549.0,289873.0,1,0.05,2909.0,0
+Poha,Others,2,168,150,0,target_gap_hit,0.01,0.0,False,-786837.0,786837.0,784422.0,1,0.05,7875.0,0
+Poha,Pune,2,168,150,0,target_gap_hit,0.01,0.001323,False,-119589.0,119431.0,118891.0,1,0.03,1197.0,0
+Rice & Rice Products,Ahmedabad,2,168,150,0,target_gap_hit,0.01,0.0,False,-34060.0,34060.0,33774.0,1,0.03,351.0,0
+Rice & Rice Products,Bangalore,10,840,654,0,target_gap_hit,0.01,0.005888,False,-3126996.0,3108693.0,3093229.0,1,0.11,31524.0,0
+Rice & Rice Products,Chandigarh Tricity,6,504,402,0,target_gap_hit,0.01,0.0,False,-116271.0,116271.0,114412.0,1,0.06,1173.0,0
+Rice & Rice Products,Chennai,7,588,465,0,target_gap_hit,0.01,0.008702,False,-421401.0,417765.0,422016.0,1,0.08,4243.0,0
+Rice & Rice Products,Delhi-NCR,9,756,591,0,target_gap_hit,0.01,0.0,False,-2455953.0,2455953.0,2417564.0,1,0.09,24842.0,0
+Rice & Rice Products,Hyderabad,9,756,591,0,target_gap_hit,0.01,0.00444,False,-2187207.0,2177538.0,2158601.0,1,0.09,22084.0,0
+Rice & Rice Products,Kolkata,8,672,528,0,target_gap_hit,0.01,0.004961,False,-1110050.0,1104570.0,1101034.0,1,0.09,11194.0,0
+Rice & Rice Products,Lucknow,6,504,402,0,target_gap_hit,0.01,0.002254,False,-257843.0,257263.0,255084.0,1,0.05,2596.0,0
+Rice & Rice Products,Mumbai,8,672,528,0,target_gap_hit,0.01,0.004903,False,-1135181.0,1129643.0,1126725.0,1,0.09,11427.0,0
+Rice & Rice Products,Others,10,840,654,0,target_gap_hit,0.01,0.0034,False,-5340946.0,5322850.0,5282659.0,1,0.12,53729.0,0
+Rice & Rice Products,Pune,8,672,528,0,target_gap_hit,0.01,0.003813,False,-811228.0,808147.0,788805.0,1,0.12,8169.0,0
+Salt,Bangalore,1,84,87,0,target_gap_hit,0.01,0.001237,False,-56187.0,56117.0,56278.0,1,0.05,563.0,0
+Salt,Chennai,1,84,87,0,target_gap_hit,0.01,0.001237,False,-16493.0,16473.0,16520.0,1,0.05,165.0,0
+Salt,Delhi-NCR,2,168,150,0,target_gap_hit,0.01,0.001356,False,-76334.0,76231.0,75121.0,1,0.06,764.0,0
+Salt,Hyderabad,1,84,87,0,target_gap_hit,0.01,0.001237,False,-27313.0,27279.0,27357.0,1,0.03,274.0,0
 Salt,Kolkata,1,84,87,0,target_gap_hit,0.01,0.001237,False,-18834.0,18810.0,18864.0,1,0.02,189.0,0
 Salt,Lucknow,1,84,87,0,target_gap_hit,0.01,0.001237,False,-2485.0,2482.0,2489.0,1,0.02,25.0,0
-Salt,Mumbai,1,84,87,0,target_gap_hit,0.01,0.001237,False,-33631.0,33589.0,33685.0,1,0.02,337.0,0
-Salt,Others,2,168,150,0,target_gap_hit,0.01,0.001226,False,-60850.0,60776.0,60672.0,1,0.02,609.0,0
+Salt,Mumbai,1,84,87,0,target_gap_hit,0.01,0.001237,False,-33631.0,33589.0,33685.0,1,0.03,337.0,0
+Salt,Others,2,168,150,0,target_gap_hit,0.01,0.001226,False,-60850.0,60776.0,60672.0,1,0.03,609.0,0
 Salt,Pune,1,84,87,0,target_gap_hit,0.01,0.001237,False,-15746.0,15727.0,15772.0,1,0.02,158.0,0
 Seeds,Bangalore,2,168,150,0,target_gap_hit,0.01,0.0,False,-75559.0,75559.0,75559.0,1,0.02,780.0,0
-Seeds,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.0,False,-2400.0,2400.0,2400.0,1,0.0,24.0,0
+Seeds,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.0,False,-2400.0,2400.0,2400.0,1,0.03,24.0,0
 Seeds,Chennai,2,168,150,0,target_gap_hit,0.01,0.0,False,-11999.0,11999.0,11999.0,1,0.03,124.0,0
 Seeds,Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-16621.0,16621.0,16621.0,1,0.02,166.0,0
-Seeds,Hyderabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-18492.0,18492.0,18492.0,1,0.02,185.0,0
-Seeds,Kolkata,1,84,87,0,target_gap_hit,0.01,0.0,False,-2833.0,2833.0,2833.0,1,0.01,28.0,0
-Seeds,Lucknow,1,84,87,0,target_gap_hit,0.01,0.0,False,-5910.0,5910.0,5910.0,1,0.0,59.0,0
-Seeds,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-5234.0,5234.0,5234.0,1,0.0,52.0,0
-Seeds,Others,2,168,150,0,target_gap_hit,0.01,0.0,False,-78396.0,78396.0,78452.0,1,0.0,786.0,0
+Seeds,Hyderabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-18492.0,18492.0,18492.0,1,0.03,185.0,0
+Seeds,Kolkata,1,84,87,0,target_gap_hit,0.01,0.0,False,-2833.0,2833.0,2833.0,1,0.02,28.0,0
+Seeds,Lucknow,1,84,87,0,target_gap_hit,0.01,0.0,False,-5910.0,5910.0,5910.0,1,0.02,59.0,0
+Seeds,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-5234.0,5234.0,5234.0,1,0.03,52.0,0
+Seeds,Others,2,168,150,0,target_gap_hit,0.01,0.0,False,-78396.0,78396.0,78452.0,1,0.03,786.0,0
 Seeds,Pune,1,84,87,0,target_gap_hit,0.01,0.0,False,-4274.0,4274.0,4274.0,1,0.02,43.0,0
 Single Spice Powder,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-5256.0,5256.0,5162.0,1,0.02,52.0,0
-Single Spice Powder,Bangalore,6,504,402,0,target_gap_hit,0.01,0.0,False,-397041.0,397041.0,385610.0,1,0.03,3895.0,0
-Single Spice Powder,Chandigarh Tricity,4,336,276,0,target_gap_hit,0.01,0.0,False,-18546.0,18546.0,18266.0,1,0.03,182.0,0
-Single Spice Powder,Chennai,5,420,339,0,target_gap_hit,0.01,0.004645,False,-133614.0,132996.0,131811.0,1,0.03,1315.0,0
+Single Spice Powder,Bangalore,6,504,402,0,target_gap_hit,0.01,0.0,False,-397041.0,397041.0,385610.0,1,0.06,3895.0,0
+Single Spice Powder,Chandigarh Tricity,4,336,276,0,target_gap_hit,0.01,0.0,False,-18546.0,18546.0,18266.0,1,0.05,182.0,0
+Single Spice Powder,Chennai,5,420,339,0,target_gap_hit,0.01,0.004645,False,-133614.0,132996.0,131811.0,1,0.05,1315.0,0
 Single Spice Powder,Delhi-NCR,4,336,276,0,target_gap_hit,0.01,0.0,False,-293723.0,293723.0,287350.0,1,0.03,2870.0,0
-Single Spice Powder,Hyderabad,5,420,339,0,target_gap_hit,0.01,0.0,False,-312183.0,312183.0,300259.0,1,0.03,3046.0,0
-Single Spice Powder,Kolkata,4,336,276,0,target_gap_hit,0.01,0.0,False,-136112.0,136112.0,133233.0,1,0.02,1330.0,0
+Single Spice Powder,Hyderabad,5,420,339,0,target_gap_hit,0.01,0.0,False,-312183.0,312183.0,300259.0,1,0.05,3046.0,0
+Single Spice Powder,Kolkata,4,336,276,0,target_gap_hit,0.01,0.0,False,-136112.0,136112.0,133233.0,1,0.03,1330.0,0
 Single Spice Powder,Lucknow,4,336,276,0,target_gap_hit,0.01,0.0,False,-33790.0,33790.0,33245.0,1,0.03,332.0,0
-Single Spice Powder,Mumbai,4,336,276,0,target_gap_hit,0.01,0.0,False,-121931.0,121931.0,118570.0,1,0.03,1191.0,0
-Single Spice Powder,Others,7,588,465,0,target_gap_hit,0.01,0.0,False,-459480.0,459480.0,449147.0,1,0.03,4503.0,0
-Single Spice Powder,Pune,5,420,339,0,target_gap_hit,0.01,0.0,False,-57451.0,57451.0,54871.0,1,0.03,558.0,0
-Sooji,Bangalore,2,168,150,0,target_gap_hit,0.01,0.0,False,-197123.0,197123.0,194173.0,1,0.02,1935.0,0
-Sooji,Chandigarh Tricity,2,168,150,0,target_gap_hit,0.01,0.0,False,-30062.0,30062.0,29612.0,1,0.02,296.0,0
-Sooji,Chennai,2,168,150,0,target_gap_hit,0.01,0.0,False,-55033.0,55033.0,54210.0,1,0.02,542.0,0
+Single Spice Powder,Mumbai,4,336,276,0,target_gap_hit,0.01,0.0,False,-121931.0,121931.0,118570.0,1,0.05,1191.0,0
+Single Spice Powder,Others,7,588,465,0,target_gap_hit,0.01,0.0,False,-459480.0,459480.0,449147.0,1,0.12,4503.0,0
+Single Spice Powder,Pune,5,420,339,0,target_gap_hit,0.01,0.0,False,-57451.0,57451.0,54871.0,1,0.11,558.0,0
+Sooji,Bangalore,2,168,150,0,target_gap_hit,0.01,0.0,False,-197123.0,197123.0,194173.0,1,0.06,1935.0,0
+Sooji,Chandigarh Tricity,2,168,150,0,target_gap_hit,0.01,0.0,False,-30062.0,30062.0,29612.0,1,0.05,296.0,0
+Sooji,Chennai,2,168,150,0,target_gap_hit,0.01,0.0,False,-55033.0,55033.0,54210.0,1,0.03,542.0,0
 Sooji,Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-440071.0,440071.0,433486.0,1,0.02,4328.0,0
 Sooji,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.0,False,-368393.0,368393.0,362880.0,1,0.03,3622.0,0
 Sooji,Kolkata,1,84,87,0,target_gap_hit,0.01,0.0,False,-165470.0,165470.0,162994.0,1,0.02,1625.0,0
 Sooji,Lucknow,1,84,87,0,target_gap_hit,0.01,0.0,False,-33663.0,33663.0,33160.0,1,0.02,331.0,0
-Sooji,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-148300.0,148300.0,146080.0,1,0.02,1457.0,0
-Sooji,Others,1,84,87,0,target_gap_hit,0.01,0.0,False,-1458348.0,1458348.0,1436525.0,1,0.02,14334.0,0
+Sooji,Mumbai,1,84,87,0,target_gap_hit,0.01,0.0,False,-148300.0,148300.0,146080.0,1,0.01,1457.0,0
+Sooji,Others,1,84,87,0,target_gap_hit,0.01,0.0,False,-1458348.0,1458348.0,1436525.0,1,0.05,14334.0,0
 Sooji,Pune,2,168,150,0,target_gap_hit,0.01,0.0,False,-98994.0,98994.0,97512.0,1,0.02,973.0,0
 Sugar,Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.00086,False,-100299.0,100213.0,100358.0,1,0.02,1004.0,0
-Sugar,Bangalore,3,252,213,0,target_gap_hit,0.01,0.0,False,-1261291.0,1261291.0,1261849.0,1,0.03,12621.0,0
-Sugar,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.00086,False,-109489.0,109395.0,109554.0,1,0.02,1096.0,0
+Sugar,Bangalore,3,252,213,0,target_gap_hit,0.01,0.0,False,-1261291.0,1261291.0,1261849.0,1,0.05,12621.0,0
+Sugar,Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.00086,False,-109489.0,109395.0,109554.0,1,0.03,1096.0,0
 Sugar,Chennai,3,252,213,0,target_gap_hit,0.01,0.00096,False,-349140.0,348805.0,349221.0,1,0.03,3493.0,0
-Sugar,Delhi-NCR,2,168,150,0,target_gap_hit,0.01,0.0,False,-1031880.0,1031880.0,1032414.0,1,0.02,10326.0,0
-Sugar,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.000958,False,-738616.0,737909.0,738832.0,1,0.02,7389.0,0
+Sugar,Delhi-NCR,2,168,150,0,target_gap_hit,0.01,0.0,False,-1031880.0,1031880.0,1032414.0,1,0.03,10326.0,0
+Sugar,Hyderabad,2,168,150,0,target_gap_hit,0.01,0.000958,False,-738616.0,737909.0,738832.0,1,0.03,7389.0,0
 Sugar,Kolkata,3,252,213,0,target_gap_hit,0.01,0.000891,False,-327003.0,326712.0,323680.0,1,0.03,3272.0,0
-Sugar,Lucknow,2,168,150,0,target_gap_hit,0.01,0.0,False,-99497.0,99497.0,98685.0,1,0.02,995.0,0
-Sugar,Mumbai,2,168,150,0,target_gap_hit,0.01,0.00086,False,-549764.0,549292.0,534093.0,1,0.02,5502.0,0
-Sugar,Others,2,168,150,0,target_gap_hit,0.01,0.000945,False,-1774962.0,1773286.0,1775492.0,1,0.02,17759.0,0
-Sugar,Pune,3,252,213,0,target_gap_hit,0.01,0.00086,False,-267131.0,266901.0,267261.0,1,0.02,2673.0,0
-Wheat Atta,Ahmedabad,2,168,150,0,target_gap_hit,0.01,0.004051,False,-140781.0,140213.0,140598.0,1,0.02,1420.0,0
-Wheat Atta,Bangalore,4,336,276,0,target_gap_hit,0.01,0.005621,False,-1398076.0,1390261.0,1412312.0,1,0.03,14290.0,0
-Wheat Atta,Chandigarh Tricity,3,252,213,0,target_gap_hit,0.01,0.002991,False,-144902.0,144470.0,144073.0,1,0.03,1449.0,0
-Wheat Atta,Chennai,3,252,213,0,target_gap_hit,0.01,0.004642,False,-188935.0,188062.0,187373.0,1,0.02,1904.0,0
-Wheat Atta,Delhi-NCR,5,420,339,0,target_gap_hit,0.01,0.003841,False,-1511910.0,1506126.0,1488477.0,1,0.14,15346.0,0
-Wheat Atta,Hyderabad,4,336,276,0,target_gap_hit,0.01,0.005251,False,-419534.0,417342.0,416846.0,1,0.11,4267.0,0
-Wheat Atta,Kolkata,4,336,276,0,target_gap_hit,0.01,0.003389,False,-345499.0,344332.0,339702.0,1,0.03,3493.0,0
-Wheat Atta,Lucknow,5,420,339,0,target_gap_hit,0.01,0.003411,False,-321636.0,320543.0,321539.0,1,0.03,3239.0,0
-Wheat Atta,Mumbai,2,168,150,0,target_gap_hit,0.01,0.0,False,-231777.0,231777.0,232775.0,1,0.02,2343.0,0
-Wheat Atta,Others,4,336,276,0,target_gap_hit,0.01,0.002765,False,-3453790.0,3444266.0,3378248.0,1,0.03,34879.0,0
-Wheat Atta,Pune,3,252,213,0,target_gap_hit,0.01,0.0,False,-224521.0,224521.0,224141.0,1,0.05,2267.0,0
+Sugar,Lucknow,2,168,150,0,target_gap_hit,0.01,0.0,False,-99497.0,99497.0,98685.0,1,0.03,995.0,0
+Sugar,Mumbai,2,168,150,0,target_gap_hit,0.01,0.00086,False,-549764.0,549292.0,534093.0,1,0.03,5502.0,0
+Sugar,Others,2,168,150,0,target_gap_hit,0.01,0.000945,False,-1774962.0,1773286.0,1775492.0,1,0.03,17759.0,0
+Sugar,Pune,3,252,213,0,target_gap_hit,0.01,0.00086,False,-267131.0,266901.0,267261.0,1,0.05,2673.0,0
+Wheat Atta,Ahmedabad,2,168,150,0,target_gap_hit,0.01,0.004051,False,-140781.0,140213.0,140598.0,1,0.03,1420.0,0
+Wheat Atta,Bangalore,4,336,276,0,target_gap_hit,0.01,0.005621,False,-1398076.0,1390261.0,1412312.0,1,0.05,14290.0,0
+Wheat Atta,Chandigarh Tricity,3,252,213,0,target_gap_hit,0.01,0.002991,False,-144902.0,144470.0,144073.0,1,0.05,1449.0,0
+Wheat Atta,Chennai,3,252,213,0,target_gap_hit,0.01,0.004642,False,-188935.0,188062.0,187373.0,1,0.05,1904.0,0
+Wheat Atta,Delhi-NCR,5,420,339,0,target_gap_hit,0.01,0.003841,False,-1511910.0,1506126.0,1488477.0,1,0.23,15346.0,0
+Wheat Atta,Hyderabad,4,336,276,0,target_gap_hit,0.01,0.005251,False,-419534.0,417342.0,416846.0,1,0.31,4267.0,0
+Wheat Atta,Kolkata,4,336,276,0,target_gap_hit,0.01,0.003389,False,-345499.0,344332.0,339702.0,1,0.06,3493.0,0
+Wheat Atta,Lucknow,5,420,339,0,target_gap_hit,0.01,0.003411,False,-321636.0,320543.0,321539.0,1,0.08,3239.0,0
+Wheat Atta,Mumbai,2,168,150,0,target_gap_hit,0.01,0.0,False,-231777.0,231777.0,232775.0,1,0.05,2343.0,0
+Wheat Atta,Others,4,336,276,0,target_gap_hit,0.01,0.002765,False,-3453790.0,3444266.0,3378248.0,1,0.05,34879.0,0
+Wheat Atta,Pune,3,252,213,0,target_gap_hit,0.01,0.0,False,-224521.0,224521.0,224141.0,1,0.08,2267.0,0
 "Wheat, Daliya & More",Ahmedabad,1,84,87,0,target_gap_hit,0.01,0.001407,False,-48088.0,48020.0,47439.0,1,0.02,482.0,0
-"Wheat, Daliya & More",Bangalore,1,84,87,0,target_gap_hit,0.01,0.0,False,-254936.0,254936.0,254969.0,1,0.02,2552.0,0
+"Wheat, Daliya & More",Bangalore,1,84,87,0,target_gap_hit,0.01,0.0,False,-254936.0,254936.0,254969.0,1,0.03,2552.0,0
 "Wheat, Daliya & More",Chandigarh Tricity,1,84,87,0,target_gap_hit,0.01,0.001407,False,-40102.0,40045.0,39123.0,1,0.02,401.0,0
 "Wheat, Daliya & More",Chennai,1,84,87,0,target_gap_hit,0.01,0.001407,False,-34739.0,34690.0,34743.0,1,0.02,348.0,0
-"Wheat, Daliya & More",Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-324844.0,324844.0,324885.0,1,0.0,3251.0,0
-"Wheat, Daliya & More",Hyderabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-134289.0,134289.0,132300.0,1,0.02,1345.0,0
+"Wheat, Daliya & More",Delhi-NCR,1,84,87,0,target_gap_hit,0.01,0.0,False,-324844.0,324844.0,324885.0,1,0.02,3251.0,0
+"Wheat, Daliya & More",Hyderabad,1,84,87,0,target_gap_hit,0.01,0.0,False,-134289.0,134289.0,132300.0,1,0.03,1345.0,0
 "Wheat, Daliya & More",Kolkata,1,84,87,0,target_gap_hit,0.01,0.0,False,-180424.0,180424.0,180447.0,1,0.02,1806.0,0
-"Wheat, Daliya & More",Lucknow,1,84,87,0,target_gap_hit,0.01,0.001474,False,-71810.0,71705.0,71820.0,1,0.01,719.0,0
-"Wheat, Daliya & More",Mumbai,1,84,87,0,target_gap_hit,0.01,0.001407,False,-88087.0,87964.0,88099.0,1,0.0,882.0,0
-"Wheat, Daliya & More",Others,1,84,87,0,target_gap_hit,0.01,0.0,False,-823595.0,823595.0,802305.0,1,0.02,8244.0,0
-"Wheat, Daliya & More",Pune,1,84,87,0,target_gap_hit,0.01,0.001407,False,-104560.0,104413.0,102816.0,1,0.02,1047.0,0
+"Wheat, Daliya & More",Lucknow,1,84,87,0,target_gap_hit,0.01,0.001474,False,-71810.0,71705.0,71820.0,1,0.03,719.0,0
+"Wheat, Daliya & More",Mumbai,1,84,87,0,target_gap_hit,0.01,0.001407,False,-88087.0,87964.0,88099.0,1,0.02,882.0,0
+"Wheat, Daliya & More",Others,1,84,87,0,target_gap_hit,0.01,0.0,False,-823595.0,823595.0,802305.0,1,0.03,8244.0,0
+"Wheat, Daliya & More",Pune,1,84,87,0,target_gap_hit,0.01,0.001407,False,-104560.0,104413.0,102816.0,1,0.01,1047.0,0
 Whole Spices,Ahmedabad,3,252,213,0,target_gap_hit,0.01,0.001758,False,-65142.0,65028.0,64721.0,1,0.03,652.0,0
-Whole Spices,Bangalore,4,336,276,0,target_gap_hit,0.01,0.0,False,-666568.0,666568.0,658659.0,1,0.03,6673.0,0
-Whole Spices,Chandigarh Tricity,3,252,213,0,target_gap_hit,0.01,0.002451,False,-25896.0,25833.0,25873.0,1,0.11,259.0,0
-Whole Spices,Chennai,4,336,276,0,target_gap_hit,0.01,0.000905,False,-265070.0,264831.0,263910.0,1,0.06,2652.0,0
+Whole Spices,Bangalore,4,336,276,0,target_gap_hit,0.01,0.0,False,-666568.0,666568.0,658659.0,1,0.05,6673.0,0
+Whole Spices,Chandigarh Tricity,3,252,213,0,target_gap_hit,0.01,0.002451,False,-25896.0,25833.0,25873.0,1,0.03,259.0,0
+Whole Spices,Chennai,4,336,276,0,target_gap_hit,0.01,0.000905,False,-265070.0,264831.0,263910.0,1,0.05,2652.0,0
 Whole Spices,Delhi-NCR,4,336,276,0,target_gap_hit,0.01,0.002294,False,-1016170.0,1013844.0,999326.0,1,0.03,10177.0,0
-Whole Spices,Hyderabad,5,420,339,0,target_gap_hit,0.01,0.0,False,-446378.0,446378.0,437554.0,1,0.03,4468.0,0
-Whole Spices,Kolkata,3,252,213,0,target_gap_hit,0.01,0.0,False,-136098.0,136098.0,134803.0,1,0.02,1362.0,0
-Whole Spices,Lucknow,4,336,276,0,target_gap_hit,0.01,0.002017,False,-94241.0,94051.0,93731.0,1,0.03,943.0,0
-Whole Spices,Mumbai,5,420,339,0,target_gap_hit,0.01,0.002044,False,-265365.0,264824.0,263704.0,1,0.03,2657.0,0
-Whole Spices,Others,6,504,402,0,target_gap_hit,0.01,0.0,False,-1015363.0,1015363.0,1007072.0,1,0.05,10167.0,0
-Whole Spices,Pune,5,420,339,0,target_gap_hit,0.01,0.003182,False,-230889.0,230157.0,230025.0,1,0.05,2312.0,0
+Whole Spices,Hyderabad,5,420,339,0,target_gap_hit,0.01,0.0,False,-446378.0,446378.0,437554.0,1,0.08,4468.0,0
+Whole Spices,Kolkata,3,252,213,0,target_gap_hit,0.01,0.0,False,-136098.0,136098.0,134803.0,1,0.06,1362.0,0
+Whole Spices,Lucknow,4,336,276,0,target_gap_hit,0.01,0.002017,False,-94241.0,94051.0,93731.0,1,0.11,943.0,0
+Whole Spices,Mumbai,5,420,339,0,target_gap_hit,0.01,0.002044,False,-265365.0,264824.0,263704.0,1,0.09,2657.0,0
+Whole Spices,Others,6,504,402,0,target_gap_hit,0.01,0.0,False,-1015363.0,1015363.0,1007072.0,1,0.08,10167.0,0
+Whole Spices,Pune,5,420,339,0,target_gap_hit,0.01,0.003182,False,-230889.0,230157.0,230025.0,1,0.06,2312.0,0

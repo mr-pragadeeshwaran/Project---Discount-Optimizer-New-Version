@@ -1,6 +1,6 @@
 # PricingAI — Portfolio Elasticity & Optimized Discount Plan
 
-*Adapted from PepsiCo PricingAI (hierarchical elasticity → differential-evolution optimizer). Run `20260705_161703` · 84 SKUs × 11 cities · no Gurobi, no cloud — runs on your laptop.*
+*Adapted from PepsiCo PricingAI (hierarchical elasticity → differential-evolution optimizer). Run `20260711_221318` · 84 SKUs × 11 cities · no Gurobi, no cloud — runs on your laptop.*
 
 ## 1. What this adds over the per-cell tool
 

@@ -1,15 +1,15 @@
 # Budget Allocator — marginal-ROI waterline (Objectives 1 & 3)
 
-*Cap discount spend at **10% of baseline revenue** (₹770,080/wk); spend it on the highest marginal-ROI discount first. Same demand kernel as the optimizer.*
+*Cap discount spend at **12% of baseline revenue** (₹924,096/wk); spend it on the highest marginal-ROI discount first. Same demand kernel as the optimizer.*
 
 ## The budget picture
 
 - Baseline revenue: **₹7,700,798/week**.
-- Current discount spend: **₹1,254,156/wk (16.3% of revenue)** — vs the 10% cap.
+- Current discount spend: **₹1,254,156/wk (16.3% of revenue)** — vs the 12% cap.
 - Under the cap the allocator spends **₹793/wk**, at a **waterline marginal ROI of 1.00** (every rupee of discount kept returns ≥₹1.00).
 - Result: **557 cells cut · 1 raised · 27 held**.
 
-**Read this honestly:** the allocator spends almost nothing (₹793 of a ₹770,080 cap) because — under these elasticities — discount barely clears break-even *anywhere*. Only a handful of cells have a discount step whose marginal ROI reaches 1; for the rest, once volume goes flat, marginal ROI sits at −1 (every rupee of discount is a rupee of pure margin given away). So the profit-optimal discount is near-zero — the *fourth* independent confirmation that discount is mostly waste on this portfolio, and an even more aggressive read than the ₹6.98L cut list.
+**Read this honestly:** the allocator spends almost nothing (₹793 of a ₹924,096 cap) because — under these elasticities — discount barely clears break-even *anywhere*. Only a handful of cells have a discount step whose marginal ROI reaches 1; for the rest, once volume goes flat, marginal ROI sits at −1 (every rupee of discount is a rupee of pure margin given away). So the profit-optimal discount is near-zero — the *fourth* independent confirmation that discount is mostly waste on this portfolio, and an even more aggressive read than the ₹6.98L cut list.
 
 **But do NOT slash all discount overnight.** This rests on the wide-band (≈unit-elastic) Bayesian elasticities — it's a directional cross-check, not an execution plan. The glide, reliability gates, engine-agreement, and in-market tests exist precisely because these estimates are uncertain.
 
