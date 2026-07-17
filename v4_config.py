@@ -105,6 +105,16 @@ FESTIVAL_DATES = {
     "2026-01-14": "Makar Sankranti",
     "2026-01-26": "Republic Day",
     "2026-03-03": "Holi",
+    "2026-08-15": "Independence Day",
+    "2026-08-26": "Onam",
+    "2026-08-28": "Raksha Bandhan",
+    "2026-09-04": "Janmashtami",
+    "2026-09-14": "Ganesh Chaturthi",
+    "2026-10-02": "Gandhi Jayanti",
+    "2026-10-20": "Dussehra",
+    "2026-11-08": "Diwali",
+    "2026-11-24": "Guru Nanak Jayanti",
+    "2026-12-25": "Christmas",
 }
 
 # Blinkit platform event days (BBD = Big Billion Days etc.)

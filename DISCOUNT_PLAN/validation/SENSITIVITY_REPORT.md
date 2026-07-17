@@ -1,6 +1,6 @@
 # Sensitivity Report — do the cut calls survive shaking the inputs? (val_05)
 
-*Run `20260711_221318` · 63 waste-cut cells x 200 Monte-Carlo draws (seed 42). No per-draw refits: the champion is fit once for its coefficient uncertainty; each draw re-scores the decision rule analytically.*
+*Run `20260717_174329` · 38 waste-cut cells x 200 Monte-Carlo draws (seed 42). No per-draw refits: the champion is fit once for its coefficient uncertainty; each draw re-scores the decision rule analytically.*
 
 ## What was shaken
 
@@ -10,10 +10,10 @@
 
 ## The verdict
 
-- **Elasticity shake**: median flip rate 0.5%, max 3.0%. The CI cut-gate (needs the effect to sit 1.96 SD below break-even) already bounds this by construction for the 63/63 `reliably_waste` cells — the sweep confirms the gate does its job.
+- **Elasticity shake**: median flip rate 0.2%, max 4.5%. The CI cut-gate (needs the effect to sit 1.96 SD below break-even) already bounds this by construction for the 38/38 `reliably_waste` cells — the sweep confirms the gate does its job.
 - **Cost shake**: max flip rate 0.0%. Expected: the profit break-even bar sits ABOVE the revenue bar at any cost level in the sweep, so cost uncertainty cannot un-justify a revenue-justified cut. The named val_05 residual (costs never swept) is now closed — and it changes nothing, which is the receipt.
-- **Joint shake**: median 0.5%, max 3.0%. **0 cell(s) exceed the 20% fragility bar**, of which **0 are in the live first wave**.
-- **Money at stake under the joint shake**: cut-wave saving p10 ₹705,886 / p50 ₹724,161 / p90 ₹739,449 per month (point estimate ₹725,069). The spread comes almost entirely from the ±10% units band — i.e. uncertainty about SIZE of the win, not WHETHER it is one.
+- **Joint shake**: median 0.2%, max 4.5%. **0 cell(s) exceed the 20% fragility bar**, of which **0 are in the live first wave**.
+- **Money at stake under the joint shake**: cut-wave saving p10 ₹456,110 / p50 ₹467,592 / p90 ₹479,386 per month (point estimate ₹469,671). The spread comes almost entirely from the ±10% units band — i.e. uncertainty about SIZE of the win, not WHETHER it is one.
 
 No cell crossed the fragility bar — every cut call stands in >80% of joint draws.
 
