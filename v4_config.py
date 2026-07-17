@@ -233,6 +233,13 @@ DRIFT_ALERT_THRESHOLD = 0.15      # 15% prediction error = drift
 TARGET_DISCOUNT_PCT = 10.0
 TARGET_QUARTER = "Q4 2026"
 
+# Business savings ambition, ₹/month. Gate C6 in validate_plan.py reports
+# MEETS/BELOW against this bar — a verdict, not an abort (a safe plan smaller
+# than the ambition must still execute). Provenance: the original "can we
+# save ₹5L/month?" engagement question (5L_VERDICT.md). Change consciously;
+# the verdict is quoted in every validation printout.
+SAVINGS_TARGET_MONTHLY_INR = 500_000
+
 # ── Portfolio flywheel: target weighted discount across all cells ──
 # Stage 8 rebalances cuts ↔ reinvestments to move the revenue-weighted
 # portfolio discount toward this target. Change to retune the flywheel.
