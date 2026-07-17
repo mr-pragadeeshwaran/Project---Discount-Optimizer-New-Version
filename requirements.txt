@@ -1,0 +1,12 @@
+# Pinned stack for Stat IQ Lab — Python 3.12.
+# numpy MUST stay 1.26.4 (never install PyMC: it force-upgrades numpy>=2 and
+# binary-breaks statsmodels/scikit-learn). The 2026-07-11 run's diverged RLM
+# fit (OOS R2 = -9.99 in WASTE_REINVEST_REPORT.md) came from an unpinned
+# environment; this exact set reproduces healthy fits.
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.1
+statsmodels==0.14.2
+scikit-learn==1.5.1
+openpyxl==3.1.5
+pytest==8.3.2

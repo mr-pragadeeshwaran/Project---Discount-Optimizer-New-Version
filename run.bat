@@ -5,12 +5,15 @@ REM  Double-click this file. It runs the full pipeline, then opens the
 REM  weekly Excel report (Summary, Glide Path, Track Record, By Product...).
 REM ====================================================================
 cd /d "%~dp0"
+REM Prefer the project venv (pinned stack, see requirements.txt); fall back to PATH python.
+set "PY=python"
+if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
 echo Step 0 — optimizer parameter review (advisory; see DISCOUNT_PLAN\PARAMS_REVIEW.md)...
-python -X utf8 scripts\tracker\params_review.py
+%PY% -X utf8 scripts\tracker\params_review.py
 echo.
 echo Running the discount optimiser pipeline...
 echo.
-python -X utf8 pipeline.py
+%PY% -X utf8 pipeline.py
 if errorlevel 1 (
   echo.
   echo *** Pipeline failed. Scroll up to see the error. ***
