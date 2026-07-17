@@ -334,7 +334,9 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .page.on{display:block;animation:pin var(--dur-3) var(--ease-out)}
 @keyframes pin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 /* staggered entrance for the top row of cards — premium reveal */
+.page.on .hero{animation:rise var(--dur-4) var(--ease-out) both}
 .page.on .kpis>*,.page.on .ov-charts>*{animation:rise var(--dur-4) var(--ease-out) both}
+.page.on .kpis{animation-delay:.04s}
 .page.on .kpis>*:nth-child(1){animation-delay:.03s} .page.on .kpis>*:nth-child(2){animation-delay:.06s}
 .page.on .kpis>*:nth-child(3){animation-delay:.09s} .page.on .kpis>*:nth-child(4){animation-delay:.12s}
 .page.on .kpis>*:nth-child(5){animation-delay:.15s} .page.on .kpis>*:nth-child(6){animation-delay:.18s}
@@ -342,6 +344,31 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 /* ================= overview ================= */
+/* hero — the single business number, established in the first second */
+.hero{position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
+  gap:var(--sp-6);align-items:center;padding:var(--sp-6);margin-bottom:var(--sp-3)}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,var(--c1) 12%,transparent),transparent 55%),
+             radial-gradient(120% 140% at 0% 100%,color-mix(in srgb,var(--c4) 9%,transparent),transparent 50%)}
+.hero>*{position:relative;z-index:1}
+.hero .h-label{display:flex;align-items:center;gap:8px;font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  font-size:var(--fs-caption);text-transform:uppercase;letter-spacing:.12em;color:var(--ink3);font-weight:500}
+.hero .h-label .k-ic{width:24px;height:24px;border-radius:7px}
+.hero .h-num{font-family:var(--display);font-size:clamp(34px,4.6vw,50px);font-weight:800;letter-spacing:-.035em;
+  line-height:1.02;margin:var(--sp-3) 0 var(--sp-2)}
+.hero .h-sub{font-size:13px;color:var(--ink2);max-width:44ch}
+.hero .h-status{display:inline-flex;align-items:center;gap:7px;margin-top:var(--sp-4);padding:5px 12px;
+  border-radius:var(--r-pill);font-size:12px;font-weight:600;background:var(--warnbg);color:var(--warn);border:1px solid transparent}
+.hero .h-status.proven{background:var(--goodbg);color:var(--good)}
+.hero .h-status .dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent)}
+.hero .h-side{display:flex;flex-direction:column;gap:var(--sp-2);border-left:1px solid var(--border);padding-left:var(--sp-6);min-width:0}
+.hero-fact{display:flex;gap:11px;align-items:flex-start}
+.hero-fact .hf-ic{flex:0 0 auto;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:var(--chipbg);color:var(--ink2)}
+.hero-fact .hf-v{font-family:var(--display);font-weight:800;font-size:17px;letter-spacing:-.02em;line-height:1.1}
+.hero-fact .hf-l{font-size:11.5px;color:var(--ink2);line-height:1.35}
+@media (max-width:860px){.hero{grid-template-columns:1fr;gap:var(--sp-4)}
+  .hero .h-side{border-left:0;border-top:1px solid var(--border);padding-left:0;padding-top:var(--sp-4)}}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-bottom:16px}
 .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--e1);
   padding:var(--sp-4) var(--sp-4);transition:transform var(--dur-2) var(--ease-out),box-shadow var(--dur-3) var(--ease-out),border-color var(--dur-2) var(--ease-out)}
@@ -1070,7 +1097,13 @@ function renderOverview() {
   const el = $('#page-overview');
   if (!S.statusLoaded) {
     el.innerHTML =
-      '<div class="kpis">' + Array(6).fill('<div class="kpi"><div class="k-top skel">&nbsp;label&nbsp;</div><div class="k-val skel">&nbsp;00,00,000&nbsp;</div><div class="k-sub skel">&nbsp;subtitle&nbsp;</div></div>').join('') + '</div>' +
+      '<div class="card hero"><div class="h-lead">' +
+        '<div class="skel" style="height:13px;width:210px;margin-bottom:16px"></div>' +
+        '<div class="skel" style="height:46px;width:190px;margin-bottom:12px"></div>' +
+        '<div class="skel" style="height:15px;width:80%;margin-bottom:16px"></div>' +
+        '<div class="skel" style="height:26px;width:240px;border-radius:999px"></div></div>' +
+        '<div class="h-side"><div class="skel" style="height:44px"></div><div class="skel" style="height:44px"></div></div></div>' +
+      '<div class="kpis">' + Array(5).fill('<div class="kpi"><div class="k-top skel">&nbsp;label&nbsp;</div><div class="k-val skel">&nbsp;00,000&nbsp;</div><div class="k-sub skel">&nbsp;subtitle&nbsp;</div></div>').join('') + '</div>' +
       '<div class="ov-charts"><div class="card"><div class="skel" style="height:200px"></div></div><div class="card"><div class="skel" style="height:200px"></div></div></div>' +
       '<div class="card"><div class="skel" style="height:80px"></div></div>';
     return;
@@ -1082,29 +1115,48 @@ function renderOverview() {
     '<span>' + esc(label) + '</span></div>' +
     '<div class="k-val">' + val + '</div><div class="k-sub">' + esc(sub) + '</div></div>';
 
-  const kpis =
-    kpi(IC.rupee, 'hc1', 'Waste found / month',
-        ps ? '<span class="gv">' + rup(ps.achievable_savings_mo_allconf) + '</span>' : '—',
-        ps ? (rup(ps.achievable_savings_mo_highconf) + ' of it high-confidence') : 'run the monthly rebuild') +
-    kpi(IC.scissors, 'hc2', 'This week: cut / hold',
-        tr && tr.cuts != null ? fmtIN(tr.cuts) + ' / ' + fmtIN(tr.holds) : '—',
-        tr ? (tr.week_label ? ('week ' + tr.week_label + ' · ' + fmtIN(tr.scored) + ' scored') : (fmtIN(tr.scored) + ' cells scored so far')) : 'run "Recommend" in the Weekly loop') +
-    kpi(IC.target, 'hc1', 'Model accuracy',
-        ps && ps.oos_r2 != null ? 'R² ' + Number(ps.oos_r2).toFixed(2) : '—',
-        'decision-engine accuracy (out-of-sample)') +
-    kpi(IC.grid, 'hc4', 'Cells (SKU × city)',
-        ps ? fmtIN(ps.n_cells) : '—',
-        ps ? (fmtIN(ps.n_products) + ' products · ' + fmtIN(ps.weeks) + ' weeks of data') : 'no plan yet') +
-    kpi(IC.wallet, 'hc3', 'Budget cap',
-        c.budget_cap != null ? (c.budget_cap * 100).toFixed(0) + '%' : '—',
-        'of gross sales allowed on trade spend') +
-    kpi(IC.clock, 'hc6', 'Latest run',
-        s.latest_run ? esc(runDate(s.latest_run)) : 'none yet',
-        s.plan_exists ? 'plan ready' : 'no plan yet — run the rebuild');
+  /* no plan yet → a single, clear call to action */
+  if (!ps) {
+    el.innerHTML = '<div class="card">' +
+      emptyState('The plan', 'the full monthly rebuild (Run Center)', 'No plan found under the latest run.') + '</div>';
+    return;
+  }
 
-  /* charts */
+  /* ── hero: the one business number, with trust established immediately ── */
+  const ag = s.agreement, sv = s.sensitivity;
+  const scored = tr && tr.scored ? toNum(tr.scored) : 0;
+  const proven = scored > 0;
+  const cutCells = ps.cut_cells_all != null ? ps.cut_cells_all : (ps.bucket_counts ? ps.bucket_counts.c_waste_cut : 0);
+  const sideFacts =
+    (ag ? heroFact(IC.check, fmtIN(ag.agree_with_cut) + ' cells', 'independently confirmed by the second pricing engine (two-engine agreement)') : '') +
+    (sv ? heroFact(IC.shield, fmtIN(sv.fragile) + (toNum(sv.fragile) === 1 ? ' fragile' : ' fragile'),
+            'of ' + fmtIN(sv.total) + ' cut cells wobble when costs & elasticities are stress-shaken')
+        : heroFact(IC.target, 'R² ' + (ps.oos_r2 != null ? Number(ps.oos_r2).toFixed(2) : '—'), 'decision-engine out-of-sample accuracy'));
+  const hero =
+    '<div class="card hero">' +
+      '<div class="h-lead">' +
+        '<div class="h-label"><span class="k-ic hc1">' + IC.rupee + '</span>Recoverable discount waste / month</div>' +
+        '<div class="h-num" title="' + rup(ps.achievable_savings_mo_allconf) + ' / month">' + rupC(ps.achievable_savings_mo_allconf) + '</div>' +
+        '<div class="h-sub">' + rup(ps.achievable_savings_mo_highconf) + ' of it high-confidence, across ' +
+          fmtIN(cutCells) + ' cut cells — recovered as these glide to their proven-safe discounts.</div>' +
+        '<span class="h-status ' + (proven ? 'proven' : '') + '"><span class="dot"></span>' +
+          (proven ? ('Register-proven from ' + fmtIN(scored) + ' scored cells') : 'Model-estimated — not yet register-proven') + '</span>' +
+      '</div>' +
+      '<div class="h-side">' + sideFacts + '</div>' +
+    '</div>';
+
+  /* ── supporting metrics ── */
+  const kpis =
+    kpi(IC.target, 'hc3', 'Model accuracy', ps.oos_r2 != null ? 'R² ' + Number(ps.oos_r2).toFixed(2) : '—', 'decision-engine, out-of-sample') +
+    kpi(IC.scissors, 'hc2', 'This week: cut / hold', tr && tr.cuts != null ? fmtIN(tr.cuts) + ' / ' + fmtIN(tr.holds) : '—',
+        tr ? (tr.week_label ? ('week ' + tr.week_label + ' · ' + fmtIN(tr.scored) + ' scored') : (fmtIN(tr.scored) + ' scored so far')) : 'run “Recommend”') +
+    kpi(IC.grid, 'hc4', 'Cells (SKU × city)', fmtIN(ps.n_cells), fmtIN(ps.n_products) + ' products · ' + fmtIN(ps.weeks) + ' weeks') +
+    kpi(IC.wallet, 'hc5', 'Budget cap', c.budget_cap != null ? (c.budget_cap * 100).toFixed(0) + '%' : '—', 'of gross on trade spend') +
+    kpi(IC.clock, 'hc6', 'Latest run', s.latest_run ? esc(runDate(s.latest_run)) : 'none', s.plan_exists ? 'plan ready' : 'no plan yet');
+
+  /* ── charts ── */
   let charts = '';
-  if (ps && ps.bucket_counts) {
+  if (ps.bucket_counts) {
     const cats = s.category_savings || [];
     charts = '<div class="ov-charts">' +
       '<div class="card"><div class="sec-label">Where the ' + fmtIN(ps.n_cells) + ' cells sit</div>' + donutChart(ps.bucket_counts) +
@@ -1112,12 +1164,9 @@ function renderOverview() {
       '<div class="card"><div class="sec-label">Waste by category, per month</div>' +
       (cats.length ? hbarChart(cats) : '<div class="dim" style="padding:20px 0">No category breakdown yet.</div>') +
       '<div class="chart-note">Model-estimated monthly recovery if the flagged cells glide to their target discounts.</div></div></div>';
-  } else {
-    charts = '<div class="card" style="margin-bottom:16px">' +
-      emptyState('The plan', 'the full monthly rebuild (Run Center)', 'No plan found under the latest run.') + '</div>';
   }
 
-  /* receipts */
+  /* ── receipts ── */
   const rec = (s.receipts || []).map(r =>
     '<div class="receipt ' + (r.ok ? 'ok' : 'fail') + '">' +
     '<span class="ric">' + (r.ok ? IC.check : IC.cross) + '</span>' +
@@ -1126,17 +1175,17 @@ function renderOverview() {
     (rec ? '<div class="receipts">' + rec + '</div>'
          : '<div class="dim">Run the monthly rebuild to generate proof receipts.</div>') + '</div>';
 
-  /* honesty footnote */
-  const ag = s.agreement, sv = s.sensitivity;
-  let hchips = '';
-  if (ag) hchips += '<span class="chip">Two-engine agreement: <b>' + fmtIN(ag.agree_with_cut) + '</b>&nbsp;of the cut cells also flagged by the independent pricing engine</span>';
-  if (sv) hchips += '<span class="chip">Stress test: <b>' + fmtIN(sv.fragile) + ' fragile</b>&nbsp;of ' + fmtIN(sv.total) + ' cut cells when assumptions are shaken</span>';
-  const honesty = '<div class="card honesty"><div class="ht">' + IC.scale + 'Read the big number honestly</div>' +
-    '<p><b>Model-proven ≠ register-proven.</b> The waste figure above comes from a confounder-controlled model — it is the best available estimate, not banked cash. ' +
-    'Only the Weekly Loop scorecard (predicted vs actual, week by week) turns it into register-proven money. Trust the scorecard first.</p>' +
-    (hchips ? '<div class="hchips">' + hchips + '</div>' : '') + '</div>';
+  /* ── how to read it ── */
+  const honesty = '<div class="card honesty"><div class="ht">' + IC.scale + 'How to read the number</div>' +
+    '<p><b>Model-proven ≠ register-proven.</b> The figure above is a confounder-controlled estimate — the best available, not banked cash. ' +
+    'Only the Weekly Loop scorecard (predicted vs actual, week by week) turns it into register-proven money. Trust the scorecard first.</p></div>';
 
-  el.innerHTML = '<div class="kpis">' + kpis + '</div>' + charts + receipts + honesty;
+  el.innerHTML = hero + '<div class="kpis">' + kpis + '</div>' + charts + receipts + honesty;
+}
+
+function heroFact(icon, v, l) {
+  return '<div class="hero-fact"><span class="hf-ic">' + icon + '</span>' +
+    '<span><div class="hf-v">' + v + '</div><div class="hf-l">' + esc(l) + '</div></span></div>';
 }
 
 /* ============================== RUN CENTER ============================== */
