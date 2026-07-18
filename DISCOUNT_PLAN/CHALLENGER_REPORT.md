@@ -1,6 +1,6 @@
 # Competitor Integration — Champion vs Challenger
 
-*Run `20260717_174329`. Model A (champion, untouched) vs Model B (champion + competitor average discount as a control). Pre-registered rule: adopt B only if out-of-sample R² ≥ 0.75, the competitor coefficient signs sanely (rivals discount ↑ → our units ↓), and all category fits hold.*
+*Run `20260717_214500`. Model A (champion, untouched) vs Model B (champion + competitor average discount as a control). Pre-registered rule: adopt B only if out-of-sample R² ≥ 0.75, the competitor coefficient signs sanely (rivals discount ↑ → our units ↓), and all category fits hold.*
 
 ## Verdict
 

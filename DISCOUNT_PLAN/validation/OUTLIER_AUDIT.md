@@ -1,6 +1,6 @@
 # Outlier vs Promo Audit — were the removed spikes really noise? (val_16 residual)
 
-*Run `20260717_174329` · 3483 outlier days removed by the |z|>2.0 filter, cross-checked against the festival calendar, platform-event windows, stock-outs, and each cell's own promo depth. ADVISORY: this audits the filter, it does not change it — the champion's training data stays exactly as validated.*
+*Run `20260717_214500` · 3483 outlier days removed by the |z|>2.0 filter, cross-checked against the festival calendar, platform-event windows, stock-outs, and each cell's own promo depth. ADVISORY: this audits the filter, it does not change it — the champion's training data stays exactly as validated.*
 
 ## What explains the removed days
 

@@ -1,6 +1,6 @@
 # Promo Calendar — MILP challenger (PromoAI-style, advisory)
 
-*624 cells x 12 weeks on grid [0, 5, 10, 15, 20]% · decomposed per category x city · HiGHS via scipy.optimize.milp · run `20260717_174329` · total solve wall-clock **7.4s** across 186 subproblems.*
+*624 cells x 12 weeks on grid [0, 5, 10, 15, 20]% · decomposed per category x city · HiGHS via scipy.optimize.milp · run `20260717_214500` · total solve wall-clock **7.0s** across 186 subproblems.*
 
 ## The calendar in one paragraph
 
@@ -15,25 +15,25 @@
 - Gap target: **1.0%** relative; time limit 60.0s per subproblem.
 - **184/186** subproblems solved to the gap target; **0** hit the time limit (kept incumbent, residual gap flagged below); **0** infeasible.
 - Worst achieved gap: **0.9994%**.
-- Total runtime: **7.4s**.
+- Total runtime: **7.0s**.
 
 | Category | City | Cells | Status | Gap target | Achieved gap | Time (s) | Stop reason |
 |---|---|---:|---:|---:|---:|---:|---|
-| Wheat Atta | Bangalore | 5 | 0 | 1.0% | 0.1473% | 0.66 | target_gap_hit |
-| Besan & Gram Flour | Bangalore | 1 | 0 | 1.0% | 0.0000% | 0.26 | target_gap_hit |
-| Dal & Pulses | Chandigarh T | 9 | 0 | 1.0% | 0.8916% | 0.22 | target_gap_hit |
-| Dal & Pulses | Hyderabad | 12 | 0 | 1.0% | 0.4812% | 0.19 | target_gap_hit |
-| Dal & Pulses | Others | 17 | 0 | 1.0% | 0.6645% | 0.17 | target_gap_hit |
-| Dal & Pulses | Kolkata | 12 | 0 | 1.0% | 0.1915% | 0.12 | target_gap_hit |
-| Dal & Pulses | Delhi-NCR | 12 | 0 | 1.0% | 0.6990% | 0.11 | target_gap_hit |
-| Dal & Pulses | Pune | 12 | 0 | 1.0% | 0.6908% | 0.11 | target_gap_hit |
-| Dal & Pulses | Lucknow | 10 | 0 | 1.0% | 0.4187% | 0.09 | target_gap_hit |
-| Dal & Pulses | Bangalore | 11 | 0 | 1.0% | 0.7253% | 0.09 | target_gap_hit |
-| Dal & Pulses | Chennai | 10 | 0 | 1.0% | 0.3786% | 0.09 | target_gap_hit |
-| Rice & Rice Products | Hyderabad | 10 | 0 | 1.0% | 0.0000% | 0.08 | target_gap_hit |
-| Rice & Rice Products | Bangalore | 10 | 0 | 1.0% | 0.0000% | 0.08 | target_gap_hit |
-| Rice & Rice Products | Kolkata | 9 | 0 | 1.0% | 0.0000% | 0.08 | target_gap_hit |
-| Rice & Rice Products | Others | 10 | 0 | 1.0% | 0.0000% | 0.08 | target_gap_hit |
+| Wheat Atta | Bangalore | 5 | 0 | 1.0% | 0.1473% | 0.69 | target_gap_hit |
+| Besan & Gram Flour | Bangalore | 1 | 0 | 1.0% | 0.0000% | 0.28 | target_gap_hit |
+| Dal & Pulses | Chandigarh T | 9 | 0 | 1.0% | 0.8916% | 0.16 | target_gap_hit |
+| Dal & Pulses | Others | 17 | 0 | 1.0% | 0.6645% | 0.14 | target_gap_hit |
+| Dal & Pulses | Kolkata | 12 | 0 | 1.0% | 0.1915% | 0.11 | target_gap_hit |
+| Dal & Pulses | Delhi-NCR | 12 | 0 | 1.0% | 0.6990% | 0.09 | target_gap_hit |
+| Dal & Pulses | Mumbai | 8 | 0 | 1.0% | 0.6125% | 0.08 | target_gap_hit |
+| Wheat Atta | Hyderabad | 5 | 0 | 1.0% | 0.7845% | 0.08 | target_gap_hit |
+| Dal & Pulses | Pune | 12 | 0 | 1.0% | 0.6908% | 0.08 | target_gap_hit |
+| Dal & Pulses | Ahmedabad | 6 | 0 | 1.0% | 0.5649% | 0.08 | target_gap_hit |
+| Dal & Pulses | Bangalore | 11 | 0 | 1.0% | 0.7253% | 0.08 | target_gap_hit |
+| Dal & Pulses | Hyderabad | 12 | 0 | 1.0% | 0.4812% | 0.08 | target_gap_hit |
+| Dal & Pulses | Lucknow | 10 | 0 | 1.0% | 0.4187% | 0.08 | target_gap_hit |
+| Single Spice Powder | Kolkata | 5 | 0 | 1.0% | 0.0000% | 0.06 | target_gap_hit |
+| Single Spice Powder | Hyderabad | 5 | 0 | 1.0% | 0.0000% | 0.06 | target_gap_hit |
 
 _(top 15 by solve time shown; full table in `promo_solver_report.csv` — 186 rows)_
 

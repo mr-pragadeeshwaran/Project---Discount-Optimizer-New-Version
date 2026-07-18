@@ -1,6 +1,6 @@
 # Sensitivity Report — do the cut calls survive shaking the inputs? (val_05)
 
-*Run `20260717_174329` · 38 waste-cut cells x 200 Monte-Carlo draws (seed 42). No per-draw refits: the champion is fit once for its coefficient uncertainty; each draw re-scores the decision rule analytically.*
+*Run `20260717_214500` · 38 waste-cut cells x 200 Monte-Carlo draws (seed 42). No per-draw refits: the champion is fit once for its coefficient uncertainty; each draw re-scores the decision rule analytically.*
 
 ## What was shaken
 

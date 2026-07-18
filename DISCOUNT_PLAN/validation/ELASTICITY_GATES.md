@@ -1,6 +1,6 @@
 # Elasticity Validation Gates — 3-Stage Protocol
 
-*Run `20260717_174329` · matrix `DISCOUNT_PLAN\pricing\elasticities.csv` · 627 SKU×city cells · generated 2026-07-17 18:53*
+*Run `20260717_214500` · matrix `DISCOUNT_PLAN\pricing\elasticities.csv` · 627 SKU×city cells · generated 2026-07-17 22:35*
 
 ## Verdict: **PASS**
 
