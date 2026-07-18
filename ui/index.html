@@ -197,9 +197,31 @@ nav a:hover .kbd,nav a.on .kbd{opacity:.7}
   aside{width:64px;padding:18px 8px}
   aside .wm-txt,aside nav a .nl,aside .sidefoot{display:none}
   aside nav a{justify-content:center;padding:10px}
+  aside nav a.on::before{left:-8px}
   .wordmark{justify-content:center;padding:2px 0 16px}
   .main{margin-left:64px}
 }
+/* tablet-down: tighten the shell */
+@media (max-width:760px){
+  #content{padding:16px 16px 40px}
+  .topbar{padding:12px 16px;gap:10px}
+  .topbar .tt .sub{display:none}
+  .cmdk-trigger{padding:0 9px}
+  .search{flex:1 1 150px}
+  .search input{width:100%}
+  .toolbar{gap:8px}
+  .reading{padding:18px 16px}
+  .cmdk-scrim{padding:8vh 12px 12px}
+}
+/* phone: single-column data, roomy tap targets */
+@media (max-width:560px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .topbar .pill{display:none}
+  .hero{padding:var(--sp-5)}
+  .btn{padding:9px 15px}
+  nav a{padding:11px}
+}
+@media (max-width:400px){ .kpis{grid-template-columns:1fr} }
 
 /* ================= common bits ================= */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--e1);padding:var(--sp-5);
@@ -538,30 +560,44 @@ td.num,th.num{text-align:right}
 .empty .btn{margin-top:8px}
 
 /* ================= weekly ================= */
+/* loop status — where the weekly cycle actually is right now */
+.loop-status{display:flex;align-items:center;gap:14px;margin-bottom:12px;border-left:3px solid var(--warn)}
+.loop-status.ok{border-left-color:var(--good)}
+.loop-status .ls-ic{flex:0 0 auto;width:38px;height:38px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;
+  background:var(--warnbg);color:var(--warn)}
+.loop-status.ok .ls-ic{background:var(--goodbg);color:var(--good)}
+.loop-status .ls-x{flex:1;min-width:0}
+.loop-status .ls-t{font-weight:700;font-size:14px;letter-spacing:-.01em}
+.loop-status .ls-s{font-size:12.5px;color:var(--ink2);margin-top:1px}
 .flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.flow .fstep{flex:1;min-width:170px;background:var(--surface);border:1px solid var(--border);border-radius:11px;
-  box-shadow:var(--shadow);padding:13px 15px;display:flex;gap:11px;align-items:flex-start}
-.flow .fn{flex:0 0 auto;width:23px;height:23px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
-  font-size:11.5px;font-weight:650;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.flow .fstep{flex:1;min-width:170px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  box-shadow:var(--e1);padding:14px 15px;display:flex;gap:11px;align-items:flex-start;
+  transition:box-shadow var(--dur-3) var(--ease-out),transform var(--dur-2) var(--ease-out),border-color var(--dur-2) var(--ease-out)}
+.flow .fstep:hover{box-shadow:var(--e2);transform:translateY(-1px)}
+.flow .fn{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+  font-family:var(--display);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
 .flow .ft{font-weight:650;font-size:13px}
-.flow .fd{font-size:11.5px;color:var(--ink2)}
+.flow .fd{font-size:11.5px;color:var(--ink2);margin-top:2px}
 .flow .farr{align-self:center;color:var(--ink3);flex:0 0 auto}
 @media (max-width:1024px){.flow .farr{display:none}}
 .wk-note{font-size:12px;color:var(--ink2);margin-top:9px}
 
 /* ================= reports ================= */
 .rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:11px;margin-bottom:14px}
-.rep-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;box-shadow:var(--shadow);
+.rep-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--e1);
   padding:15px;cursor:pointer;text-align:left;font:inherit;color:var(--ink);
-  transition:border-color .15s ease,transform .15s ease;display:flex;gap:11px;align-items:flex-start}
-.rep-card:hover{border-color:var(--accent);transform:translateY(-1px)}
-.rep-card.on{border-color:var(--accent);background:var(--accent-soft)}
-.rep-card .ri{flex:0 0 auto;color:var(--accent);margin-top:1px}
-.rep-card .rt{font-weight:650;font-size:13.5px}
-.rep-card .rq{font-size:12px;color:var(--ink2);margin-top:2px}
+  transition:border-color var(--dur-2) var(--ease-out),transform var(--dur-2) var(--ease-out),box-shadow var(--dur-3) var(--ease-out);
+  display:flex;gap:12px;align-items:flex-start}
+.rep-card:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--border));transform:translateY(-2px);box-shadow:var(--e3)}
+.rep-card.on{border-color:var(--accent);box-shadow:var(--ring)}
+.rep-card .ri{flex:0 0 auto;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.rep-card .ri svg{width:16px;height:16px}
+.rep-card .rt{font-weight:650;font-size:13.5px;letter-spacing:-.01em}
+.rep-card .rq{font-size:12px;color:var(--ink2);margin-top:3px;line-height:1.4}
 .reading{padding:24px 28px}
 .reading .rhead{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
-.md{max-width:840px}
+.reading .rhead h3{font-family:var(--display);font-size:19px;letter-spacing:-.025em}
+.md{max-width:760px;line-height:1.68}
 .md h2{font-size:17px;margin:20px 0 8px}
 .md h3{font-size:14px;margin:16px 0 6px}
 .md p{margin:7px 0;color:var(--ink2)}
@@ -716,6 +752,7 @@ td.num,th.num{text-align:right}
       </section>
 
       <section class="page" data-page="weekly" id="page-weekly">
+        <div id="wk-status"></div>
         <div class="flow" id="wk-flow"></div>
         <div class="card" style="margin-bottom:14px">
           <div class="sec-label">KAM handoff — this week's sheet</div>
@@ -1558,7 +1595,22 @@ function renderWeeklyFlow() {
     '<div class="fstep"><span class="fn">' + s[0] + '</span><span><div class="ft">' + esc(s[1]) + '</div><div class="fd">' + esc(s[2]) + '</div></span></div>'
   ).join('');
 }
+function renderLoopStatus() {
+  const box = $('#wk-status'); if (!box) return;
+  const tr = (S.status && S.status.tracker) || null;
+  if (!tr || tr.week_label == null) { box.innerHTML = ''; return; }
+  const scored = toNum(tr.scored) || 0, proven = scored > 0;
+  const msg = proven
+    ? (fmtIN(scored) + ' cell' + (scored === 1 ? '' : 's') + ' scored against real actuals — the scorecard below is live.')
+    : (fmtIN(tr.cuts) + ' cut' + (toNum(tr.cuts) === 1 ? '' : 's') + ' recommended, awaiting the KAM execution log — nothing scored against the register yet.');
+  box.innerHTML = '<div class="card loop-status ' + (proven ? 'ok' : '') + '">' +
+    '<span class="ls-ic">' + (proven ? IC.check : IC.clock) + '</span>' +
+    '<div class="ls-x"><div class="ls-t">Week ' + esc(tr.week_label) + ' · ' + (proven ? 'Register-proven' : 'Awaiting actuals') + '</div>' +
+    '<div class="ls-s">' + esc(msg) + '</div></div>' +
+    (proven ? '' : '<a class="btn ghost sm" href="#run">Score last week</a>') + '</div>';
+}
 async function renderWeekly() {
+  renderLoopStatus();
   renderWeeklyFlow();
   const hb = $('#wk-handoff'), hs = $('#wk-history');
   if (WK.handoff === undefined) {
@@ -1612,10 +1664,17 @@ const REPORT_EMPTY = {
 };
 const REP = { open: null, cache: {} };
 
+const REPORT_ICON = {
+  readout: IC.flag, backtest: IC.clock, sens: IC.shield, promo: IC.target,
+  chal: IC.scissors, budget: IC.wallet, params: IC.scale, egates: IC.grid,
+};
+const REPORT_HUE = { readout: 'hc1', backtest: 'hc3', sens: 'hc4', promo: 'hc2',
+  chal: 'hc2', budget: 'hc5', params: 'hc6', egates: 'hc4' };
 function renderReports() {
   $('#rep-grid').innerHTML = REPORT_DEFS.map(r =>
-    '<button class="rep-card' + (REP.open === r[0] ? ' on' : '') + '" data-report="' + r[0] + '">' +
-    '<span class="ri">' + IC.doc + '</span>' +
+    '<button class="rep-card' + (REP.open === r[0] ? ' on' : '') + '" data-report="' + r[0] + '"' +
+    (REP.open === r[0] ? ' aria-current="true"' : '') + '>' +
+    '<span class="ri ' + (REPORT_HUE[r[0]] || 'hc1') + '">' + (REPORT_ICON[r[0]] || IC.doc) + '</span>' +
     '<span><div class="rt">' + esc(r[1]) + '</div><div class="rq">' + esc(r[2]) + '</div></span></button>').join('');
 }
 async function openReport(key) {
@@ -1859,6 +1918,7 @@ async function refreshStatus() {
   }
   if (S.route === 'overview') renderOverview();
   if (S.route === 'inputs') renderInputs();
+  if (S.route === 'weekly') renderLoopStatus();
 }
 
 const PAGE_LOADERS = {
