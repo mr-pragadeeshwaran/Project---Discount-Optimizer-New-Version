@@ -227,8 +227,10 @@ nav a.on::before{content:"";position:absolute;left:-2px;top:50%;transform:transl
 }
 
 /* ================= common bits ================= */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--e1);padding:var(--sp-5);
-  transition:box-shadow var(--dur-3) var(--ease-out),border-color var(--dur-2) var(--ease-out)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--e2);padding:var(--sp-5);
+  transition:box-shadow var(--dur-3) var(--ease-out),border-color var(--dur-2) var(--ease-out),transform var(--dur-3) var(--ease-spring)}
+/* physical panels lift toward the cursor (tactile depth) — not the reading pane */
+.card:not(.reading):not(.console):hover{transform:translateY(-2px);box-shadow:var(--e3)}
 .sec-label{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:var(--fs-caption);
   text-transform:uppercase;letter-spacing:.12em;color:var(--ink3);font-weight:500;margin-bottom:var(--sp-3)}
 .dim{color:var(--ink3)}
@@ -1188,6 +1190,29 @@ function hbarChart(items) { /* items: [{category, cells, saving_mo}] */
   return '<svg class="hbar-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Waste by category per month">' + out + '</svg>';
 }
 
+/* ---- count-up: rAF-driven, with a safety net so it never sticks ---- */
+function animateNumber(el, to, dur, fmt) {
+  if (!el || !isFinite(to)) return;
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = fmt(to); return; }
+  var t0 = null, done = false;
+  function fin() { if (done) return; done = true; el.textContent = fmt(to); }
+  function step(ts) {
+    if (done) return;
+    if (t0 === null) t0 = ts;
+    var p = Math.min((ts - t0) / dur, 1);
+    el.textContent = fmt(to * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(step); else fin();
+  }
+  setTimeout(function () { requestAnimationFrame(step); }, 140);
+  setTimeout(fin, dur + 340);
+}
+function animateOverviewNumbers() {
+  var hn = $('.hero .h-num');
+  if (hn) { var raw = +(hn.getAttribute('title') || '').replace(/[^0-9]/g, ''); if (raw) animateNumber(hn, raw, 1150, function (v) { return rupC(v); }); }
+  var db = $('.donut-big');
+  if (db) { var to = +String(db.textContent).replace(/[^0-9]/g, ''); if (to) animateNumber(db, to, 1250, function (v) { return fmtIN(Math.round(v)); }); }
+}
+
 /* ============================== OVERVIEW ============================== */
 function renderOverview() {
   const el = $('#page-overview');
@@ -1277,6 +1302,7 @@ function renderOverview() {
     'Only the Weekly Loop scorecard (predicted vs actual, week by week) turns it into register-proven money. Trust the scorecard first.</p></div>';
 
   el.innerHTML = hero + '<div class="kpis">' + kpis + '</div>' + charts + receipts + honesty;
+  animateOverviewNumbers();
 }
 
 function heroFact(icon, v, l) {
