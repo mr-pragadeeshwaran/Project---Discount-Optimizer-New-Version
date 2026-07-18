@@ -15,8 +15,9 @@
   document.documentElement.setAttribute('data-theme', t);
 })();
 </script>
-<link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&f[]=cabinet-grotesk@700,800,900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
 <style>
 /* ================= tokens ================= */
 :root{
@@ -28,8 +29,8 @@
   --goodbg:#eaf7ea; --badbg:#faeee9; --warnbg:#faf3e3;
   --c1:#2a78d6; --c2:#d97706; --c3:#0f9d8f; --c4:#8b5cf6;
   --logbg:#0b0e14; --logink:#c8ceda; --logdim:#5c6576;
-  /* heavy grotesque for headlines + big numbers (Lovable-style); General Sans for UI */
-  --display:"General Sans",Inter,"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  /* Inter for headings, big numbers and UI (calm, neutral); JetBrains Mono for data/labels */
+  --display:"Inter","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
 
   /* ── design tokens — every value below derives from these ──────────── */
   /* spacing (4px base) */
@@ -113,7 +114,7 @@
 html,body{margin:0;padding:0}
 body{
   background:radial-gradient(130% 90% at 50% -12%,var(--bg) 0%,var(--bg2,var(--bg)) 72%) fixed; color:var(--ink);
-  font-family:"General Sans",Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  font-family:"Inter","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
   font-size:var(--fs-body); line-height:1.55;
   font-variant-numeric:tabular-nums;
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
