@@ -24,7 +24,7 @@
   --ink:#101828; --ink2:#475467; --ink3:#98a2b3;
   --accent:#2a78d6; --accent-soft:#eaf2fc;
   --good:#0ca30c; --warn:#b7791f; --bad:#c65133;
-  --chipbg:#f2f4f7; --shadow:0 1px 2px rgba(16,24,40,.06);
+  --chipbg:#f2f4f7;
   --goodbg:#eaf7ea; --badbg:#faeee9; --warnbg:#faf3e3;
   --c1:#2a78d6; --c2:#d97706; --c3:#0f9d8f; --c4:#8b5cf6;
   --logbg:#0b0e14; --logink:#c8ceda; --logdim:#5c6576;
@@ -62,7 +62,7 @@
     --ink:#f2f4f7; --ink2:#c3c9d4; --ink3:#6b7280;
     --accent:#3987e5; --accent-soft:#14263f;
     --good:#3fbf3f; --warn:#fab219; --bad:#ec835a;
-    --chipbg:#1d222b; --shadow:0 1px 2px rgba(0,0,0,.35);
+    --chipbg:#1d222b;
     --goodbg:#142a14; --badbg:#33200f; --warnbg:#2e250e;
     --c1:#3987e5; --c2:#f59e0b; --c3:#14b8a6; --c4:#a78bfa;
   }
@@ -71,20 +71,20 @@
   /* Lovable-inspired — warm cream canvas, near-black ink, black pill actions,
      with the brand's coral→amber→teal→violet→pink gradient reused for accents. */
   --bg:#f4f1ea; --surface:#fbf9f4; --border:#e7e0d2;
-  --ink:#0a0a0a; --ink2:#57534a; --ink3:#8c867a;
+  --ink:#0a0a0a; --ink2:#57534a; --ink3:#6f6a5e;
   --accent:#111111; --accent-deep:#000000; --accent-soft:#ece5d7;
-  --good:#1a7d4a; --warn:#b06a12; --bad:#cc3f26;
-  --chipbg:#ece7db; --shadow:0 1px 2px rgba(70,58,32,.07);
+  --good:#15703e; --warn:#8a5410; --bad:#bb3620;
+  --chipbg:#ece7db;
   --goodbg:#e7f0e4; --badbg:#f6e6df; --warnbg:#f4ecd6;
   --c1:#f0562e; --c2:#e8992b; --c3:#149a6e; --c4:#7b52e8; --c5:#111111; --c6:#e0417f;
 }
 :root[data-theme="dark"]{
   /* Warm near-black to match the cream light mode; cream ink, warm-white pills. */
   --bg:#12100c; --surface:#1b1813; --border:#2c2820;
-  --ink:#f4f1ea; --ink2:#b3ab9b; --ink3:#6f685b;
+  --ink:#f4f1ea; --ink2:#b3ab9b; --ink3:#8b8474;
   --accent:#f4f1ea; --accent-deep:#ffffff; --accent-soft:#272219;
   --good:#3fbf74; --warn:#e8a13c; --bad:#e0664f;
-  --chipbg:#211d16; --shadow:0 1px 2px rgba(0,0,0,.35);
+  --chipbg:#211d16;
   --goodbg:#182a1c; --badbg:#331d13; --warnbg:#2e250e;
   --c1:#ff7a54; --c2:#f0a63c; --c3:#3fbf8e; --c4:#a78bfa; --c5:#f4f1ea; --c6:#f472b6;
   /* elevation reads as depth-of-black in dark mode */
@@ -142,10 +142,10 @@ button{font-family:inherit}
 /* ================= app shell ================= */
 .app{display:flex;min-height:100vh}
 aside{
-  position:fixed;inset:0 auto 0 0;width:232px;z-index:40;
+  position:fixed;inset:0 auto 0 0;width:232px;z-index:var(--z-nav);
   background:var(--surface);border-right:1px solid var(--border);
   display:flex;flex-direction:column;padding:18px 12px;
-  transition:width .15s ease;
+  transition:width var(--dur-2) var(--ease-out);
 }
 .wordmark{display:flex;align-items:center;gap:10px;padding:2px 10px 16px}
 .wordmark .logo{flex:0 0 auto;width:32px;height:32px;border-radius:10px;
@@ -157,8 +157,6 @@ aside{
 .wordmark .wm-tag{font-family:"Instrument Serif",Georgia,serif;font-style:italic;font-size:11.5px;
   color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 nav{display:flex;flex-direction:column;gap:2px}
-.nav-lbl{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:9.5px;font-weight:600;
-  letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);padding:var(--sp-2) var(--sp-3) var(--sp-1);margin-top:var(--sp-2)}
 nav a{
   position:relative;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--r-sm);
   color:var(--ink2);font-weight:500;font-size:13px;white-space:nowrap;
@@ -171,14 +169,12 @@ nav a.on{background:var(--accent-soft);color:var(--ink);font-weight:600}
 nav a.on::before{content:"";position:absolute;left:-2px;top:50%;transform:translateY(-50%);
   width:3px;height:18px;border-radius:0 3px 3px 0;background:var(--accent);animation:navind var(--dur-3) var(--ease-spring)}
 @keyframes navind{from{height:0;opacity:0}to{height:18px;opacity:1}}
-nav a .kbd{margin-left:auto;opacity:0;transition:opacity var(--dur-2) var(--ease-out)}
-nav a:hover .kbd,nav a.on .kbd{opacity:.7}
 .sidefoot{margin-top:auto;padding:10px;font-size:11px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kbd{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;
   font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:10px;font-weight:600;line-height:1;
   color:var(--ink3);background:var(--chipbg);border:1px solid var(--border);border-radius:5px;box-shadow:0 1px 0 var(--border)}
 
-.main{flex:1;margin-left:232px;min-width:0;transition:margin-left .15s ease}
+.main{flex:1;margin-left:232px;min-width:0;transition:margin-left var(--dur-2) var(--ease-out)}
 .topbar{
   position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;
   padding:14px 28px;background:color-mix(in srgb,var(--bg) 80%,transparent);
@@ -186,12 +182,12 @@ nav a:hover .kbd,nav a.on .kbd{opacity:.7}
   border-bottom:1px solid transparent;
   transition:border-color var(--dur-3) var(--ease-out),box-shadow var(--dur-3) var(--ease-out);
 }
-.topbar.scrolled{border-bottom-color:var(--border);box-shadow:0 6px 20px -14px rgba(28,22,10,.4)}
+.topbar.scrolled{border-bottom-color:var(--border);box-shadow:0 8px 20px -14px rgba(0,0,0,.28)}
 .topbar .tt{min-width:0}
 .topbar .tt h1{font-size:var(--fs-h1)}
 .topbar .tt .sub{font-size:12.5px;color:var(--ink2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar .spacer{flex:1}
-#content{padding:22px 28px 48px;max-width:1240px}
+#content{padding:22px 28px 48px;max-width:var(--rail);margin-inline:auto}
 
 @media (max-width:1100px){
   aside{width:64px;padding:18px 8px}
@@ -201,27 +197,9 @@ nav a:hover .kbd,nav a.on .kbd{opacity:.7}
   .wordmark{justify-content:center;padding:2px 0 16px}
   .main{margin-left:64px}
 }
-/* tablet-down: tighten the shell */
-@media (max-width:760px){
-  #content{padding:16px 16px 40px}
-  .topbar{padding:12px 16px;gap:10px}
-  .topbar .tt .sub{display:none}
-  .cmdk-trigger{padding:0 9px}
-  .search{flex:1 1 150px}
-  .search input{width:100%}
-  .toolbar{gap:8px}
-  .reading{padding:18px 16px}
-  .cmdk-scrim{padding:8vh 12px 12px}
-}
-/* phone: single-column data, roomy tap targets */
-@media (max-width:560px){
-  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .topbar .pill{display:none}
-  .hero{padding:var(--sp-5)}
-  .btn{padding:9px 15px}
-  nav a{padding:11px}
-}
-@media (max-width:400px){ .kpis{grid-template-columns:1fr} }
+/* NOTE: the width-tightening media blocks (760/560/400) live at the END of the
+   stylesheet so they win over the base component rules they override — media
+   queries add no specificity, so source order decides. See "responsive shell". */
 
 /* mobile nav drawer — below 760px the icon rail becomes a labelled off-canvas
    drawer behind a hamburger, so navigation stays legible on a phone */
@@ -266,19 +244,13 @@ nav a:hover .kbd,nav a.on .kbd{opacity:.7}
 .btn.sm{padding:5px 13px;font-size:12px}
 .btn:focus-visible{outline:none;box-shadow:var(--ring),var(--e1)}
 .btn:disabled,body.job-running .btn[data-run]{opacity:.45;cursor:default;pointer-events:none;transform:none;box-shadow:none}
-.iconbtn{
-  display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;
-  border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink2);
-  cursor:pointer;transition:background .15s ease,color .15s ease;
-}
-.iconbtn:hover{background:var(--chipbg);color:var(--ink)}
 
 /* Day / Night segmented theme switch */
 .theme-seg{display:inline-flex;align-items:center;gap:2px;background:var(--chipbg);
   border:1px solid var(--border);border-radius:999px;padding:3px}
 .theme-seg button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;
   padding:5px 13px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;
-  color:var(--ink3);transition:background .15s ease,color .15s ease}
+  color:var(--ink3);transition:background var(--dur-2) var(--ease-out),color var(--dur-2) var(--ease-out)}
 .theme-seg button:hover{color:var(--ink)}
 .theme-seg button.on{background:var(--surface);color:var(--ink);
   box-shadow:0 1px 3px rgba(0,0,0,.18)}
@@ -315,18 +287,18 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 @keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
 
 /* toasts */
-#toasts{position:fixed;right:20px;bottom:20px;z-index:100;display:flex;flex-direction:column;gap:8px}
+#toasts{position:fixed;right:20px;bottom:20px;z-index:var(--z-toast);display:flex;flex-direction:column;gap:8px}
 .toast{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);
-  border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.14);padding:11px 15px;font-size:13px;font-weight:500;
+  border-radius:10px;box-shadow:var(--e3);padding:11px 15px;font-size:13px;font-weight:500;
   max-width:380px;animation:tin .18s ease}
 .toast .ticon{flex:0 0 auto;display:flex}
 .toast.good .ticon{color:var(--good)} .toast.bad .ticon{color:var(--bad)}
 @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* tooltip */
-#tooltip{position:fixed;z-index:120;pointer-events:none;display:none;max-width:280px;
+#tooltip{position:fixed;z-index:var(--z-tooltip);pointer-events:none;display:none;max-width:280px;
   background:var(--ink);color:var(--bg);border-radius:8px;padding:7px 11px;font-size:12px;line-height:1.45;
-  box-shadow:0 4px 16px rgba(0,0,0,.25)}
+  box-shadow:var(--e3)}
 #tooltip b{font-weight:650}
 
 /* ================= command palette (⌘K) ================= */
@@ -430,7 +402,6 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .hc5{color:var(--c5);background:color-mix(in srgb,var(--c5) 13%,transparent)}
 .hc6{color:var(--c6);background:color-mix(in srgb,var(--c6) 13%,transparent)}
 .kpi .k-val{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-0.025em;line-height:1.12;word-break:break-word}
-.k-val .gv{color:var(--accent)}
 .kpi .k-sub{font-size:11.5px;color:var(--ink2);margin-top:4px}
 
 .ov-charts{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:12px;margin-bottom:16px}
@@ -438,7 +409,7 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .donut-flex{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .donut-flex svg{width:186px;height:186px;flex:0 0 auto}
 .legend{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1}
-.legend .li{display:flex;align-items:center;gap:9px;font-size:12.5px}
+.legend .li{display:flex;align-items:center;gap:9px;font-size:12.5px;cursor:default;transition:color var(--dur-1) var(--ease-out)}
 .legend .sw{width:11px;height:11px;border-radius:3.5px;flex:0 0 auto}
 .legend .ln{color:var(--ink2);flex:1;min-width:0}
 .legend .lv{font-weight:600;color:var(--ink)}
@@ -447,7 +418,6 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .donut-arc{transition:stroke-width var(--dur-2) var(--ease-spring);cursor:default}
 .donut-flex svg:hover .donut-arc{opacity:.5}
 .donut-flex svg .donut-arc:hover{opacity:1;stroke-width:26}
-.legend .li{cursor:default;transition:color var(--dur-1) var(--ease-out)}
 .legend .lp{color:var(--ink3);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
 .hbar-svg{width:100%;height:auto;display:block}
 .hbar-bar{transform-box:fill-box;transform-origin:left center;animation:hgrow var(--dur-4) var(--ease-out) both}
@@ -465,7 +435,6 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .honesty .ht{font-weight:650;margin-bottom:5px;display:flex;align-items:center;gap:8px}
 .honesty .ht svg{color:var(--warn)}
 .honesty p{margin:0;color:var(--ink2);font-size:12.5px}
-.honesty .hchips{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chipbg);border-radius:999px;
   padding:3px 11px;font-size:12px;color:var(--ink2)}
 .chip b{color:var(--ink)}
@@ -479,8 +448,8 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .cadence-head h3{font-size:15px}
 .cadence-head .ch-s{font-size:12px;color:var(--ink2)}
 .progress{margin:0 0 12px;display:flex;align-items:center;gap:10px}
-.progress .bar{flex:1;height:7px;border-radius:99px;background:var(--chipbg);overflow:hidden}
-.progress .fill{height:100%;border-radius:99px;background:var(--accent);transition:width var(--dur-4) var(--ease-out);width:0;
+.progress .bar{flex:1;height:7px;border-radius:var(--r-pill);background:var(--chipbg);overflow:hidden}
+.progress .fill{height:100%;border-radius:var(--r-pill);background:var(--accent);transition:width var(--dur-4) var(--ease-out);width:0;
   background-image:linear-gradient(100deg,transparent 20%,color-mix(in srgb,var(--bg) 45%,transparent) 50%,transparent 80%);
   background-size:220% 100%;animation:progshim 1.3s linear infinite}
 @keyframes progshim{from{background-position:180% 0}to{background-position:-40% 0}}
@@ -517,7 +486,7 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .sticon{display:inline-flex;color:var(--good)} .sticon.f{color:var(--bad)}
 
 /* console */
-.console{background:var(--logbg);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.console{background:var(--logbg);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--e1)}
 .console-head{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
 .tl{display:flex;gap:6px}
 .tl i{width:10px;height:10px;border-radius:50%;display:block}
@@ -526,18 +495,18 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .console-elapsed{font:600 12px/1 Consolas,ui-monospace,monospace;color:#8b95a7}
 .console .copybtn{background:rgba(255,255,255,.08);color:#c8ceda;border:0;border-radius:6px;padding:4px 11px;
-  font-size:11.5px;font-weight:600;cursor:pointer;transition:background .15s ease}
+  font-size:11.5px;font-weight:600;cursor:pointer;transition:background var(--dur-2) var(--ease-out)}
 .console .copybtn:hover{background:rgba(255,255,255,.16)}
 #log{margin:0;padding:13px 16px;height:280px;overflow:auto;color:var(--logink);
   font:12px/1.55 Consolas,ui-monospace,monospace;white-space:pre-wrap;word-break:break-word}
-#log .placeholder{color:#5c6576}
+#log .placeholder{color:var(--logdim)}
 
 /* ================= tables ================= */
 .toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px}
 .search{position:relative}
 .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink3)}
 .search input{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--ink);
-  font:inherit;font-size:13px;padding:7px 12px 7px 32px;width:230px;transition:border-color .15s ease}
+  font:inherit;font-size:13px;padding:7px 12px 7px 32px;width:230px;transition:border-color var(--dur-2) var(--ease-out)}
 .search input:hover{border-color:var(--ink3)}
 .search input:focus{border-color:var(--accent);outline:none;box-shadow:var(--ring)}
 select{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--ink);
@@ -545,20 +514,20 @@ select{background:var(--surface);border:1px solid var(--border);border-radius:va
   transition:border-color var(--dur-2) var(--ease-out),box-shadow var(--dur-2) var(--ease-out)}
 select:hover{border-color:var(--ink3)}
 select:focus-visible{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
-.iconbtn:focus-visible,.tab:focus-visible,.rep-card:focus-visible,.kpi:focus-visible,
+.tab:focus-visible,.rep-card:focus-visible,.kpi:focus-visible,
 .theme-seg button:focus-visible{outline:none;box-shadow:var(--ring)}
 .tabs{display:inline-flex;background:var(--chipbg);border-radius:9px;padding:3px;gap:2px}
 .tab{border:0;background:transparent;color:var(--ink2);font-size:12.5px;font-weight:600;padding:5px 13px;
-  border-radius:7px;cursor:pointer;transition:background .15s ease,color .15s ease}
+  border-radius:7px;cursor:pointer;transition:background var(--dur-2) var(--ease-out),color var(--dur-2) var(--ease-out)}
 .tab:hover{color:var(--ink)}
-.tab.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.tab.on{background:var(--surface);color:var(--ink);box-shadow:var(--e1)}
 .tblwrap{overflow:auto;border:1px solid var(--border);border-radius:var(--r-md);max-height:560px;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-size:12.5px}
 th{position:sticky;top:0;z-index:var(--z-sticky);background:var(--surface);color:var(--ink3);font-weight:600;text-align:left;
   font-size:11px;text-transform:uppercase;letter-spacing:.045em;
   padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap;user-select:none;
   transition:box-shadow var(--dur-3) var(--ease-out)}
-.tblwrap.scrolled th{box-shadow:0 8px 14px -10px rgba(28,22,10,.32)}
+.tblwrap.scrolled th{box-shadow:0 10px 16px -10px rgba(0,0,0,.24)}
 th.sortable{cursor:pointer}
 th.sortable:hover{color:var(--ink)}
 th .arr{font-size:10px;color:var(--accent);margin-left:4px}
@@ -634,7 +603,7 @@ td.num,th.num{text-align:right}
 
 /* ================= inputs ================= */
 .cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:11px;margin-bottom:14px}
-.cfg-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;box-shadow:var(--shadow);padding:14px 16px}
+.cfg-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;box-shadow:var(--e1);padding:14px 16px}
 .cfg-card .cl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px}
 .cfg-card .cv{font-size:16px;font-weight:650;word-break:break-word}
 .cfg-card .cs{font-size:11.5px;color:var(--ink2);margin-top:3px}
@@ -644,6 +613,36 @@ td.num,th.num{text-align:right}
 .envnote svg{color:var(--warn);flex:0 0 auto;margin-top:2px}
 .envnote p{margin:0;font-size:12.5px;color:var(--ink2)}
 .envnote b{color:var(--ink)}
+
+/* keyboard focus on the dark console must be a LIGHT ring (the global accent
+   ring is near-black and invisible on the console header) */
+.console .copybtn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--logink)}
+
+/* ================= responsive shell — kept LAST so these overrides win over
+   the base component rules (media queries add no specificity; source order
+   decides). ================= */
+@media (max-width:760px){
+  #content{padding:16px 16px 40px}
+  .topbar{padding:12px 16px;gap:10px}
+  .topbar .tt .sub{display:none}
+  .topbar .tt h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cmdk-trigger{padding:0 9px}
+  .search{flex:1 1 150px}
+  .search input{width:100%}
+  .toolbar{gap:8px}
+  .reading{padding:18px 16px}
+  .cmdk-scrim{padding:8vh 12px 12px}
+}
+@media (max-width:560px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .topbar .pill{display:none}
+  .theme-seg button .tsl{display:none}     /* icon-only theme switch on phones */
+  .theme-seg button{padding:6px 9px}
+  .hero{padding:var(--sp-5)}
+  .btn{padding:9px 15px}
+  nav a{padding:11px}
+}
+@media (max-width:400px){ .kpis{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -661,22 +660,22 @@ td.num,th.num{text-align:right}
       </span>
     </div>
     <nav id="nav">
-      <a href="#overview" data-route="overview">
+      <a href="#overview" data-route="overview" aria-label="Overview">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.8"/></svg>
         <span class="nl">Overview</span></a>
-      <a href="#run" data-route="run">
+      <a href="#run" data-route="run" aria-label="Run Center">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg>
         <span class="nl">Run Center</span></a>
-      <a href="#cuts" data-route="cuts">
+      <a href="#cuts" data-route="cuts" aria-label="Cut Plan">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M8.2 7.8L20 19M8.2 16.2L20 5"/></svg>
         <span class="nl">Cut Plan</span></a>
-      <a href="#weekly" data-route="weekly">
+      <a href="#weekly" data-route="weekly" aria-label="Weekly Loop">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11a8.5 8.5 0 1 0-1.2 5.4"/><path d="M21 7v4h-4"/></svg>
         <span class="nl">Weekly Loop</span></a>
-      <a href="#reports" data-route="reports">
+      <a href="#reports" data-route="reports" aria-label="Reports">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
         <span class="nl">Reports</span></a>
-      <a href="#inputs" data-route="inputs">
+      <a href="#inputs" data-route="inputs" aria-label="Inputs and Settings">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg>
         <span class="nl">Inputs &amp; Settings</span></a>
     </nav>
@@ -701,12 +700,12 @@ td.num,th.num{text-align:right}
       </button>
       <span class="pill" id="jobpill" aria-live="polite"><span id="jobpill-ic"></span><span id="jobpill-tx">Idle</span></span>
       <div class="theme-seg" id="themeseg" role="group" aria-label="Theme">
-        <button type="button" data-set="light" aria-label="Day theme">
+        <button type="button" data-set="light" aria-label="Day theme" aria-pressed="false">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>
-          Day</button>
-        <button type="button" data-set="dark" aria-label="Night theme">
+          <span class="tsl">Day</span></button>
+        <button type="button" data-set="dark" aria-label="Night theme" aria-pressed="false">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 14.2A8.8 8.8 0 1 1 9.8 3.4a7 7 0 1 0 10.8 10.8z"/></svg>
-          Night</button>
+          <span class="tsl">Night</span></button>
       </div>
     </header>
 
@@ -836,7 +835,6 @@ const $$ = (q, el) => Array.prototype.slice.call((el || document).querySelectorA
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-const isNum = v => typeof v === 'number' && isFinite(v);
 const toNum = v => { const n = Number(v); return isFinite(n) ? n : null; };
 const fmtIN = n => { const v = toNum(n); return v == null ? '—' : v.toLocaleString('en-IN'); };
 const rup = n => {
@@ -957,7 +955,11 @@ document.addEventListener('mousemove', e => {
 /* ============================== theme ============================== */
 function applyThemeButton() {
   const t = document.documentElement.getAttribute('data-theme');
-  $$('#themeseg button').forEach(b => b.classList.toggle('on', b.dataset.set === t));
+  $$('#themeseg button').forEach(b => {
+    const on = b.dataset.set === t;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
 }
 function setTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
@@ -1048,10 +1050,12 @@ function cmdkKey(e) {
   else if (e.key === 'Escape') { e.preventDefault(); cmdkClose(); }
   else if (e.key === 'Home') { e.preventDefault(); cmdkSelect(0); }
   else if (e.key === 'End') { e.preventDefault(); cmdkSelect(CMDK.filtered.length - 1); }
+  else if (e.key === 'Tab') { e.preventDefault(); } /* trap: the input is the only focusable control */
 }
 function cmdkOpen() {
   if (CMDK.open) return;
   CMDK.open = true; CMDK.lastFocus = document.activeElement; CMDK.all = cmdkBuild();
+  const app = document.querySelector('.app'); if (app) app.setAttribute('aria-hidden', 'true');
   document.getElementById('cmdk-root').innerHTML =
     '<div class="cmdk-scrim" id="cmdk-scrim">'
     + '<div class="cmdk" role="dialog" aria-modal="true" aria-label="Command palette">'
@@ -1072,6 +1076,7 @@ function cmdkOpen() {
 function cmdkClose() {
   if (!CMDK.open) return;
   CMDK.open = false;
+  const app = document.querySelector('.app'); if (app) app.removeAttribute('aria-hidden');
   const scrim = document.getElementById('cmdk-scrim');
   if (scrim) {
     scrim.classList.add('closing');
@@ -1540,7 +1545,8 @@ async function fetchTable(name) {
 async function renderCutPlan() {
   /* tabs */
   $('#cut-tabs').innerHTML = CUT_TABS.map(t =>
-    '<button class="tab' + (t[0] === CUT.tab ? ' on' : '') + '" data-cuttab="' + t[0] + '">' + esc(t[1]) + '</button>').join('');
+    '<button class="tab' + (t[0] === CUT.tab ? ' on' : '') + '" data-cuttab="' + t[0] + '"' +
+    ' aria-pressed="' + (t[0] === CUT.tab ? 'true' : 'false') + '">' + esc(t[1]) + '</button>').join('');
   const filterable = CUT.tab === 'cuts' || CUT.tab === 'reinvest';
   $('#cut-searchwrap').style.display = filterable ? '' : 'none';
   $('#cut-cat').style.display = filterable ? '' : 'none';
@@ -1811,7 +1817,7 @@ function renderInputs() {
 /* ------------------------------ settings file ------------------------------ */
 function fmtSettingVal(v) {
   if (v == null || v === '') return '—';
-  if (Array.isArray(v)) return v.length ? v.map(x => '<span class="chip" style="margin:1px 3px 1px 0">' + esc(x) + '</span>').join('') : '<i style="color:var(--muted)">none</i>';
+  if (Array.isArray(v)) return v.length ? v.map(x => '<span class="chip" style="margin:1px 3px 1px 0">' + esc(x) + '</span>').join('') : '<i style="color:var(--ink3)">none</i>';
   if (typeof v === 'boolean') return v ? 'yes' : 'no';
   if (typeof v === 'number') return esc(v.toLocaleString('en-IN'));
   return esc(v);
@@ -1831,7 +1837,7 @@ async function renderSettings() {
   const d = S.settings;
 
   const head =
-    '<p style="margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.6;max-width:760px">' +
+    '<p style="margin:0 0 14px;color:var(--ink3);font-size:13px;line-height:1.6;max-width:760px">' +
     'Every knob below lives in a <b>spreadsheet</b>, not in code. Download the template, edit the ' +
     '<b>value</b> column, upload it back — it takes effect on the next run. Leave a value blank to keep the ' +
     'built-in default. A bad value is rejected on upload with the reason, so nothing broken ever reaches a run.' +
@@ -1839,9 +1845,9 @@ async function renderSettings() {
     '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:16px">' +
     '<a class="btn" href="/api/settings/template.xlsx" download>' + IC.down + ' Download template (Excel)</a>' +
     '<a class="btn ghost" href="/api/settings/template.csv" download>' + IC.down + ' Download template (CSV)</a>' +
-    '<label class="btn ghost" style="cursor:pointer;margin:0">' + IC.up + ' Upload filled file' +
-    '<input type="file" id="settings-file" accept=".csv,.xlsx" style="display:none"></label>' +
-    '<span id="settings-upmsg" style="font-size:12.5px;color:var(--muted)"></span>' +
+    '<button type="button" class="btn ghost" id="settings-upload-btn">' + IC.up + ' Upload filled file</button>' +
+    '<input type="file" id="settings-file" accept=".csv,.xlsx" class="visually-hidden" tabindex="-1" aria-hidden="true">' +
+    '<span id="settings-upmsg" style="font-size:12.5px;color:var(--ink3)"></span>' +
     '</div>';
 
   if (!d.ok) {
@@ -1855,24 +1861,24 @@ async function renderSettings() {
 
   const st = d.status || {};
   const src = st.source
-    ? '<span class="chip">' + IC.check + ' ' + esc(st.source) + '</span> <span style="color:var(--muted);font-size:12.5px">' +
+    ? '<span class="chip">' + IC.check + ' ' + esc(st.source) + '</span> <span style="color:var(--ink3);font-size:12.5px">' +
       esc(st.n_overrides) + ' value(s) overriding the defaults' + (st.calendar_source ? ' · ' + esc(st.calendar_source) : '') + '</span>'
-    : '<span class="chip">Using built-in defaults</span> <span style="color:var(--muted);font-size:12.5px">no settings file in <b>config/</b> yet — download a template to start</span>';
+    : '<span class="chip">Using built-in defaults</span> <span style="color:var(--ink3);font-size:12.5px">no settings file in <b>config/</b> yet — download a template to start</span>';
 
   const rows = d.rows || [];
   let tbl = '';
   (d.sections || []).forEach(sec => {
     const rs = rows.filter(r => r.section === sec);
     if (!rs.length) return;
-    tbl += '<tr class="secrow"><td colspan="4" style="background:var(--chipbg);font-weight:650;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">' + esc(sec) + '</td></tr>';
+    tbl += '<tr class="secrow"><td colspan="4" style="background:var(--chipbg);font-weight:650;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)">' + esc(sec) + '</td></tr>';
     rs.forEach(r => {
       tbl += '<tr>' +
         '<td class="mono" style="font-size:12px">' + esc(r.key) + '</td>' +
         '<td style="font-weight:600">' + fmtSettingVal(r.value) + '</td>' +
         '<td>' + (r.source === 'file'
           ? '<span class="chip" style="background:var(--accent-soft);color:var(--accent-deep)">from file</span>'
-          : '<span style="color:var(--muted);font-size:12px">default</span>') + '</td>' +
-        '<td style="color:var(--muted);font-size:12px;line-height:1.5">' + esc(r.description) + '<div style="margin-top:2px;opacity:.75">' + esc(r.unit) + '</div></td>' +
+          : '<span style="color:var(--ink3);font-size:12px">default</span>') + '</td>' +
+        '<td style="color:var(--ink3);font-size:12px;line-height:1.5">' + esc(r.description) + '<div style="margin-top:2px;opacity:.75">' + esc(r.unit) + '</div></td>' +
         '</tr>';
     });
   });
@@ -1882,7 +1888,7 @@ async function renderSettings() {
     '<div class="tblwrap" style="max-height:460px"><table><thead><tr>' +
     '<th>Setting</th><th>Value in force</th><th>Source</th><th>What it does</th>' +
     '</tr></thead><tbody>' + tbl + '</tbody></table></div>' +
-    '<p style="margin:12px 0 0;color:var(--muted);font-size:12px">The festival calendar and platform-event windows are the <b>Festivals</b> and <b>Platform Events</b> sheets of the Excel template' +
+    '<p style="margin:12px 0 0;color:var(--ink3);font-size:12px">The festival calendar and platform-event windows are the <b>Festivals</b> and <b>Platform Events</b> sheets of the Excel template' +
     (st.festival_dates ? ' — currently ' + esc(st.festival_dates) + ' dates, last one ' + esc(st.festival_last) : '') + '.</p>';
   wireSettingsUpload();
 }
@@ -1890,12 +1896,14 @@ async function renderSettings() {
 function wireSettingsUpload() {
   const inp = $('#settings-file');
   if (!inp) return;
+  const btn = $('#settings-upload-btn');
+  if (btn) btn.onclick = () => inp.click();   /* keyboard-reachable trigger */
   inp.onchange = async () => {
     const f = inp.files && inp.files[0];
     if (!f) return;
     const msg = $('#settings-upmsg');
     msg.textContent = 'Checking ' + f.name + '…';
-    msg.style.color = 'var(--muted)';
+    msg.style.color = 'var(--ink3)';
     try {
       const b64 = await new Promise((res, rej) => {
         const r = new FileReader();
@@ -2032,6 +2040,7 @@ $('#log').addEventListener('scroll', e => {
 });
 $('#copylog').addEventListener('click', () => {
   const txt = (S.job && S.job.log) || '';
+  if (!txt.trim()) { toast('Nothing to copy yet', 'bad'); return; }
   const done = () => toast('Log copied to clipboard', 'good');
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(txt, done));
