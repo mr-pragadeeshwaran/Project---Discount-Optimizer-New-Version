@@ -1514,10 +1514,11 @@ async function runStep(id) {
 
 /* ============================== CUT PLAN ============================== */
 const CUT_TABS = [
-  ['cuts', 'Cuts'], ['reinvest', 'Reinvest'], ['buckets', 'Buckets'],
+  ['prices', 'Price board'], ['cuts', 'Cuts'], ['reinvest', 'Reinvest'], ['buckets', 'Buckets'],
   ['scenarios', 'Scenarios'], ['sensitivity', 'Stress test'],
 ];
 const TABLE_EMPTY = {
+  prices:     ['The price board', 'the full monthly rebuild (step 1 — Build foundation)'],
   cuts:       ['The cut list', 'step 2 — Champion waste model (or the full rebuild)'],
   reinvest:   ['The reinvest list', 'step 2 — Champion waste model (or the full rebuild)'],
   buckets:    ['The bucket summary', 'step 2 — Champion waste model (or the full rebuild)'],
@@ -1536,9 +1537,13 @@ const COL_LABEL = {
   applied: 'Applied', recommended_action: 'Action', recommended_disc: 'Recommended disc.',
   flip_rate_joint: 'Flip rate', fragile: 'Fragile', in_first_wave: 'First wave',
   scenario: 'Scenario', kpi: 'KPI', preset: 'Preset',
+  pack: 'Pack', mrp: 'MRP', opt_disc: 'Optimal disc.', opt_sp: 'Optimal price',
+  now_disc: 'Disc. today', now_sp: 'Price today', est_units: 'Est. units / day',
+  est_rev: 'Est. ₹ / day', conf_score: 'Confidence score',
 };
-const RUP_COLS = { net_gain_mo:1, saving_mo:1, pred_net_rev_delta:1, actual_net_rev_delta:1 };
-const PCT_COLS = { cur_disc:1, tgt_disc:1, recommended_disc:1 };   /* already 0–100 */
+const RUP_COLS = { net_gain_mo:1, saving_mo:1, pred_net_rev_delta:1, actual_net_rev_delta:1,
+  mrp:1, opt_sp:1, now_sp:1, est_rev:1 };
+const PCT_COLS = { cur_disc:1, tgt_disc:1, recommended_disc:1, opt_disc:1, now_disc:1 };   /* already 0–100 */
 const FRAC_COLS = { flip_rate_joint:1 };                            /* 0–1 fractions */
 const ID_COLS = { product_id:1, cell_id:1, week:1 };                /* identifiers — never comma-grouped */
 
@@ -1630,7 +1635,7 @@ async function renderCutPlan() {
   $('#cut-tabs').innerHTML = CUT_TABS.map(t =>
     '<button class="tab' + (t[0] === CUT.tab ? ' on' : '') + '" data-cuttab="' + t[0] + '"' +
     ' aria-pressed="' + (t[0] === CUT.tab ? 'true' : 'false') + '">' + esc(t[1]) + '</button>').join('');
-  const filterable = CUT.tab === 'cuts' || CUT.tab === 'reinvest';
+  const filterable = CUT.tab === 'cuts' || CUT.tab === 'reinvest' || CUT.tab === 'prices';
   $('#cut-searchwrap').style.display = filterable ? '' : 'none';
   $('#cut-cat').style.display = filterable ? '' : 'none';
   $('#cut-conf').style.display = filterable ? '' : 'none';
@@ -1678,16 +1683,29 @@ async function renderCutPlan() {
   CUT.view = { cols: cols, rows: sorted, name: name };  /* exactly what's on screen, for CSV export */
   $('#cut-export').disabled = !sorted.length;
 
-  /* executive summary strip — the "so what" before the rows (cuts/reinvest) */
+  /* executive summary strip — the "so what" before the rows */
   const sumEl = $('#cut-summary');
-  if (filterable && sorted.length) {
+  const stat = (ic, hue, v, l) => '<div class="cut-stat"><span class="cs-ic ' + hue + '">' + ic + '</span>' +
+    '<span><div class="cs-v">' + v + '</div><div class="cs-l">' + esc(l) + '</div></span></div>';
+  if (name === 'prices' && sorted.length) {
+    const hi = sorted.filter(o => String(o.confidence || '').toLowerCase() === 'high').length;
+    const discs = sorted.map(o => toNum(o.opt_disc)).filter(v => v != null);
+    const avgDisc = discs.length ? discs.reduce((a, b) => a + b, 0) / discs.length : 0;
+    const scores = sorted.map(o => toNum(o.conf_score)).filter(v => v != null);
+    const avgScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    const prods = new Set(sorted.map(o => String(o.title || '')).filter(Boolean)).size;
+    sumEl.innerHTML = '<div class="cut-summary">' +
+      stat(IC.grid, 'hc1', fmtIN(sorted.length), fmtIN(prods) + ' products × cities') +
+      stat(IC.scale, 'hc2', avgDisc.toFixed(1) + '%', 'average optimal discount') +
+      stat(IC.target, 'hc3', Math.round(avgScore) + ' / 100', 'average confidence score') +
+      stat(IC.check, 'hc4', fmtIN(hi) + ' / ' + fmtIN(sorted.length), 'high-confidence') +
+      '</div>';
+  } else if ((name === 'cuts' || name === 'reinvest') && sorted.length) {
     const totRs = sorted.reduce((a, o) => a + (toNum(o.net_gain_mo) || 0), 0);
     const moves = sorted.map(o => Math.abs((toNum(o.cur_disc) || 0) - (toNum(o.tgt_disc) || 0))).filter(v => v > 0);
     const avgMove = moves.length ? moves.reduce((a, b) => a + b, 0) / moves.length : 0;
     const hi = sorted.filter(o => String(o.confidence || '').toLowerCase() === 'high').length;
     const verb = name === 'reinvest' ? 'reinvest' : 'cut';
-    const stat = (ic, hue, v, l) => '<div class="cut-stat"><span class="cs-ic ' + hue + '">' + ic + '</span>' +
-      '<span><div class="cs-v">' + v + '</div><div class="cs-l">' + esc(l) + '</div></span></div>';
     sumEl.innerHTML = '<div class="cut-summary">' +
       stat(IC.scissors, 'hc1', fmtIN(sorted.length), verb + ' cells in view') +
       stat(IC.rupee, 'hc3', rupC(totRs), 'net revenue / month') +
@@ -1703,7 +1721,11 @@ async function renderCutPlan() {
     : '<div class="card"><div class="empty"><div class="et">No rows match</div><div class="es">Try clearing the search or filters.</div></div></div>';
 
   /* footer */
-  if (filterable) {
+  if (name === 'prices') {
+    foot.innerHTML = '<span><b>' + fmtIN(sorted.length) + '</b> cell' + (sorted.length === 1 ? '' : 's') +
+      ' · optimal price, discount & estimated sales per product × city</span>' +
+      '<span class="dim">Confidence score (0–100) blends data volume, model fit & plausibility — higher means the estimate is more trustworthy.</span>';
+  } else if (name === 'cuts' || name === 'reinvest') {
     const total = sorted.reduce((a, o) => a + (toNum(o.net_gain_mo) || 0), 0);
     foot.innerHTML = '<span><b>' + fmtIN(sorted.length) + '</b> cell' + (sorted.length === 1 ? '' : 's') +
       ' · <b>' + rup(total) + '</b> per month</span>' +

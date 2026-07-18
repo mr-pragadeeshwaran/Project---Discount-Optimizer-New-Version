@@ -430,6 +430,39 @@ def api_table(name):
         cols = [c for c in TABLE_COLS_HIST if c in d.columns]
         d = d[cols].head(200)
         return {"columns": cols, "rows": d.fillna("").values.tolist()}
+    if name == "prices":
+        # the price board: optimal discount / SP / MRP / estimated sales / accuracy
+        # for every product x city cell, straight from the pipeline's recommendations.
+        if not run:
+            raise FileNotFoundError("the price board (run the monthly rebuild)")
+        d = pd.read_csv(_need(os.path.join(run, "recommendations.csv"),
+                              "the price board (run the monthly rebuild)"))
+        colmap = [                       # (source column, board column)
+            ("title", "title"), ("grammage", "pack"), ("city", "city"), ("category", "category"),
+            ("mrp", "mrp"),
+            ("rec_discount_pct", "opt_disc"), ("rec_price", "opt_sp"),
+            ("current_discount_pct", "now_disc"), ("current_price", "now_sp"),
+            ("rec_units_day", "est_units"), ("rec_revenue_day", "est_rev"),
+            # reliability: the tier badge + the 0-100 confidence score behind it.
+            # (we deliberately do NOT surface sku_group_r2 here — it is a sparse
+            #  internal diagnostic that is negative for most cells and reads as
+            #  "broken" to a business user; confidence_score is the system's own
+            #  data-sufficiency + fit + plausibility measure and is what gates cuts.)
+            ("confidence", "confidence"), ("confidence_score", "conf_score"),
+        ]
+        keep = [(s, t) for s, t in colmap if s in d.columns]
+        out = d[[s for s, _ in keep]].copy()
+        out.columns = [t for _, t in keep]
+        for c in ("mrp", "opt_sp", "now_sp", "est_rev", "conf_score"):
+            if c in out:
+                out[c] = pd.to_numeric(out[c], errors="coerce").round(0)
+        for c in ("opt_disc", "now_disc", "est_units"):
+            if c in out:
+                out[c] = pd.to_numeric(out[c], errors="coerce").round(1)
+        sort_by = [c for c in ("title", "city") if c in out.columns]
+        if sort_by:
+            out = out.sort_values(sort_by)
+        return {"columns": list(out.columns), "rows": out.fillna("").values.tolist()}
     raise KeyError(name)
 
 
