@@ -470,14 +470,26 @@ nav a[data-route="inputs"] svg{color:var(--c6)}
 .stp.s-failed .badge{background:var(--bad);color:#fff}
 .stp.s-running .badge{background:var(--surface);color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);animation:stppulse 1.5s var(--ease-in-out) infinite}
 @keyframes stppulse{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 8%,transparent)}}
-.stp:not(:last-child)::before{content:"";position:absolute;left:19.5px;top:34px;bottom:-6px;width:2px;border-radius:2px;
+.stp:not(:last-child):not(.phase-end)::before{content:"";position:absolute;left:19.5px;top:34px;bottom:-6px;width:2px;border-radius:2px;
   background:var(--border);transition:background var(--dur-3) var(--ease-out)}
-.stp.s-done:not(:last-child)::before{background:var(--good)}
+.stp.s-done:not(:last-child):not(.phase-end)::before{background:var(--good)}
 .stp .sx{flex:1;min-width:0}
 .stp .sl{font-weight:600;font-size:13px}
 .stp.s-done .sl{color:var(--ink2)}
 .stp .sd{font-size:12px;color:var(--ink2)}
-.stp .btn{margin-top:2px}
+/* Run stays visible (touch- and keyboard-friendly) but recedes until the row
+   is hovered/focused, so the rail reads calm without hiding the action */
+.stp .btn{margin-top:2px;opacity:.72;transition:opacity var(--dur-2) var(--ease-out),background var(--dur-2) var(--ease-out),transform var(--dur-1) var(--ease-out),box-shadow var(--dur-2) var(--ease-out)}
+.stp:hover .btn,.stp:focus-within .btn,.stp.s-running .btn,.stp.s-failed .btn{opacity:1}
+/* pipeline phase headers — encode the real structure of the 13 steps */
+.phase{display:flex;align-items:center;gap:10px;padding:15px 8px 7px}
+.phase:first-child{padding-top:2px}
+.phase-n{flex:0 0 auto;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+  font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:11px;font-weight:700;
+  background:var(--accent-soft);color:var(--accent)}
+.phase-t{font-weight:600;font-size:12.5px;letter-spacing:-.01em}
+.phase-c{margin-left:auto;font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:9.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
 .action-card{display:flex;align-items:flex-start;gap:12px;padding:13px;border:1px solid var(--border);
   border-radius:var(--r-md);margin-bottom:9px;box-shadow:var(--e1);
   transition:border-color var(--dur-2) var(--ease-out),box-shadow var(--dur-3) var(--ease-out),transform var(--dur-2) var(--ease-out)}
@@ -1318,20 +1330,44 @@ function stepStateIcon(id) {
   if (st === 'failed') return '<span class="sticon f">' + IC.cross + '</span>';
   return '';
 }
+/* the monthly pipeline reads as three real phases, not a flat list of 13 */
+const RUN_PHASES = [
+  ['Build & model', ['pipeline', 'champion', 'dml', 'gates']],
+  ['Pricing & promo engines', ['challenger', 'pricing', 'budget', 'promo', 'scenarios']],
+  ['Validation & proof', ['backtest', 'elast_gates', 'sensitivity', 'outlier_audit']],
+];
 function renderRunCenter() {
   if (!S.steps) return;
-  /* monthly stepper */
-  $('#stepper').innerHTML = S.order.map((id, i) => {
+  /* monthly stepper — grouped into phases, with the rail kept inside each phase */
+  const idxOf = {}; S.order.forEach((id, i) => { idxOf[id] = i; });
+  const covered = {};
+  const stepRow = (id, last) => {
     const st = S.steps[id]; if (!st) return '';
+    covered[id] = 1;
+    const i = idxOf[id] != null ? idxOf[id] : 0;
     const lbl = String(st.label || id).replace(/^\d+\.\s*/, '');
     const state = S.stepState[id] || '';
     const badge = state === 'done' ? IC.check : (state === 'failed' ? IC.cross :
       (state === 'running' ? '<span class="spin" style="width:11px;height:11px"></span>' : (i + 1)));
-    return '<div class="stp s-' + (state || 'idle') + '" id="stp-' + id + '">' +
+    return '<div class="stp s-' + (state || 'idle') + (last ? ' phase-end' : '') + '" id="stp-' + id + '">' +
       '<span class="badge">' + badge + '</span>' +
       '<span class="sx"><div class="sl">' + esc(lbl) + '</div><div class="sd">' + esc(st.desc || '') + '</div></span>' +
       '<button class="btn ghost sm" data-run="' + id + '">Run</button></div>';
-  }).join('');
+  };
+  let sh = '';
+  RUN_PHASES.forEach((ph, pi) => {
+    const ids = ph[1].filter(id => S.steps[id]);
+    if (!ids.length) return;
+    sh += '<div class="phase"><span class="phase-n">' + (pi + 1) + '</span><span class="phase-t">' + esc(ph[0]) +
+      '</span><span class="phase-c">' + ids.length + ' steps</span></div>';
+    ids.forEach((id, j) => { sh += stepRow(id, j === ids.length - 1); });
+  });
+  const extra = S.order.filter(id => S.steps[id] && !covered[id]);
+  if (extra.length) {
+    sh += '<div class="phase"><span class="phase-n">·</span><span class="phase-t">More steps</span></div>';
+    extra.forEach((id, j) => { sh += stepRow(id, j === extra.length - 1); });
+  }
+  $('#stepper').innerHTML = sh;
   /* weekly action cards */
   const wkIcons = { recommend: IC.flag, score: IC.target, selftest: IC.shield };
   $('#weekly-actions').innerHTML = ['recommend', 'score', 'selftest'].map(id => {
