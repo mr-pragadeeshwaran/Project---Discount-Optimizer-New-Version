@@ -538,6 +538,15 @@ select:focus-visible{outline:none;border-color:var(--accent);box-shadow:var(--ri
   border-radius:7px;cursor:pointer;transition:background var(--dur-2) var(--ease-out),color var(--dur-2) var(--ease-out)}
 .tab:hover{color:var(--ink)}
 .tab.on{background:var(--surface);color:var(--ink);box-shadow:var(--e1)}
+/* cut-plan executive summary tiles */
+.cut-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-3);margin-bottom:var(--sp-4)}
+.cut-stat{display:flex;gap:11px;align-items:center;padding:13px 15px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);box-shadow:var(--e1);transition:box-shadow var(--dur-3) var(--ease-out),transform var(--dur-2) var(--ease-spring),border-color var(--dur-2) var(--ease-out)}
+.cut-stat:hover{box-shadow:var(--e2);transform:translateY(-2px)}
+.cut-stat .cs-ic{width:32px;height:32px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+.cut-stat .cs-v{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.cut-stat .cs-l{font-size:11px;color:var(--ink2);margin-top:2px}
+@media (max-width:760px){.cut-summary{grid-template-columns:repeat(2,1fr)}}
 .tblwrap{overflow:auto;border:1px solid var(--border);border-radius:var(--r-md);max-height:560px;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-size:12.5px}
 th{position:sticky;top:0;z-index:var(--z-sticky);background:var(--surface);color:var(--ink3);font-weight:600;text-align:left;
@@ -582,10 +591,18 @@ td.num,th.num{text-align:right}
 .flow .fstep{flex:1;min-width:170px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
   box-shadow:var(--e1);padding:14px 15px;display:flex;gap:11px;align-items:flex-start;
   transition:box-shadow var(--dur-3) var(--ease-out),transform var(--dur-2) var(--ease-out),border-color var(--dur-2) var(--ease-out)}
-.flow .fstep:hover{box-shadow:var(--e2);transform:translateY(-1px)}
-.flow .fn{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
-  font-family:var(--display);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
-.flow .ft{font-weight:650;font-size:13px}
+.flow .fstep:hover{box-shadow:var(--e2);transform:translateY(-2px)}
+/* the loop's real position: past steps read done, the current step is lit */
+.flow .fstep.done{background:var(--surface2,var(--surface))}
+.flow .fstep.done .fn{background:var(--good);color:#fff}
+.flow .fstep.active{border-color:transparent;box-shadow:var(--e3),0 0 0 1.5px var(--accent)}
+.flow .fstep.active .fn{background:var(--accent);color:#fff;box-shadow:0 0 0 4px var(--accent-soft)}
+.flow .fstep .fn{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--chipbg);color:var(--ink2);
+  font-family:var(--display);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;
+  transition:background var(--dur-2) var(--ease-out),color var(--dur-2) var(--ease-out),box-shadow var(--dur-2) var(--ease-out)}
+.flow .ft{font-weight:650;font-size:13px;display:flex;align-items:center;gap:7px}
+.flow .fstep.active .ft::after{content:"now";font-family:"JetBrains Mono",ui-monospace,monospace;font-size:9px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:var(--r-pill)}
 .flow .fd{font-size:11.5px;color:var(--ink2);margin-top:2px}
 .flow .farr{align-self:center;color:var(--ink3);flex:0 0 auto}
 @media (max-width:1024px){.flow .farr{display:none}}
@@ -790,6 +807,7 @@ td.num,th.num{text-align:right}
             <span class="ct-tx">Export CSV</span>
           </button>
         </div>
+        <div id="cut-summary"></div>
         <div id="cut-body"></div>
         <div class="tfoot" id="cut-foot"></div>
       </section>
@@ -1660,6 +1678,26 @@ async function renderCutPlan() {
   CUT.view = { cols: cols, rows: sorted, name: name };  /* exactly what's on screen, for CSV export */
   $('#cut-export').disabled = !sorted.length;
 
+  /* executive summary strip — the "so what" before the rows (cuts/reinvest) */
+  const sumEl = $('#cut-summary');
+  if (filterable && sorted.length) {
+    const totRs = sorted.reduce((a, o) => a + (toNum(o.net_gain_mo) || 0), 0);
+    const moves = sorted.map(o => Math.abs((toNum(o.cur_disc) || 0) - (toNum(o.tgt_disc) || 0))).filter(v => v > 0);
+    const avgMove = moves.length ? moves.reduce((a, b) => a + b, 0) / moves.length : 0;
+    const hi = sorted.filter(o => String(o.confidence || '').toLowerCase() === 'high').length;
+    const verb = name === 'reinvest' ? 'reinvest' : 'cut';
+    const stat = (ic, hue, v, l) => '<div class="cut-stat"><span class="cs-ic ' + hue + '">' + ic + '</span>' +
+      '<span><div class="cs-v">' + v + '</div><div class="cs-l">' + esc(l) + '</div></span></div>';
+    sumEl.innerHTML = '<div class="cut-summary">' +
+      stat(IC.scissors, 'hc1', fmtIN(sorted.length), verb + ' cells in view') +
+      stat(IC.rupee, 'hc3', rupC(totRs), 'net revenue / month') +
+      stat(IC.scale, 'hc2', avgMove.toFixed(1) + ' ppt', 'average discount move') +
+      stat(IC.check, 'hc4', fmtIN(hi) + ' / ' + fmtIN(sorted.length), 'high-confidence') +
+      '</div>';
+  } else {
+    sumEl.innerHTML = '';
+  }
+
   body.innerHTML = objs.length
     ? tableHTML(cols, sorted, st.key, st.dir, name)
     : '<div class="card"><div class="empty"><div class="et">No rows match</div><div class="es">Try clearing the search or filters.</div></div></div>';
@@ -1688,11 +1726,23 @@ function renderWeeklyFlow() {
     ['3', 'Score', 'Next week: predicted vs actual, cell by cell, on the scorecard.'],
     ['4', 'Kill-switch watches', 'Any cell that underperforms is auto-paused. No heroics.'],
   ];
+  /* light up where the loop actually is: a plan issued but nothing scored means
+     we've recommended and are waiting on the KAM; scored means we're cycling. */
+  const tr = (S.status && S.status.tracker) || null;
+  let active = -1, done = 0;
+  if (tr && tr.week_label != null) {
+    if ((toNum(tr.scored) || 0) > 0) { done = 2; active = 2; }
+    else { done = 1; active = 1; }
+  }
+  const check = svgOpen(13) + '<path d="M4.5 12.5l5 5 10-11"/></svg>';
   const arr = '<span class="farr">' + svgOpen(16) + '<path d="M5 12h14M13 6l6 6-6 6"/></svg></span>';
-  $('#wk-flow').innerHTML = steps.map((s, i) =>
-    (i ? arr : '') +
-    '<div class="fstep"><span class="fn">' + s[0] + '</span><span><div class="ft">' + esc(s[1]) + '</div><div class="fd">' + esc(s[2]) + '</div></span></div>'
-  ).join('');
+  $('#wk-flow').innerHTML = steps.map((s, i) => {
+    const cls = i < done ? ' done' : (i === active ? ' active' : '');
+    const node = i < done ? check : s[0];
+    return (i ? arr : '') +
+      '<div class="fstep' + cls + '"><span class="fn">' + node + '</span>' +
+      '<span><div class="ft">' + esc(s[1]) + '</div><div class="fd">' + esc(s[2]) + '</div></span></div>';
+  }).join('');
 }
 function renderLoopStatus() {
   const box = $('#wk-status'); if (!box) return;
