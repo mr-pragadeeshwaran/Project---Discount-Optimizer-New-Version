@@ -22,6 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, HERE)   # so sibling modules (action_plan) import regardless of CWD
 PORT = int(os.environ.get("UI_PORT", "8765"))
 
 # ── The execution allowlist: every runnable step, grouped by cadence ────────────
@@ -430,6 +431,20 @@ def api_table(name):
         cols = [c for c in TABLE_COLS_HIST if c in d.columns]
         d = d[cols].head(200)
         return {"columns": cols, "rows": d.fillna("").values.tolist()}
+    if name == "plan_all":
+        # the action plan: ONE row per product x city with the single thing to do
+        # (cut / reinvest / hold / monitor) and the exact discount to set. Reconciles
+        # the decision engine's full verdict (plan/all_cells.csv) with the two act-now
+        # lists, so no product is left without a clear "how much to give".
+        from action_plan import build_action_plan, COLUMNS
+        if not run:
+            raise FileNotFoundError("the action plan (run the monthly rebuild)")
+        _need(os.path.join(run, "plan", "all_cells.csv"),
+              "the action plan (run the monthly rebuild)")
+        df = build_action_plan(run)
+        df = df[[c for c in COLUMNS if c in df.columns]]
+        return {"columns": list(df.columns), "rows": df.fillna("").values.tolist()}
+
     if name == "prices":
         # the price board: optimal discount / SP / MRP / estimated sales / accuracy
         # for every product x city cell, straight from the pipeline's recommendations.

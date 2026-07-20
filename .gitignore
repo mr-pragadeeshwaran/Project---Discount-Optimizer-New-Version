@@ -21,3 +21,6 @@ scratch_*.log
 
 # run-stamped pricing snapshots (local audit trail)
 DISCOUNT_PLAN/pricing/history/
+
+# generated shareable exports (contain proprietary run data)
+ACTION_PLAN_all_products.*

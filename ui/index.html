@@ -1514,10 +1514,11 @@ async function runStep(id) {
 
 /* ============================== CUT PLAN ============================== */
 const CUT_TABS = [
-  ['prices', 'Price board'], ['cuts', 'Cuts'], ['reinvest', 'Reinvest'], ['buckets', 'Buckets'],
-  ['scenarios', 'Scenarios'], ['sensitivity', 'Stress test'],
+  ['plan_all', 'Action plan'], ['prices', 'Price board'], ['cuts', 'Cuts'], ['reinvest', 'Reinvest'],
+  ['buckets', 'Buckets'], ['scenarios', 'Scenarios'], ['sensitivity', 'Stress test'],
 ];
 const TABLE_EMPTY = {
+  plan_all:   ['The action plan', 'the full monthly rebuild (step 2 — Champion waste model)'],
   prices:     ['The price board', 'the full monthly rebuild (step 1 — Build foundation)'],
   cuts:       ['The cut list', 'step 2 — Champion waste model (or the full rebuild)'],
   reinvest:   ['The reinvest list', 'step 2 — Champion waste model (or the full rebuild)'],
@@ -1540,14 +1541,17 @@ const COL_LABEL = {
   pack: 'Pack', mrp: 'MRP', opt_disc: 'Optimal disc.', opt_sp: 'Optimal price',
   now_disc: 'Disc. today', now_sp: 'Price today', est_units: 'Est. units / day',
   est_rev: 'Est. ₹ / day', conf_score: 'Confidence score',
+  action: 'Action', disc_now: 'Discount now', disc_set: 'Set discount to',
+  price_set: 'Price to set', gain_mo: 'Est. ₹ gain / month', why: 'Why',
 };
 const RUP_COLS = { net_gain_mo:1, saving_mo:1, pred_net_rev_delta:1, actual_net_rev_delta:1,
-  mrp:1, opt_sp:1, now_sp:1, est_rev:1 };
-const PCT_COLS = { cur_disc:1, tgt_disc:1, recommended_disc:1, opt_disc:1, now_disc:1 };   /* already 0–100 */
+  mrp:1, opt_sp:1, now_sp:1, est_rev:1, price_set:1, gain_mo:1 };
+const PCT_COLS = { cur_disc:1, tgt_disc:1, recommended_disc:1, opt_disc:1, now_disc:1,
+  disc_now:1, disc_set:1 };   /* already 0–100 */
 const FRAC_COLS = { flip_rate_joint:1 };                            /* 0–1 fractions */
 const ID_COLS = { product_id:1, cell_id:1, week:1 };                /* identifiers — never comma-grouped */
 
-const CUT = { tab: 'cuts', cache: {}, sort: {}, q: '', cat: '', conf: '' };
+const CUT = { tab: 'plan_all', cache: {}, sort: {}, q: '', cat: '', conf: '' };
 const WK = { handoff: undefined, history: undefined };
 
 function invalidateData() {
@@ -1571,6 +1575,17 @@ function fmtCell(col, v) {
   if (col === 'confidence') {
     const hi = String(v).toLowerCase() === 'high';
     return '<span class="confchip' + (hi ? ' hi' : '') + '">' + esc(v) + '</span>';
+  }
+  if (col === 'action') {
+    const a = String(v); let bg = 'var(--chipbg)', fg = 'var(--ink2)';
+    if (a.indexOf('Cut') === 0) { bg = 'var(--accent-soft)'; fg = 'var(--accent-deep)'; }
+    else if (a.indexOf('Reinvest') === 0) { bg = 'var(--goodbg)'; fg = 'var(--good)'; }
+    else if (a.indexOf('Hold — defend') === 0) { bg = 'var(--warnbg)'; fg = 'var(--warn)'; }
+    else if (a.indexOf('Monitor') === 0) { bg = 'var(--chipbg)'; fg = 'var(--ink3)'; }
+    return '<span class="confchip" style="background:' + bg + ';color:' + fg + ';border-color:transparent;white-space:nowrap">' + esc(a) + '</span>';
+  }
+  if (col === 'why') {
+    return '<span style="display:inline-block;max-width:340px;white-space:normal;color:var(--ink2);font-size:12px;line-height:1.45">' + esc(v) + '</span>';
   }
   if (col === 'bucket') return esc(BUCKET_LABEL[v] || v);
   if (col === 'applied' || col === 'fragile' || col === 'in_first_wave') {
@@ -1635,7 +1650,7 @@ async function renderCutPlan() {
   $('#cut-tabs').innerHTML = CUT_TABS.map(t =>
     '<button class="tab' + (t[0] === CUT.tab ? ' on' : '') + '" data-cuttab="' + t[0] + '"' +
     ' aria-pressed="' + (t[0] === CUT.tab ? 'true' : 'false') + '">' + esc(t[1]) + '</button>').join('');
-  const filterable = CUT.tab === 'cuts' || CUT.tab === 'reinvest' || CUT.tab === 'prices';
+  const filterable = CUT.tab === 'cuts' || CUT.tab === 'reinvest' || CUT.tab === 'prices' || CUT.tab === 'plan_all';
   $('#cut-searchwrap').style.display = filterable ? '' : 'none';
   $('#cut-cat').style.display = filterable ? '' : 'none';
   $('#cut-conf').style.display = filterable ? '' : 'none';
@@ -1687,7 +1702,19 @@ async function renderCutPlan() {
   const sumEl = $('#cut-summary');
   const stat = (ic, hue, v, l) => '<div class="cut-stat"><span class="cs-ic ' + hue + '">' + ic + '</span>' +
     '<span><div class="cs-v">' + v + '</div><div class="cs-l">' + esc(l) + '</div></span></div>';
-  if (name === 'prices' && sorted.length) {
+  if (name === 'plan_all' && sorted.length) {
+    const isAct = (o, a) => String(o.action || '').indexOf(a) === 0;
+    const cutN = sorted.filter(o => isAct(o, 'Cut')).length;
+    const cutRs = sorted.filter(o => isAct(o, 'Cut')).reduce((a, o) => a + (toNum(o.gain_mo) || 0), 0);
+    const reinN = sorted.filter(o => isAct(o, 'Reinvest')).length;
+    const holdN = sorted.length - cutN - reinN;
+    sumEl.innerHTML = '<div class="cut-summary">' +
+      stat(IC.grid, 'hc1', fmtIN(sorted.length), 'products × cities — one action each') +
+      stat(IC.scissors, 'hc4', fmtIN(cutN), 'to cut · ' + rupC(cutRs) + ' / mo') +
+      stat(IC.target, 'hc3', fmtIN(reinN), 'to reinvest (grow)') +
+      stat(IC.scale, 'hc2', fmtIN(holdN), 'hold or monitor') +
+      '</div>';
+  } else if (name === 'prices' && sorted.length) {
     const hi = sorted.filter(o => String(o.confidence || '').toLowerCase() === 'high').length;
     const discs = sorted.map(o => toNum(o.opt_disc)).filter(v => v != null);
     const avgDisc = discs.length ? discs.reduce((a, b) => a + b, 0) / discs.length : 0;
@@ -1721,7 +1748,11 @@ async function renderCutPlan() {
     : '<div class="card"><div class="empty"><div class="et">No rows match</div><div class="es">Try clearing the search or filters.</div></div></div>';
 
   /* footer */
-  if (name === 'prices') {
+  if (name === 'plan_all') {
+    foot.innerHTML = '<span><b>' + fmtIN(sorted.length) + '</b> cell' + (sorted.length === 1 ? '' : 's') +
+      ' · every product × city has one action and the discount to set</span>' +
+      '<span class="dim">Most cells read “hold” — for stock-gated, defensive or low-evidence cells, keeping the discount is the recommendation; the reason is in each row.</span>';
+  } else if (name === 'prices') {
     foot.innerHTML = '<span><b>' + fmtIN(sorted.length) + '</b> cell' + (sorted.length === 1 ? '' : 's') +
       ' · optimal price, discount & estimated sales per product × city</span>' +
       '<span class="dim">Confidence score (0–100) blends data volume, model fit & plausibility — higher means the estimate is more trustworthy.</span>';
