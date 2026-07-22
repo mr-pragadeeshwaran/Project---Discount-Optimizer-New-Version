@@ -143,7 +143,8 @@ def compute(df, cut_ids, rein_ids):
             head=head, be=be, sig_pos=bool(r.get("sig_pos")),
             reliably_waste=bool(r.get("reliably_waste")), reliably_pays=bool(r.get("reliably_pays")),
             c_density=_num(r.get("conf_density")), c_var=_num(r.get("conf_variation")),
-            c_fit=_num(r.get("conf_fit")), c_tight=_num(r.get("conf_tightness")),
+            c_fit=_num(r.get("conf_fit")), c_plaus=_num(r.get("conf_plausibility")),
+            c_tight=_num(r.get("conf_tightness")),
             comp=bool(r.get("comp_pressure")), trend=r.get("trend", ""), hold_reason=hold_reason,
         ))
     d = pd.DataFrame(out)
@@ -340,6 +341,22 @@ def build_workbook(run, d):
         vc.border = border; vc.alignment = Alignment(horizontal="right")
         row += 1
 
+    # "how to read the money" note — below the KPI block, left of the charts
+    nrow = row + 1
+    es.cell(nrow, 2, "How to read the money").font = Font(size=11, bold=True, color=INK)
+    money_note = (
+        "• Sales Impact = change in NET REVENUE (units × selling price). Cutting a wasteful "
+        "discount RAISES the price you keep per unit, so revenue can rise even as the discount "
+        "falls — that figure is a revenue GAIN, not a loss.\n"
+        "• Discount Budget Saved / Spend Change = the discount rupees you no longer give away — "
+        "a separate, usually LARGER number.\n"
+        "So one cut delivers both: more revenue AND freed budget. Example (Tur/Arhar Dal, "
+        "Bangalore): 28%→12% discount lifts price ₹255→₹311 (+22%) while units ease 869→772 "
+        "(−11%, elasticity −0.55) → sales +₹79,932/mo AND ₹227,069/mo of discount returned.")
+    mc = es.cell(nrow + 1, 2, money_note); mc.font = Font(size=9.5, color=SLATE)
+    mc.alignment = Alignment(wrap_text=True, vertical="top")
+    es.merge_cells(start_row=nrow + 1, start_column=2, end_row=nrow + 7, end_column=4)
+
     # action-count table (drives the charts)
     tr = 6
     es.cell(tr, 5, "Action").font = Font(bold=True, color="FFFFFF")
@@ -403,6 +420,10 @@ def build_workbook(run, d):
         ("Est. Sales Impact ₹/mo", "sales_impact", 15, RUP),
         ("Business Rationale", "rationale", 52, None),
         ("Confidence", "confidence", 11, None), ("Conf Score", "conf_score", 9, "0"),
+        # the five sub-scores behind Conf Score (0-1 each); weighted sum ×100 = Conf Score
+        ("Density ·0.25", "c_density", 11, "0.00"), ("Variation ·0.20", "c_var", 11, "0.00"),
+        ("Fit ·0.20", "c_fit", 9, "0.00"), ("Plausible ·0.15", "c_plaus", 11, "0.00"),
+        ("Tightness ·0.20", "c_tight", 11, "0.00"),
         ("Why This Confidence", "why", 60, None), ("Supporting Metrics", "supporting", 55, None),
         ("Assumptions", "assumptions", 50, None), ("Missing Data (why not higher)", "missing", 45, None),
         ("Would Increase Confidence", "increase", 50, None), ("Risks / Limitations", "risks", 50, None),
@@ -479,7 +500,8 @@ def build_confidence_sheet(wb, d, border):
         ("Category model fit (R²)", "How well the demand model explains the category — the gate to trust it at all", "≥ 0.60"),
         ("Data history", "Weeks of sales for this cell", "≥ 8 weeks"),
         ("Discount variation (σ)", "Within-cell discount spread — needed to measure the response", "≥ 1.5 pp"),
-        ("Data-richness score", "0–100 blend of data volume, discount spread, fit, plausibility & CI tightness", "≥ 50"),
+        ("Data-richness score", "×100 · (0.25·density + 0.20·variation + 0.20·fit + 0.15·plausibility + 0.20·tightness); "
+         "each sub-score 0–1, shown per row on the SKU sheet so the score is auditable", "≥ 50"),
     ]
     rr = r0 + 1
     for name, what, req in rows:
