@@ -129,6 +129,7 @@ def compute(df, cut_ids, rein_ids):
         sales_impact = rec_sales - cur_sales
 
         out.append(dict(
+            product_id=r.get("product_id"), cell_id=cid,
             sku=r["title"], pack=r.get("grammage", ""), city=r["city"], category=r["category"],
             cur_sales=cur_sales, cur_disc=cur_disc, cur_spend=cur_spend,
             action=action, rec_disc=rec_disc, rec_spend=rec_spend,
@@ -391,6 +392,7 @@ def build_workbook(run, d):
     ws = wb.create_sheet("SKU Recommendations")
     ws.sheet_view.showGridLines = False
     cols = [
+        ("Product ID", "product_id", 11, None), ("Cell ID (key)", "cell_id", 22, None),
         ("SKU Name", "sku", 30, None), ("Pack", "pack", 8, None), ("City", "city", 14, None),
         ("Category", "category", 20, None),
         ("Current Sales ₹/mo", "cur_sales", 15, RUP), ("Current Disc %", "cur_disc", 11, PCT),

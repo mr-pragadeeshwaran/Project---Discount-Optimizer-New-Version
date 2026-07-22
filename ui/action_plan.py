@@ -35,8 +35,8 @@ ACTION_LABEL = {
 # display order: act-now first, then the holds, then monitor
 ACTION_ORDER = {"cut": 0, "reinvest": 1, "hold_defend": 2, "hold_stock": 3, "monitor": 4}
 
-# columns of the master sheet, in order
-COLUMNS = ["title", "pack", "city", "category", "mrp", "action",
+# columns of the master sheet, in order (product_id + cell_id first, for lookups/joins)
+COLUMNS = ["product_id", "cell_id", "title", "pack", "city", "category", "mrp", "action",
            "disc_now", "disc_set", "price_set", "gain_mo", "confidence", "why"]
 
 
@@ -91,6 +91,7 @@ def build_action_plan(run):
         pack = cid.split("_")[1] if cid.count("_") >= 2 else ""
         price_set = round(mrp * (1 - set_disc / 100.0)) if mrp else ""
         rows.append({
+            "product_id": r.get("product_id"), "cell_id": cid,
             "title": r.get("title"), "pack": pack, "city": r.get("city"),
             "category": r.get("category"), "mrp": round(mrp) if mrp else "",
             "action": ACTION_LABEL[key],

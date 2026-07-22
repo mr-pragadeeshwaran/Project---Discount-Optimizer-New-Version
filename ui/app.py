@@ -453,6 +453,7 @@ def api_table(name):
         d = pd.read_csv(_need(os.path.join(run, "recommendations.csv"),
                               "the price board (run the monthly rebuild)"))
         colmap = [                       # (source column, board column)
+            ("product_id", "product_id"), ("cell_id", "cell_id"),   # keys for lookup / join
             ("title", "title"), ("grammage", "pack"), ("city", "city"), ("category", "category"),
             ("mrp", "mrp"),
             ("rec_discount_pct", "opt_disc"), ("rec_price", "opt_sp"),
