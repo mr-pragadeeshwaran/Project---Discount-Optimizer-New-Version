@@ -22,8 +22,8 @@ Models:
   E5 — Per-cell GBM (one tree per cell, with monotonic price constraint)
 
 Outputs:
-  v4_outputs/_diagnostics/experiments_summary.csv
-  v4_outputs/_diagnostics/experiments_per_cell.csv      (one row per cell × model)
+  output/runs/_diagnostics/experiments_summary.csv
+  output/runs/_diagnostics/experiments_per_cell.csv      (one row per cell × model)
 """
 import os
 import sys

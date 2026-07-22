@@ -3,7 +3,7 @@ elasticity_gates.py — PricingAI three-stage elasticity validation protocol (va
 
 Applies the paper's acceptance protocol to the PRODUCTION elasticity estimates —
 DISCOUNT_PLAN/pricing/elasticities.csv + cross_price.csv + gates.json — scored
-against the weekly pricing panel built from the latest v4_outputs/2026*/fact_table.csv.
+against the weekly pricing panel built from the latest output/runs/2026*/fact_table.csv.
 This is a downstream GATE, champion/challenger style: it edits nothing, it only
 measures the matrix the optimizer is about to consume and returns a hard verdict.
 
@@ -100,11 +100,11 @@ def _clean_pid(v):
 
 
 def _latest_fact_table():
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         f = os.path.join(r, "fact_table.csv")
         if os.path.exists(f):
             return f, r
-    raise SystemExit("no fact_table.csv under v4_outputs/2026* — run pipeline.py first")
+    raise SystemExit("no fact_table.csv under output/runs/2026* — run pipeline.py first")
 
 
 def _wavg(x, w):

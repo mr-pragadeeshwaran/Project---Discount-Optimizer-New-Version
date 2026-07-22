@@ -99,7 +99,7 @@ def optimize_decomposed(elast_df, cross_df, baseline_df, config):
 
 
 def _latest_fact_table():
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         f = os.path.join(r, "fact_table.csv")
         if os.path.exists(f):
             return f, r
@@ -333,7 +333,7 @@ def _write_agreement(reco_df, run, out_dir):
 def _stamp_run_outputs(run, out_dir):
     """Copy this run's pricing outputs into DISCOUNT_PLAN/pricing/history/<stamp>/ so
     successive runs aren't silently overwritten. <stamp> is the basename of the latest
-    v4_outputs run folder (NO wall-clock time — derived from that folder name)."""
+    output/runs run folder (NO wall-clock time — derived from that folder name)."""
     stamp = os.path.basename(os.path.normpath(run))
     if not stamp:
         return None
@@ -535,7 +535,7 @@ def _selfcheck():
     # writer + stamping round-trip on a temp tree
     with tempfile.TemporaryDirectory() as td:
         out = os.path.join(td, "pricing"); os.makedirs(out)
-        run = os.path.join(td, "v4_outputs", "20260705_161703")
+        run = os.path.join(td, "output", "runs", "20260705_161703")
         os.makedirs(os.path.join(run, "plan"))
         cut_df.to_csv(os.path.join(run, "plan", "cut_list.csv"), index=False)
         adf, astats = _write_agreement(reco_df, run, out)

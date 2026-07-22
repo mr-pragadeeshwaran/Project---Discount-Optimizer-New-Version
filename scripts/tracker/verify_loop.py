@@ -28,7 +28,7 @@ SIM_WEEK_DATE = "2026-06-15"   # a Monday that exists in the 6-month data
 
 
 def _fact_table():
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         f = os.path.join(r, "fact_table.csv")
         if os.path.exists(f):
             return f

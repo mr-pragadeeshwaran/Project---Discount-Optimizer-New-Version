@@ -22,9 +22,9 @@ granularities for the winning model (E1: OLS + lag/DOW/momentum):
 We report each, plus rolled-up product and city totals.
 
 Output:
-  v4_outputs/_diagnostics/per_cell_three_metrics.csv
-  v4_outputs/_diagnostics/per_product_three_metrics.csv
-  v4_outputs/_diagnostics/per_city_three_metrics.csv
+  output/runs/_diagnostics/per_cell_three_metrics.csv
+  output/runs/_diagnostics/per_product_three_metrics.csv
+  output/runs/_diagnostics/per_city_three_metrics.csv
   + console summary
 """
 import os

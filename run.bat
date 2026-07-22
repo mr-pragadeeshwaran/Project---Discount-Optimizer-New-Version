@@ -21,19 +21,19 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM Find the newest run folder under v4_outputs and open its report
+REM Find the newest run folder under output\runs and open its report
 set "LATEST="
-for /f "delims=" %%i in ('dir /b /ad /o-d "v4_outputs\2026*" 2^>nul') do (
+for /f "delims=" %%i in ('dir /b /ad /o-d "output\runs\2026*" 2^>nul') do (
   set "LATEST=%%i"
   goto :found
 )
 :found
 if defined LATEST (
   echo.
-  echo Opening report: v4_outputs\%LATEST%\WASTE_REINVEST_REPORT.xlsx
-  start "" "v4_outputs\%LATEST%\WASTE_REINVEST_REPORT.xlsx"
+  echo Opening report: output\runs\%LATEST%\WASTE_REINVEST_REPORT.xlsx
+  start "" "output\runs\%LATEST%\WASTE_REINVEST_REPORT.xlsx"
 ) else (
-  echo Could not locate a report folder under v4_outputs.
+  echo Could not locate a report folder under output\runs.
 )
 echo.
 echo Done.

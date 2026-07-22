@@ -30,10 +30,10 @@ to assess a different brand and re-run.
 
 Output
 ------
-    v4_outputs/_readiness/DATA_READINESS_REPORT.md     (the one-page sellable artifact)
-    v4_outputs/_readiness/per_cell_assessment.csv      (audit trail)
-    v4_outputs/_readiness/per_product_assessment.csv
-    v4_outputs/_readiness/per_city_assessment.csv
+    output/runs/_readiness/DATA_READINESS_REPORT.md     (the one-page sellable artifact)
+    output/runs/_readiness/per_cell_assessment.csv      (audit trail)
+    output/runs/_readiness/per_product_assessment.csv
+    output/runs/_readiness/per_city_assessment.csv
 """
 import os
 import sys

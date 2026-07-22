@@ -1,7 +1,7 @@
 """Evaluate the latest WASTE_REINVEST_REPORT.xlsx formulas to confirm correctness."""
 import formulas, glob
 
-p = sorted(glob.glob('v4_outputs/*/WASTE_REINVEST_REPORT.xlsx'))[-1]
+p = sorted(glob.glob('output/runs/*/WASTE_REINVEST_REPORT.xlsx'))[-1]
 print(f"Evaluating: {p}")
 xl = formulas.ExcelModel().loads(p).finish()
 sol = xl.calculate()

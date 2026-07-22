@@ -7,7 +7,7 @@ against what actually happened, and refresh the master Excel tracker + a
 plain-English readout.
 
 Flow:
-  1. Load the model's per-cell plan (v4_outputs/<run>/plan/all_cells.csv).
+  1. Load the model's per-cell plan (output/runs/<run>/plan/all_cells.csv).
   2. Build the standard `plan_df` (contract columns).
   3. apply_seasonality  → flag festival weeks, relax budget, exclude from scoring.
   4. apply_guardrail    → glide (<=3ppt), revenue-protect, enforce budget cap.
@@ -75,7 +75,7 @@ FESTIVAL_UPLIFT_PCT = 0.5
 
 
 def _latest_plan_csv():
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         f = os.path.join(r, "plan", "all_cells.csv")
         if os.path.exists(f):
             return f
@@ -83,7 +83,7 @@ def _latest_plan_csv():
 
 
 def _latest_fact_table():
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         f = os.path.join(r, "fact_table.csv")
         if os.path.exists(f):
             return f

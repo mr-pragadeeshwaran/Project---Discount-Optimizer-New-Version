@@ -12,7 +12,7 @@ IMPORTANT framing: "spend" throughout = promotional DISCOUNT spend (the rupees g
 away as discount), which is the lever this engine optimizes. It is NOT paid-ad spend;
 the system ingests no ad-spend rupees. "ROAS" = return on discount spend.
 
-Sources (latest v4_outputs run):
+Sources (latest output/runs run):
   plan/all_cells.csv     — decision engine: bucket, break-even, target, ROAS, confidence
   recommendations.csv    — pricing engine: confidence score + 5 sub-scores, revenue
 Joined on cell_id (1:1 for all 537 decision cells).
@@ -39,7 +39,7 @@ NEUT  = "EEF1F6"; HEADbg = "1F2740"
 
 
 def _latest_run():
-    runs = sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")))
+    runs = sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")))
     for r in reversed(runs):
         if os.path.exists(os.path.join(r, "plan", "all_cells.csv")):
             return r

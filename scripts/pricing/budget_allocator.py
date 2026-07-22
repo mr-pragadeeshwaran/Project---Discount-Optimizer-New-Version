@@ -112,7 +112,7 @@ def allocate_budget(lad, P, budget_pct):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--budget_pct", type=float, default=0.10); a = ap.parse_args()
-    run = sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")))[-1]
+    run = sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")))[-1]
     pd_dir = os.path.join(run, "plan")
     import pricing_panel as pp, elasticity_bayes as eb
     panel = pp.build_pricing_panel(os.path.join(run, "fact_table.csv"))

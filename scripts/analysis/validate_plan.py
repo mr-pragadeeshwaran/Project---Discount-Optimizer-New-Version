@@ -41,7 +41,7 @@ OSA_LOW = 75.0
 
 
 def _latest_plan():
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         if os.path.exists(os.path.join(r, "plan", "all_cells.csv")):
             return os.path.join(r, "plan")
     raise SystemExit("No plan/ folder found — run discount_plan.py first.")

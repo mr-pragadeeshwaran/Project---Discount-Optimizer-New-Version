@@ -493,16 +493,16 @@ def build():
         Paragraph("The proof documents (share with any skeptic)", H2),
         tbl([
             ["File", "Read it as"],
-            [C("v4_outputs/_readiness/DATA_READINESS_REPORT.md"),
+            [C("output/runs/_readiness/DATA_READINESS_REPORT.md"),
              C("'What share of this brand's portfolio can be acted on today?' "
                "- the onboarding verdict")],
-            [C("v4_outputs/_credibility/CREDIBILITY_REPORT.md"),
+            [C("output/runs/_credibility/CREDIBILITY_REPORT.md"),
              C("'How accurate is the engine that actually sets prices?' - the "
                "honest R-squared, plus bias checks")],
-            [C("v4_outputs/_proof_loop/PROOF_LOOP_REPORT.md"),
+            [C("output/runs/_proof_loop/PROOF_LOOP_REPORT.md"),
              C("'Did its forecasts come true on weeks it never saw?' - the "
                "forward test and conservative verdict")],
-            [C("v4_outputs/_recovery/RECOVERY_REPORT.md"),
+            [C("output/runs/_recovery/RECOVERY_REPORT.md"),
              C("'Can it find an answer we planted?' - the machinery test a "
                "data scientist will respect")],
         ], [205, 255], fs=8.2),

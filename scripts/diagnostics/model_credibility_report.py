@@ -42,7 +42,7 @@ THREE CHECKS
    A large systematic shift = omitted-variable bias in the naive slope, i.e.
    the elasticity (and the rupee savings built on it) is overstated.
 
-Outputs (all under v4_outputs/_credibility/):
+Outputs (all under output/runs/_credibility/):
   CREDIBILITY_REPORT.md          one-page brand/skeptic-facing summary
   decision_vs_full_by_cell.csv   per-cell decision vs full model accuracy
   confidence_calibration.csv     accuracy by confidence tier

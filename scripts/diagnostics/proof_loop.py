@@ -9,7 +9,7 @@ one-page scorecard a prospect can read. The same logic powers the
 Usage:
     python -X utf8 scripts/diagnostics/proof_loop.py --weeks 8
 
-Outputs (v4_outputs/_proof_loop/):
+Outputs (output/runs/_proof_loop/):
     PROOF_LOOP_REPORT.md      one-page out-of-time validation scorecard
     discount_move_validation.csv   predicted vs actual volume change by move type
 """

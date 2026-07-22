@@ -35,7 +35,7 @@ DEEP_PROMO_PPT = 5.0          # HIGH spike counts as promo-driven if disc >= cel
 
 
 def _latest_run():
-    runs = sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")))
+    runs = sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")))
     for r in reversed(runs):
         if os.path.exists(os.path.join(r, "outliers_removed.csv")):
             return r

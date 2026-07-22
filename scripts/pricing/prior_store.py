@@ -198,7 +198,7 @@ def retrain_check(path=PRIORS_PATH, cadence_weeks=RETRAIN_CADENCE_WEEKS, now=Non
 # ─────────────────────────── two-run proof ───────────────────────────
 
 def _latest_fact_table():
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         f = os.path.join(r, "fact_table.csv")
         if os.path.exists(f):
             return f, r

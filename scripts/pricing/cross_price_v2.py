@@ -75,7 +75,7 @@ price_18 — competitor price-follow elasticity per category. DATA REALITY
 
 INPUTS (all existing, read-only)
 --------------------------------
- - newest v4_outputs/2026*/fact_table.csv  (same glob as pricing_engine.py:101)
+ - newest output/runs/2026*/fact_table.csv  (same glob as pricing_engine.py:101)
  - scripts/pricing/pricing_panel.build_pricing_panel  (weekly SKU x city panel)
  - elasticity_bayes (fallback elasticity_hier).estimate_elasticities — champion
    own elasticities + per-category total cross mass
@@ -145,8 +145,8 @@ def _clean_pid(v):
 
 
 def _latest_fact_table():
-    """Newest v4_outputs/2026*/fact_table.csv (pattern from pricing_engine.py:101)."""
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    """Newest output/runs/2026*/fact_table.csv (pattern from pricing_engine.py:101)."""
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         f = os.path.join(r, "fact_table.csv")
         if os.path.exists(f):
             return f, r

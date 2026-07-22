@@ -42,7 +42,7 @@ HONESTY NOTES (read before trusting the calendar):
      executable Monday move.
 
 INPUTS (all existing artifacts, read-only):
-  - newest v4_outputs/2026*/fact_table.csv -> pricing_panel.build_pricing_panel
+  - newest output/runs/2026*/fact_table.csv -> pricing_panel.build_pricing_panel
   - elasticity_bayes (fallback elasticity_hier).estimate_elasticities -> elast/cross/baseline
   - v4_config.DEFAULT_BUDGET_PCT_CAP (12%) for the weekly discount-spend cap default
   - DISCOUNT_PLAN/defense_hold.csv for the competitive-defense hold-out cells
@@ -93,7 +93,7 @@ def _clean_pid(v):
 
 
 def _latest_fact_table():
-    for r in sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")), reverse=True):
+    for r in sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")), reverse=True):
         f = os.path.join(r, "fact_table.csv")
         if os.path.exists(f):
             return f, r

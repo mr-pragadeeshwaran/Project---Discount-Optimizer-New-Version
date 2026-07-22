@@ -48,7 +48,7 @@ margin are still REPORTED in the financial chain using v4_config default costs
 
 INPUTS
 ------
-- newest v4_outputs/2026*/fact_table.csv -> pricing_panel.build_pricing_panel
+- newest output/runs/2026*/fact_table.csv -> pricing_panel.build_pricing_panel
 - elasticity_bayes.estimate_elasticities (same fallback chain as pricing_engine)
 - optional DISCOUNT_PLAN/pricing/negotiation_feedback.csv
   (columns: product_id, city, action in {lock, opt_out, max_disc, min_disc}, value, note)

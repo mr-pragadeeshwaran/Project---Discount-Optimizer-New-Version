@@ -56,7 +56,7 @@ TARGET_LO, TARGET_HI = 600_000, 1_000_000
 
 
 def _latest_facttable():
-    runs = sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")))
+    runs = sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")))
     for r in reversed(runs):
         f = os.path.join(r, "fact_table.csv")
         if os.path.exists(f) and os.path.getsize(f) > 1000:

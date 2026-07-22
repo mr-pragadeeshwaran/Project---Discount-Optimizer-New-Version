@@ -24,7 +24,7 @@ import os
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SALES_DATA_DIR = os.path.join(os.path.dirname(__file__), "input_data")
 MASTER_DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "master")
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "v4_outputs")
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output", "runs")
 
 # Column name mapping (raw Excel → internal)
 COL = {

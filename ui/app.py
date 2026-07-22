@@ -112,7 +112,7 @@ JOB = Job()
 
 
 def _latest_run():
-    runs = sorted(glob.glob(os.path.join(ROOT, "v4_outputs", "2026*")))
+    runs = sorted(glob.glob(os.path.join(ROOT, "output", "runs", "2026*")))
     return runs[-1] if runs else None
 
 
@@ -122,7 +122,7 @@ def _resolve(cmd):
         if c == "@latest_fact":
             run = _latest_run()
             if not run:
-                raise RuntimeError("No run found under v4_outputs/ — run the pipeline first.")
+                raise RuntimeError("No run found under output/runs/ — run the pipeline first.")
             c = os.path.join(run, "fact_table.csv")
         out.append(c)
     return out

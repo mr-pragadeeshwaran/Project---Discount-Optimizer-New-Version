@@ -7,7 +7,7 @@ and never edited.
 What it does (paper §3.3 analog — validate the DEPLOYED model, not a lab spec)
 ------------------------------------------------------------------------------
 1. Builds the champion's own weekly product x city panel (dp.build_panel on the
-   newest v4_outputs/2026*/fact_table.csv).
+   newest output/runs/2026*/fact_table.csv).
 2. Walk-forward: >= 4 origins (default 5, 2-week spacing). At each origin the
    champion's EXACT per-category formula
        log1p(units) ~ C(cell_id) + disc + disc_sq + log_osa + log_adsov

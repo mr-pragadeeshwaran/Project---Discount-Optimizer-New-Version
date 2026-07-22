@@ -11,9 +11,9 @@ Also reports data density per cell (n train rows, n distinct prices, price std)
 so we can see if low R² correlates with thin data.
 
 Outputs:
-  v4_outputs/_diagnostics/baseline_per_cell.csv
-  v4_outputs/_diagnostics/baseline_per_product.csv
-  v4_outputs/_diagnostics/baseline_per_city.csv
+  output/runs/_diagnostics/baseline_per_cell.csv
+  output/runs/_diagnostics/baseline_per_product.csv
+  output/runs/_diagnostics/baseline_per_city.csv
 """
 import os
 import sys

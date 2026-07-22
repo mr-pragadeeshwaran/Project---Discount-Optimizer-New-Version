@@ -22,7 +22,7 @@ trusted on real data. Run across many seeds so it's not luck.
 
     python -X utf8 scripts/diagnostics/recovery_test.py --seeds 10 --true -1.8
 
-Output: v4_outputs/_recovery/RECOVERY_REPORT.md
+Output: output/runs/_recovery/RECOVERY_REPORT.md
 """
 import os
 import sys

@@ -41,7 +41,7 @@ COLS = cfg.COL  # renamed: patsy uses C() for categoricals
 
 
 def load_features():
-    """Use the most recent features.csv from v4_outputs/."""
+    """Use the most recent features.csv from output/runs/."""
     runs = sorted(glob.glob(os.path.join(cfg.OUTPUT_DIR, "*", "features.csv")))
     assert runs, "No features.csv found — run pipeline first"
     latest = runs[-1]
