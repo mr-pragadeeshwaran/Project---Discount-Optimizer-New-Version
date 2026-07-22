@@ -15,7 +15,8 @@ from openpyxl.utils import get_column_letter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
-OUT = os.path.join(ROOT, "SCRAPE_COST_CALCULATOR.xlsx")
+OUT = os.path.join(ROOT, "doc", "assets", "SCRAPE_COST_CALCULATOR.xlsx")
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 # ── styles ────────────────────────────────────────────────────────────
 TITLE_FONT   = Font(bold=True, size=14, color="FFFFFF")

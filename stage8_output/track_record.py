@@ -19,7 +19,7 @@ Canonical logic for proving the model works, in two forms:
 
 Everything is purely discount/volume based — no COGS or margin assumptions.
 The "saving" is wasted discount recovered; the "reinvest" is discount
-redeployed where it grows volume. See doc/MODEL.md.
+redeployed where it grows volume. See doc/legacy/MODEL.md.
 """
 import os
 import glob

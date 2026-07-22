@@ -21,7 +21,8 @@ from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, PageBreak,
 from reportlab.graphics.shapes import Drawing, Rect, String, Line, Polygon
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-OUT = os.path.join(ROOT, "DISCOUNT_OPTIMIZER_SYSTEM_GUIDE.pdf")
+OUT = os.path.join(ROOT, "doc", "pdf", "DISCOUNT_OPTIMIZER_SYSTEM_GUIDE.pdf")
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 # ── design tokens ─────────────────────────────────────────────────────
 INK    = HexColor("#0F172A")

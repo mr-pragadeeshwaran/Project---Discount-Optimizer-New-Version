@@ -329,7 +329,7 @@ def main():
     md.append(f"- **Verdict** is the top-level go/no-go for this engagement. GREEN = ship. YELLOW = ship-with-caveats. RED = stop and gather more data first.")
     md.append(f"- **% Actionable** per product / city tells you where you can move fast vs where you need to test first. Aim for ≥70% before broad rollout in that segment.")
     md.append(f"- **Aggregated 3pp-bin R²** is the metric that matches a pricing decision (averaging over within-cell daily noise). When this is ≥0.70, the model's discount→units curve can be trusted.")
-    md.append(f"- **Daily within-cell R²** is intentionally NOT in this report. It is noise-limited and not a useful action gate — see `doc/MODEL_EXPERIMENTS.md` for the reasoning.")
+    md.append(f"- **Daily within-cell R²** is intentionally NOT in this report. It is noise-limited and not a useful action gate — see `doc/legacy/MODEL_EXPERIMENTS.md` for the reasoning.")
     md.append(f"")
     md.append(f"## Next steps")
     md.append(f"")
