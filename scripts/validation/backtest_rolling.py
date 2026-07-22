@@ -65,7 +65,7 @@ _spec = importlib.util.spec_from_file_location(
 dp = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(dp)
 
-OUT_DIR = os.path.join(ROOT, "DISCOUNT_PLAN", "validation")
+OUT_DIR = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation")
 
 # ── tunables ────────────────────────────────────────────────────────────────
 MIN_TRAIN_WEEKS = 12     # skip origins with a thinner training window

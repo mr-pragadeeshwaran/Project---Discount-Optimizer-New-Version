@@ -47,8 +47,8 @@ try:
 except ImportError:            # only a MISSING config falls back to the proxies;
     COGS_PCT, COMM_PCT, FULFIL = 0.50, 0.15, 10.0   # a broken settings file raises
 
-OUT_DIR = os.path.join(ROOT, "DISCOUNT_PLAN", "validation")
-HISTORY = os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv")
+OUT_DIR = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation")
+HISTORY = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "tracker_history.csv")
 FRAGILE_FLIP = 0.20        # joint flip rate above this = fragile, hold out of wave 1
 COGS_REL, COMM_PPT, UNITS_REL = 0.10, 0.03, 0.10   # perturbation widths (paper-style sweeps)
 

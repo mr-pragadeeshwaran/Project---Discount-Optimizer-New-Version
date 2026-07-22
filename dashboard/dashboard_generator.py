@@ -22,7 +22,7 @@ def _load_last_week_performance():
         _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         sys.path.insert(0, os.path.join(_root, "scripts", "tracker"))
         import scorecard as _sc
-        hist_path = os.path.join(_root, "DISCOUNT_PLAN", "tracker_history.csv")
+        hist_path = os.path.join(_root, "output", "DISCOUNT_PLAN", "tracker_history.csv")
         if not os.path.exists(hist_path):
             return {"has_data": False}
         hist = pd.read_csv(hist_path)

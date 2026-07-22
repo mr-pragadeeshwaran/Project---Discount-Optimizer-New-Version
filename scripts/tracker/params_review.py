@@ -44,8 +44,8 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, ROOT)
 import v4_config as cfg
 
-HISTORY_JSON = os.path.join(ROOT, "DISCOUNT_PLAN", "params_history.json")
-OUT_MD = os.path.join(ROOT, "DISCOUNT_PLAN", "PARAMS_REVIEW.md")
+HISTORY_JSON = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "params_history.json")
+OUT_MD = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "PARAMS_REVIEW.md")
 CALENDAR_MIN_RUNWAY_DAYS = 56   # calendar must cover >= 8 weeks ahead (retailer analogue)
 
 
@@ -138,7 +138,7 @@ def _week_label():
     try:
         import csv
         weeks = set()
-        with open(os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv"), newline="", encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "tracker_history.csv"), newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 weeks.add(row.get("week", ""))
         nums = [int(w[1:]) for w in weeks if w.startswith("W") and w[1:].isdigit()]

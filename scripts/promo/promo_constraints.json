@@ -14,6 +14,6 @@
     "min_promo_spacing":        {"enabled": true,  "params": {"spacing_weeks": 4}},
     "max_simultaneous_promos":  {"enabled": true,  "params": {"max_per_category_week": 3}},
     "weekly_budget_cap":        {"enabled": true,  "params": {"budget_pct": null}},
-    "competitive_defense_hold": {"enabled": true,  "params": {"hold_file": "DISCOUNT_PLAN/defense_hold.csv"}}
+    "competitive_defense_hold": {"enabled": true,  "params": {"hold_file": "output/DISCOUNT_PLAN/defense_hold.csv"}}
   }
 }

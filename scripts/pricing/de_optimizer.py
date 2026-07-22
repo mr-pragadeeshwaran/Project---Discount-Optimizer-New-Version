@@ -513,7 +513,7 @@ ROBUST_GRID = [
 ]
 
 _IMPORT_TS = time.time()          # process start; gates merge requires gates.json newer than this
-_GATES_PATH = os.path.join(_ROOT, "DISCOUNT_PLAN", "pricing", "gates.json")
+_GATES_PATH = os.path.join(_ROOT, "output", "DISCOUNT_PLAN", "pricing", "gates.json")
 _ROBUSTNESS_GROUPS = {}           # label -> per-group convergence record (process lifetime)
 
 
@@ -1041,7 +1041,7 @@ if __name__ == "__main__":
 
     # --- Declarative constraints: default config file must be a no-op ---
     print("\n=== constraints hook (default = disabled = champion behaviour) ===")
-    cons_path = os.path.join(_ROOT, "DISCOUNT_PLAN", "pricing", "pricing_constraints.json")
+    cons_path = os.path.join(_ROOT, "output", "DISCOUNT_PLAN", "pricing", "pricing_constraints.json")
     if os.path.exists(cons_path):
         with open(cons_path, "r", encoding="utf-8") as fh:
             cons_cfg = json.load(fh)

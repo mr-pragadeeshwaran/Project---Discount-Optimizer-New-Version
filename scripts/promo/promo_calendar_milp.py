@@ -70,7 +70,7 @@ sys.path.insert(0, ROOT)
 import de_optimizer as de            # shared demand kernel — imported, NEVER edited
 import v4_config as cfg
 
-OUT = os.path.join(ROOT, "DISCOUNT_PLAN", "promo")
+OUT = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "promo")
 DEFAULT_CONFIG_PATH = os.path.join(HERE, "promo_constraints.json")
 
 # Same kernel config as pricing_engine.CONFIG (dln bounds + PPP thresholds only).
@@ -538,7 +538,7 @@ def main(args):
           f"horizon {ccfg['horizon_weeks']} wk | grid {ccfg['discount_levels_pct']}%")
 
     hold_path = ccfg.get("constraints", {}).get("competitive_defense_hold", {}) \
-                    .get("params", {}).get("hold_file", "DISCOUNT_PLAN/defense_hold.csv")
+                    .get("params", {}).get("hold_file", "output/DISCOUNT_PLAN/defense_hold.csv")
     hold_set = load_defense_hold(os.path.join(ROOT, hold_path))
     print(f"[promo] defense hold-outs: {len(hold_set)} cells from {hold_path}")
 

@@ -130,7 +130,7 @@ def _resolve(cmd):
 
 def _reset_state():
     for f in ("tracker_history.csv", "baselines.json", "execution_log.csv"):
-        p = os.path.join(ROOT, "DISCOUNT_PLAN", f)
+        p = os.path.join(ROOT, "output", "DISCOUNT_PLAN", f)
         if os.path.exists(p):
             os.remove(p)
     JOB.log.append("[ui] tracker state reset (history/baselines/exec-log cleared)")
@@ -239,7 +239,7 @@ def api_status():
     st["input_files"] = _safe(files, [])
 
     def tracker():
-        h = pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv"))
+        h = pd.read_csv(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "tracker_history.csv"))
         acts = h.get("week_action")
         week_label = None
         if "week" in h.columns and len(h):
@@ -269,7 +269,7 @@ def api_status():
     st["category_savings"] = (_safe(cat_savings, []) if run else []) or []
 
     def agreement():
-        a = pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "agreement.csv"))
+        a = pd.read_csv(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing", "agreement.csv"))
         pa = a["pricing_action"].astype(str)
         return {"cut": int((pa == "cut").sum()), "hold": int((pa == "hold").sum()),
                 "raise": int((pa == "raise").sum()),
@@ -277,7 +277,7 @@ def api_status():
     st["agreement"] = _safe(agreement)
 
     def sens_summary():
-        s = pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "sensitivity_cells.csv"))
+        s = pd.read_csv(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation", "sensitivity_cells.csv"))
         mf = float(s["flip_rate_joint"].max()) if len(s) else 0.0
         return {"fragile": int(s["fragile"].sum()), "total": int(len(s)),
                 "max_flip": 0.0 if mf != mf else round(mf, 3)}  # NaN-guard
@@ -289,12 +289,12 @@ def api_status():
         rec.append({"name": name, "ok": bool(ok), "note": note})
 
     def _dml():
-        return json.load(open(os.path.join(ROOT, "DISCOUNT_PLAN", "dml_results.json"), encoding="utf-8"))
+        return json.load(open(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "dml_results.json"), encoding="utf-8"))
     if _safe(_dml):
         add("Double ML", True, "causal confirmation present")
 
     def _egates():
-        g = json.load(open(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "elasticity_validation.json"), encoding="utf-8"))
+        g = json.load(open(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation", "elasticity_validation.json"), encoding="utf-8"))
         overall = g.get("overall_pass", g.get("all_pass"))
         return bool(overall)
     eg = _safe(_egates)
@@ -307,7 +307,7 @@ def api_status():
         add("Sensitivity", sv["fragile"] == 0, f"{sv['fragile']} fragile of {sv['total']} cut cells")
 
     def _chal():
-        txt = open(os.path.join(ROOT, "DISCOUNT_PLAN", "CHALLENGER_REPORT.md"), encoding="utf-8").read()
+        txt = open(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "CHALLENGER_REPORT.md"), encoding="utf-8").read()
         return "KEEP Model A" in txt
     ch = _safe(_chal)
     if ch is not None:
@@ -315,14 +315,14 @@ def api_status():
             "champion stands (competition not a confounder)" if ch else "challenger adopted")
 
     def _defense():
-        return len(pd.read_csv(os.path.join(ROOT, "DISCOUNT_PLAN", "defense_hold.csv")))
+        return len(pd.read_csv(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "defense_hold.csv")))
     dh = _safe(_defense)
     if dh is not None:
         add("Defense hold", True, f"{dh} cell(s) held out of the cut wave")
 
     # NEW: Backtest — champion must beat BOTH naive benchmarks on pooled wMAPE.
     def _backtest():
-        f = os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "backtest_folds.csv")
+        f = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation", "backtest_folds.csv")
         if os.path.exists(f):
             b = pd.read_csv(f)
             if {"model", "wmape", "n_cellweeks"} <= set(b.columns):
@@ -342,7 +342,7 @@ def api_status():
                                  "the champion's validated job is decision-making, not forecasting")
                     return ok, note
         # fall back to the report's own verdict line
-        txt = open(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "BACKTEST_REPORT.md"),
+        txt = open(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation", "BACKTEST_REPORT.md"),
                    encoding="utf-8").read()
         head = txt[:600]
         if "**PASS" in head:
@@ -406,17 +406,17 @@ def api_table(name):
                 "rows": [[r["bucket"], int(r["cells"]), round(float(r["saving_mo"]))]
                          for _, r in g.iterrows()]}
     if name == "handoff":
-        f = _need(os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log_template.csv"),
+        f = _need(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "execution_log_template.csv"),
                   "the KAM handoff file (run the weekly recommend step)")
         d = pd.read_csv(f)
         return {"columns": list(d.columns), "rows": d.fillna("").values.tolist()}
     if name == "scenarios":
-        f = _need(os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "scenario_menu.csv"),
+        f = _need(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing", "scenario_menu.csv"),
                   "the scenario menu (run the pricing steps)")
         d = pd.read_csv(f)
         return {"columns": list(d.columns), "rows": d.fillna("").values.tolist()}
     if name == "sensitivity":
-        f = _need(os.path.join(ROOT, "DISCOUNT_PLAN", "validation", "sensitivity_cells.csv"),
+        f = _need(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation", "sensitivity_cells.csv"),
                   "the sensitivity cells (run the sensitivity shake)")
         d = pd.read_csv(f)
         cols = [c for c in TABLE_COLS_SENS if c in d.columns]
@@ -425,7 +425,7 @@ def api_table(name):
             d = d.sort_values("flip_rate_joint", ascending=False)
         return {"columns": cols, "rows": d.fillna("").values.tolist()}
     if name == "history":
-        f = _need(os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv"),
+        f = _need(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "tracker_history.csv"),
                   "the tracker history (run the weekly loop)")
         d = pd.read_csv(f)
         cols = [c for c in TABLE_COLS_HIST if c in d.columns]
@@ -482,14 +482,14 @@ def api_table(name):
 
 
 REPORTS = {
-    "readout":  os.path.join("DISCOUNT_PLAN", "WEEKLY_READOUT.md"),
-    "budget":   os.path.join("DISCOUNT_PLAN", "pricing", "BUDGET_PLAN.md"),
-    "backtest": os.path.join("DISCOUNT_PLAN", "validation", "BACKTEST_REPORT.md"),
-    "sens":     os.path.join("DISCOUNT_PLAN", "validation", "SENSITIVITY_REPORT.md"),
-    "promo":    os.path.join("DISCOUNT_PLAN", "promo", "PROMO_CALENDAR.md"),
-    "chal":     os.path.join("DISCOUNT_PLAN", "CHALLENGER_REPORT.md"),
-    "params":   os.path.join("DISCOUNT_PLAN", "PARAMS_REVIEW.md"),
-    "egates":   os.path.join("DISCOUNT_PLAN", "validation", "ELASTICITY_GATES.md"),
+    "readout":  os.path.join("output", "DISCOUNT_PLAN", "WEEKLY_READOUT.md"),
+    "budget":   os.path.join("output", "DISCOUNT_PLAN", "pricing", "BUDGET_PLAN.md"),
+    "backtest": os.path.join("output", "DISCOUNT_PLAN", "validation", "BACKTEST_REPORT.md"),
+    "sens":     os.path.join("output", "DISCOUNT_PLAN", "validation", "SENSITIVITY_REPORT.md"),
+    "promo":    os.path.join("output", "DISCOUNT_PLAN", "promo", "PROMO_CALENDAR.md"),
+    "chal":     os.path.join("output", "DISCOUNT_PLAN", "CHALLENGER_REPORT.md"),
+    "params":   os.path.join("output", "DISCOUNT_PLAN", "PARAMS_REVIEW.md"),
+    "egates":   os.path.join("output", "DISCOUNT_PLAN", "validation", "ELASTICITY_GATES.md"),
 }
 
 

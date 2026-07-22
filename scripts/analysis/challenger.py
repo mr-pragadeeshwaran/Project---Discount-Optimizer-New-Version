@@ -25,7 +25,7 @@ import statsmodels.api as sm, statsmodels.formula.api as smf
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 _spec = importlib.util.spec_from_file_location("dp", os.path.join(HERE, "discount_plan.py"))
 dp = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(dp)
-COMP = os.path.join(ROOT, "DISCOUNT_PLAN", "competitor_features.csv")
+COMP = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "competitor_features.csv")
 OOS_BAR = 0.75
 
 
@@ -121,7 +121,7 @@ def main():
     print(f"[challenger] ADOPT MODEL B? {accept}  (rule: OOS≥0.75 & comp sign sane & all category fits ok)")
 
     _report(run, oosA, nA, hiA, allA, oosB, nB, hiB, allB, comp_agg, comp_sane, len(flipped), defense, accept)
-    print(f"[challenger] wrote {os.path.join(ROOT, 'DISCOUNT_PLAN', 'CHALLENGER_REPORT.md')}")
+    print(f"[challenger] wrote {os.path.join(ROOT, 'output', 'DISCOUNT_PLAN', 'CHALLENGER_REPORT.md')}")
     _write_defense_hold(defense, diag_A)
     return {"accept": accept, "oosA": oosA, "oosB": oosB, "hiA": hiA, "hiB": hiB, "comp_agg": comp_agg}
 
@@ -130,7 +130,7 @@ def _write_defense_hold(defense, diag_A):
     """Persist the 'waste'->competitive-defense cells so the tracker holds them out of the
     cut wave (weekly_tracker.apply_defense_hold reads this). Regenerated every retrain: an
     empty defense set writes an empty file, which correctly releases any prior holds."""
-    path = os.path.join(ROOT, "DISCOUNT_PLAN", "defense_hold.csv")
+    path = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "defense_hold.csv")
     keep = diag_A[["cell_id", "product_id", "city"]].drop_duplicates("cell_id")
     out = defense[["cell_id"]].merge(keep, on="cell_id", how="left")
     out["reason"] = "competitive defense (challenger reclassified c_waste_cut -> f_monitor)"
@@ -173,7 +173,7 @@ def _report(run, oosA, nA, hiA, allA, oosB, nB, hiB, allB, comp_agg, comp_sane, 
                  "number changed because some 'waste' was competitive defense; that is exactly the point of the pass.")
     L.append("\n_Reusable harness: rerun at each 4-weekly retrain. B is adopted only when it clears the pre-registered "
              "rule; otherwise the champion stands. This is champion/challenger, never a silent edit to the model._")
-    open(os.path.join(ROOT, "DISCOUNT_PLAN", "CHALLENGER_REPORT.md"), "w", encoding="utf-8").write("\n".join(L))
+    open(os.path.join(ROOT, "output", "DISCOUNT_PLAN", "CHALLENGER_REPORT.md"), "w", encoding="utf-8").write("\n".join(L))
 
 
 if __name__ == "__main__":

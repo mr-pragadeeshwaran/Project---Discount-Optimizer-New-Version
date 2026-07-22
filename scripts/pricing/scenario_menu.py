@@ -102,7 +102,7 @@ try:
 except Exception:                                          # cost defaults if config moves
     COGS_PCT, COMM_PCT, FULFIL_FEE, BUDGET_CAP_FRAC = 0.50, 0.15, 10.0, 0.12
 
-OUT = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing")
+OUT = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing")
 SEED = 101                       # fixed seed -> menu is reproducible run-to-run
 MOVE_PPT = 0.25                  # a cell "moved" if |opt-cur| > this (readability threshold)
 

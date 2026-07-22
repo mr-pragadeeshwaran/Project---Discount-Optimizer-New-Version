@@ -20,9 +20,9 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-HIST = os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv")
-EXEC = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log.csv")
-BASE = os.path.join(ROOT, "DISCOUNT_PLAN", "baselines.json")
+HIST = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "tracker_history.csv")
+EXEC = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "execution_log.csv")
+BASE = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "baselines.json")
 TRACKER = os.path.join(HERE, "weekly_tracker.py")
 SIM_WEEK_DATE = "2026-06-15"   # a Monday that exists in the 6-month data
 

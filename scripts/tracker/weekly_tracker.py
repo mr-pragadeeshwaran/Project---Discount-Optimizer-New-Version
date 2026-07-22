@@ -62,14 +62,14 @@ def _pid_key(v):
     return s
 
 
-HISTORY = os.path.join(ROOT, "DISCOUNT_PLAN", "tracker_history.csv")
-EXEC_LOG = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log.csv")
-EXEC_LOG_TEMPLATE = os.path.join(ROOT, "DISCOUNT_PLAN", "execution_log_template.csv")
-AGREEMENT = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "agreement.csv")
-DEFENSE_HOLD = os.path.join(ROOT, "DISCOUNT_PLAN", "defense_hold.csv")
-BASELINES = os.path.join(ROOT, "DISCOUNT_PLAN", "baselines.json")
-OUT_XLSX = os.path.join(ROOT, "DISCOUNT_PLAN", "WEEKLY_TRACKER.xlsx")
-OUT_READOUT = os.path.join(ROOT, "DISCOUNT_PLAN", "WEEKLY_READOUT.md")
+HISTORY = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "tracker_history.csv")
+EXEC_LOG = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "execution_log.csv")
+EXEC_LOG_TEMPLATE = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "execution_log_template.csv")
+AGREEMENT = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing", "agreement.csv")
+DEFENSE_HOLD = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "defense_hold.csv")
+BASELINES = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "baselines.json")
+OUT_XLSX = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "WEEKLY_TRACKER.xlsx")
+OUT_READOUT = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "WEEKLY_READOUT.md")
 MAX_STEP_PPT = 3.0
 FESTIVAL_UPLIFT_PCT = 0.5
 

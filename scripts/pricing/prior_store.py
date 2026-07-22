@@ -48,7 +48,7 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 from elasticity_bayes import OWN_PRIOR_MU, OWN_PRIOR_SD, CROSS_PRIOR_MU, CROSS_PRIOR_SD
 
-PRIORS_PATH = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "priors.json")
+PRIORS_PATH = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing", "priors.json")
 DEFAULT_RHO = 1.25                    # SD inflation per retrain period (forgetting factor)
 MIN_OWN_PRIOR_SD = 0.15               # floor: a carried prior can never lock the estimate
 MIN_CROSS_PRIOR_SD = 0.10
@@ -266,7 +266,7 @@ def run_demo(rho=DEFAULT_RHO, path=PRIORS_PATH):
           f"(own_in_band={g2.get('own_in_band')}, cross_nonneg_subs={g2.get('cross_nonneg_subs')}, "
           f"stability_pass={sp.get('stability_pass')} @ max shift {sp.get('max_abs_own_shift')} <= 0.5)")
 
-    note = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing", "PRIOR_STORE_NOTE.md")
+    note = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing", "PRIOR_STORE_NOTE.md")
     with open(note, "w", encoding="utf-8") as f:
         f.write("# Sequential prior store — two-run receipt (price_30 / val_10)\n\n")
         f.write("**What this is.** The elasticity model's posterior from one 4-weekly refresh "

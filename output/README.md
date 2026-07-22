@@ -4,6 +4,14 @@ Everything Claude generates for you (files to open, share, or hand off) lands he
 not in the repo root and not in a temp folder. These are **regenerated from the latest
 `v4_outputs/` run**, so they are outputs, not source; this folder is git-ignored.
 
+**Subfolders (moved here so the whole project has one output root):**
+- `runs/` — the engine's run store; every monthly rebuild writes a timestamped folder
+  (`runs/<YYYYMMDD_HHMMSS>/` with fact_table, recommendations, plan/, …). Scripts and the
+  dashboard read the newest automatically. *(Was `v4_outputs/` at the repo root; git-ignored.)*
+- `DISCOUNT_PLAN/` — the weekly-tracker + pricing + promo + validation artifacts
+  (WEEKLY_TRACKER.xlsx, execution_log_template.csv, tracker_history.csv, pricing/, validation/, …).
+  *(Was `DISCOUNT_PLAN/` at the repo root; stays git-tracked, except `pricing/history/`.)*
+
 | File | What it is |
 |------|------------|
 | `ACTION_PLAN_all_products.csv` | The single master sheet — one row per product × city with the action (Cut / Reinvest / Hold / Monitor), the discount to set, and why. Open in Excel/Sheets. |

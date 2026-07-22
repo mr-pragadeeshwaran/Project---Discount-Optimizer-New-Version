@@ -115,8 +115,8 @@ except Exception:                          # pragma: no cover
     import elasticity_hier as eh
     ELAST_METHOD = "hier"
 
-OUT_DEFAULT = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing")
-COMP_FEATURES = os.path.join(ROOT, "DISCOUNT_PLAN", "competitor_features.csv")
+OUT_DEFAULT = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing")
+COMP_FEATURES = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "competitor_features.csv")
 
 # ── documented constants ─────────────────────────────────────────────────────
 SIZE_SAME_LO = 0.75      # pack-gram ratio (min/max) >= 0.75  -> same size bucket

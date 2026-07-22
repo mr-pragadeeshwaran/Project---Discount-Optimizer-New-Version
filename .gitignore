@@ -21,10 +21,14 @@ experiment_results*.csv
 scratch_*.log
 
 # run-stamped pricing snapshots (local audit trail)
-DISCOUNT_PLAN/pricing/history/
+/output/DISCOUNT_PLAN/pricing/history/
 
 # generated deliverables (regenerated from runs; may contain proprietary data)
-# everything Claude generates lands in output/ — kept local, except its README
+# everything Claude generates lands in output/ — kept local, except its README.
+# output/DISCOUNT_PLAN stays TRACKED (weekly-tracker config + reports were committed).
 /output/*
 !/output/README.md
+!/output/DISCOUNT_PLAN
+!/output/DISCOUNT_PLAN/**
+/output/DISCOUNT_PLAN/pricing/history/
 ACTION_PLAN_all_products.*

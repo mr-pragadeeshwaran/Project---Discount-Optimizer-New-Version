@@ -24,7 +24,7 @@ import numpy as np, pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(ROOT, "scripts", "analysis"))
 import de_optimizer as de
-OUT = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing")
+OUT = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing")
 STEP, DISC_MAX = 2.5, 45.0
 
 

@@ -30,7 +30,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, ROOT)
 import v4_config as cfg
 
-OUT_DIR = os.path.join(ROOT, "DISCOUNT_PLAN", "validation")
+OUT_DIR = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation")
 DEEP_PROMO_PPT = 5.0          # HIGH spike counts as promo-driven if disc >= cell median + this
 
 

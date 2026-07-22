@@ -66,8 +66,8 @@ except Exception:                              # pragma: no cover
     import elasticity_hier as est_mod
     EST_METHOD = "hier"
 
-PRICING_DIR = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing")
-OUT_DIR = os.path.join(ROOT, "DISCOUNT_PLAN", "validation")
+PRICING_DIR = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing")
+OUT_DIR = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "validation")
 
 # ── HARD thresholds (documented; sources cited) ──────────────────────────────
 WMAPE_CEIL = 0.40            # reuse elasticity_hier.WMAPE_CEIL (the codebase's bar)

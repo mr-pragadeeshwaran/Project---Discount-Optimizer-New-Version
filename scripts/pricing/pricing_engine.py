@@ -52,7 +52,7 @@ except Exception:
     import elasticity_hier as eh     # fallback: penalized/partial-pooled (hard-clip band)
     ELAST_METHOD = "hier"
 
-OUT = os.path.join(ROOT, "DISCOUNT_PLAN", "pricing")
+OUT = os.path.join(ROOT, "output", "DISCOUNT_PLAN", "pricing")
 
 CONFIG = {
     "kpi": "revenue",
